@@ -1,0 +1,18 @@
+# Ferramentas do Termac
+
+Executar a partir da raiz. Build, perfis e suíte padrão estão em [docs/development.md](../docs/development.md).
+
+| Ferramenta | Uso | Efeito / limite |
+| --- | --- | --- |
+| `dev.sh` | Compilar e abrir desenvolvimento, com traduções locais | Evita nova instância se já houver Termac; `--restart` encerra shells e abas existentes. Não executar esse modo sem informar antes. |
+| `inspect_termac.py --root . --json` | Inventário heurístico do frontend e versões locais | Somente leitura. Ignora builds/caches e Ghostty baixado, mas mantém a integração `subprojects/packagefiles/ghostty`. Não comprova ABI/linkagem nem suporte a funcionalidades do motor. |
+| `prepare-icon.py INPUT OUTPUT` | Gerar canvas quadrado para instalação | Chamado pelo Meson; não sobrescrever o SVG fonte. |
+| `check-agent-boundary.py src` | Detectar nomes de CLIs fora dos adaptadores | Já integra `meson test` como `agent-names-contained`. |
+| `valgrind-churn.sh [rounds]` | Abrir/fechar abas sob Valgrind | Cria/usa `build-valgrind` sem SIMD e display Xvfb próprio; consultar o script e `valgrind.supp` antes de interpretar o resultado. |
+| `test-flatpak-host.py APP_BUILD MODULE_SOURCE [TEST_PATH]` | Exercitar o binário do SDK/bridge host | Precisa do build Flatpak com `--keep-build-dirs`; paths reais do módulo, não uma cópia antiga. Procedimento na checklist GNOME. O cenário padrão verifica coleta do PID no host. |
+| `agent-qa-control.py CONTROL OP [PAYLOAD]` | Controlar o driver de agente real de uma sessão Xvfb de teste | Opt-in; não controla janela pessoal. A sessão pode usar autenticação existente e consumir cota ao enviar prompts. Ver [agentes](../docs/checklists/agents-manual.md), sem expor credenciais. |
+| `validate_skills.py` | Validar metadados das skills locais | Pode apontar divergências em skills de terceiros. Não é teste funcional do app e não justifica editar pacotes locais automaticamente. |
+
+`tests/real-agent-driver.inc` pertence ao binário de testes; as imagens sintéticas estão em `tests/fixtures/agents/`. Nenhuma chamada a modelos deve ser iniciada pela auditoria, build ou suíte comum.
+
+Artefatos de build, `repo/`, `.flatpak-builder/` e `.superpowers/` ficam ignorados. Eles podem conter caches ou evidências; não são lixo a apagar automaticamente. Backups antigos movidos estão em [docs/history/](../docs/history/README.md).

@@ -1,6 +1,14 @@
 /build/
+/build-*/
+/repo/
 /subprojects/ghostty/
 /subprojects/packagecache/
 /.agents
 /.claude
-/build-valgrind/
+/.flatpak-builder/
+/.superpowers/
+
+# Local editor/Python artifacts. Historical backups are archived as .bak.
+*~
+__pycache__/
+*.py[cod]

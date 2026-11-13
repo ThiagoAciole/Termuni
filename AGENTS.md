@@ -4,7 +4,7 @@ O Termac é um terminal Linux em C, GTK 4, libadwaita, libghostty-vt e Meson. Pr
 
 ## Comece aqui
 
-1. Leia o quadro **Estado atual** em [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md) para identificar o marco em andamento, evidências e pendências. As seções anteriores também contêm decisões e registros históricos.
+1. Leia o quadro **Estado atual** em [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md) para identificar o marco em andamento. As melhorias priorizadas e seus critérios ficam em [docs/ROADMAP.md](docs/ROADMAP.md); o índice de evidências, checklists e histórico fica em [docs/README.md](docs/README.md). Registros antigos não substituem o quadro atual.
 2. Para produto, componentes, build e riscos técnicos, consulte [PDR.Arquiteture.md](PDR.Arquiteture.md). Para aparência, interações e referências, consulte [DESIGN.md](DESIGN.md).
 3. Confira o estado atual dos arquivos e do Git antes de editar. Em 09/11/2026, a árvore estava sem commit inicial e os arquivos apareciam como não rastreados; preserve todo o trabalho existente.
 4. Ao concluir um incremento, atualize o quadro atual do plano com o que mudou, como foi verificado e o que permanece pendente. Marque como concluído somente o que tiver evidência compatível com o critério do marco.

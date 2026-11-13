@@ -1,37 +1,51 @@
 # Termac
 
-Termac is a GTK 4/libadwaita terminal application built with Meson. The
-terminal state engine is libghostty-vt, fetched at the revision in
-`subprojects/ghostty.wrap` and built by Zig.
+Terminal Linux em C, GTK 4 e libadwaita, com motor **libghostty-vt**, sessões independentes em abas e anexos de imagem para Claude Code e Codex CLI.
 
-## Project documentation
+O MVP inclui busca com realce, seleção/copiar/colar, overview de abas, paletas, atalhos editáveis, restauração de pastas e organização e notificações opt-in. Está em desenvolvimento: o aceite no GNOME/Wayland real ainda tem itens abertos.
 
-- [Implementation plan and current progress](PLANO_IMPLEMENTACAO.md)
-- [Product requirements and architecture](PDR.Arquiteture.md)
-- [Visual design and references](DESIGN.md)
-- [Instructions for agents](AGENTS.md)
+## Comece aqui
 
-## Build in GNOME Builder
+- [Estado atual e próximo incremento](PLANO_IMPLEMENTACAO.md)
+- [Melhorias priorizadas e critérios de conclusão](docs/ROADMAP.md)
+- [Índice da documentação](docs/README.md)
+- [Desenvolvimento, build e testes](docs/development.md)
+- [Requisitos e arquitetura](PDR.Arquiteture.md), [design](DESIGN.md) e [orientações para agentes](AGENTS.md)
 
-Open this directory as a Meson project. The Flatpak manifest specifies Zig
-0.16.0 for the build; the Meson project rejects other Zig versions because
-the pinned libghostty-vt revision requires that exact toolchain. Building and
-running through the GNOME Builder interface remains to be verified.
+## Build local
 
-The GNOME Builder manifest uses the `development` profile and the separate
-`thiago.aciole.Termac.Devel` application ID. This keeps the development build
-and its icon/settings separate from the regular app. The `default` profile is
-for release builds.
+Pré-requisitos: compilador C, Meson/Ninja, pkg-config, GTK 4, libadwaita **≥ 1.8**, GLib/GIO, PangoCairo e **Zig 0.16.0** no PATH. A revisão de Ghostty fica fixada em [subprojects/ghostty.wrap](subprojects/ghostty.wrap); o primeiro build baixa o código e pacotes Zig e precisa de rede.
 
-For a host build, put Zig 0.16.0 on `PATH`, then run:
+Primeira configuração:
 
 ```sh
 zig version
 meson setup build -Dprofile=development
+```
+
+Compilar e executar um build já configurado:
+
+```sh
 meson compile -C build
 build/src/termac
 ```
 
-Use `-Dprofile=default` for a regular build.
+Para usar as traduções locais e evitar abrir outra instância desnecessária, veja [tools/dev.sh](tools/dev.sh). O modo `--restart` encerra shells e abas existentes e exige cuidado com trabalho aberto.
 
-The first Meson build fetches the pinned Ghostty source and its Zig packages.
+## Testes
+
+```sh
+meson test -C build --print-errorlogs
+```
+
+As suítes de interface usam Xvfb/X11 quando disponível e cobrem também HiDPI. Testes que precisam de contas reais de agentes, sandbox Flatpak ou capturas são opt-in; a suíte comum não chama modelos. Procedimentos e limites em [desenvolvimento](docs/development.md) e nas [checklists](docs/README.md#checklists-de-aceite).
+
+## GNOME Builder e perfis
+
+Abra esta raiz como projeto Meson e selecione [thiago.aciole.termac.json](thiago.aciole.termac.json). O manifesto usa GNOME 50, Zig 0.16.0 e o perfil `development`, ID `thiago.aciole.Termac.Devel`.
+
+O perfil `default` usa `thiago.aciole.Termac`; configure-o em outro diretório (`build-default`). Não troque o perfil de um build em uso. Compilação/exportação Flatpak CLI já foram registradas; execução pela interface do Builder continua pendente na [checklist GNOME](docs/checklists/gnome-manual.md).
+
+No Flatpak, por decisão do projeto, o shell e os agentes executam no host via `flatpak-spawn`; consulte as [decisões técnicas](PDR.Arquiteture.md#decisões-técnicas).
+
+Licença: [GPL-3.0-or-later](COPYING). As artes e avisos existentes são preservados.

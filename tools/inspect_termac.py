@@ -3,7 +3,10 @@
 import argparse, json, subprocess, os, re
 from pathlib import Path
 
-IGNORE={'.git','.cache','.zig-cache','zig-cache','zig-out','node_modules','target','build','dist','vendor','.venv','__pycache__','.agents','.claude','tools','prompts','references'}
+IGNORE={'.git','.cache','.zig-cache','zig-cache','zig-out','node_modules','target','build','dist','vendor','.venv','__pycache__','.agents','.claude','.flatpak-builder','.superpowers','tools','prompts','references'}
+# Audit the Termac frontend, not the fetched Ghostty application or build caches.
+# Keep subprojects/packagefiles/ghostty: it is our Meson integration.
+DEPENDENCY_PATHS={Path('subprojects/ghostty'), Path('subprojects/packagecache')}
 SIGNALS={
     'libghostty-internal': [r'include/ghostty\.h',r'ghostty_app_new',r'ghostty_surface_new',r'libghostty-internal'],
     'libghostty-vt': [r'ghostty/vt\.h',r'libghostty-vt',r'emit-lib-vt'],
@@ -33,7 +36,9 @@ def main():
     args=ap.parse_args(); root=args.root.resolve()
     findings={k:[] for k in SIGNALS}; files=0; errors=[]
     for base,dirs,names in os.walk(root):
-        dirs[:]=[d for d in dirs if d not in IGNORE and not d.startswith('.git')]
+        dirs[:]=[d for d in dirs if d not in IGNORE and not d.startswith('.git')
+                 and not d.startswith('build-')
+                 and (Path(base)/d).relative_to(root) not in DEPENDENCY_PATHS]
         for name in names:
             if name in ('SOURCES.md','SKILLS_INDEX.md','AGENTS.md'): continue
             f=Path(base)/name
