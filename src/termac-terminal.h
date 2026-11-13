@@ -50,6 +50,8 @@ void     termac_terminal_select_all (TermacTerminal *self);
 void     termac_terminal_insert_text (TermacTerminal *self, const char *text);
 void     termac_terminal_scroll_pages (TermacTerminal *self, gint pages);
 void     termac_terminal_scroll_to_bottom (TermacTerminal *self);
+void termac_terminal_set_highlight (TermacTerminal *self, const char *needle);
+guint termac_terminal_get_highlight_count (TermacTerminal *self);
 gboolean termac_terminal_find (TermacTerminal *self, const char *text, gboolean backwards);
 
 void          termac_terminal_add_attachment (TermacTerminal *self, const char *path);

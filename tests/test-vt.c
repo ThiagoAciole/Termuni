@@ -177,10 +177,60 @@ test_find_scrolls_to_match (void)
 	ghostty_terminal_free (terminal);
 }
 
+static void
+test_find_matches (void)
+{
+ GhosttyTerminal terminal = new_terminal ();
+ write_text (terminal, "foo bar Foo\r\nxfoo");
+ GArray *matches = termac_vt_find_matches (terminal, COLS, ROWS, "foo");
+ g_assert_cmpuint (matches->len, ==, 3);
+ const guint positions[][2] = { {0,0}, {0,8}, {1,1} };
+ for (guint i = 0; i < matches->len; i++) {
+  TermacVtMatch m = g_array_index (matches, TermacVtMatch, i);
+  g_assert_cmpuint (m.row, ==, positions[i][0]);
+  g_assert_cmpuint (m.column, ==, positions[i][1]);
+  g_assert_cmpuint (m.cells, ==, 3);
+ }
+ g_array_unref (matches);
+ ghostty_terminal_free (terminal);
+}
+
+static void
+test_find_matches_wide (void)
+{
+ const char *lines[] = { "日本語 foo", "é foo", "\x1b[?2027h👩‍💻 foo", "\x1b[?2027h❤️ foo" };
+ const guint columns[] = { 7, 2, 3, 3 };
+ for (guint i = 0; i < G_N_ELEMENTS (lines); i++) {
+  GhosttyTerminal terminal = new_terminal ();
+  write_text (terminal, lines[i]);
+  GArray *matches = termac_vt_find_matches (terminal, COLS, ROWS, "foo");
+  g_assert_cmpuint (matches->len, ==, 1);
+  g_assert_cmpuint (g_array_index (matches, TermacVtMatch, 0).column, ==, columns[i]);
+  g_array_unref (matches);
+  ghostty_terminal_free (terminal);
+ }
+}
+
+static void
+test_find_matches_empty (void)
+{
+ GhosttyTerminal terminal = new_terminal ();
+ const char *queries[] = { NULL, "", "  ", "\t\n", "　" };
+ for (guint i = 0; i < G_N_ELEMENTS (queries); i++) {
+  GArray *matches = termac_vt_find_matches (terminal, COLS, ROWS, queries[i]);
+  g_assert_cmpuint (matches->len, ==, 0);
+  g_array_unref (matches);
+ }
+ ghostty_terminal_free (terminal);
+}
+
 int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
+ g_test_add_func ("/vt/find-matches", test_find_matches);
+ g_test_add_func ("/vt/find-matches-wide", test_find_matches_wide);
+ g_test_add_func ("/vt/find-matches-empty", test_find_matches_empty);
 	g_test_add_func ("/vt/selection/ascii", test_selection_copies_ascii_text);
 	g_test_add_func ("/vt/selection/wide", test_selection_copies_wide_characters);
 	g_test_add_func ("/vt/bracketed-paste/mode", test_bracketed_paste_mode_is_reported);

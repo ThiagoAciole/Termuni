@@ -2175,6 +2175,39 @@ test_flatpak_agent_context (void)
 
 #include "real-agent-driver.inc"
 
+static void
+test_search_highlight (void)
+{
+ TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+ TermacTerminal *terminal;
+ GtkWidget *entry, *bar;
+ gtk_window_present (GTK_WINDOW (window));
+ pump (1000);
+ terminal = selected_terminal (window);
+ focus_terminal (GTK_WIDGET (window), GTK_WIDGET (terminal));
+ type_text ("echo marker marker");
+ send_keysym (XK_Return, FALSE);
+ pump (500);
+ g_action_group_activate_action (G_ACTION_GROUP (window), "find", NULL);
+ entry = find_widget_of_type (GTK_WIDGET (window), GTK_TYPE_SEARCH_ENTRY);
+ bar = find_widget_of_type (GTK_WIDGET (window), GTK_TYPE_SEARCH_BAR);
+ g_assert_nonnull (entry);
+ gtk_editable_set_text (GTK_EDITABLE (entry), "marker");
+ pump (600);
+ g_assert_cmpuint (termac_terminal_get_highlight_count (terminal), >=, 2);
+ save_widget_png (GTK_WIDGET (window), "search-highlight.png");
+ gtk_editable_set_text (GTK_EDITABLE (entry), "  ");
+ pump (600);
+ g_assert_cmpuint (termac_terminal_get_highlight_count (terminal), ==, 0);
+ gtk_editable_set_text (GTK_EDITABLE (entry), "marker");
+ pump (600);
+ gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (bar), FALSE);
+ pump (100);
+ g_assert_cmpuint (termac_terminal_get_highlight_count (terminal), ==, 0);
+ gtk_window_destroy (GTK_WINDOW (window));
+ pump (200);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -2259,6 +2292,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/flatpak-host-session", test_flatpak_host_session);
 	g_test_add_func ("/ui/accessibility-labels", test_accessibility_labels);
 	g_test_add_func ("/ui/grid-fits-widget", test_grid_fits_widget);
+ g_test_add_func ("/ui/search-highlight", test_search_highlight);
 	{
 		int status = g_test_run ();
 

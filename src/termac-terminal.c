@@ -48,6 +48,8 @@ struct _TermacTerminal
 	TermacVtSelector *selector;
 	GtkIMContext *im_context;
 	char *preedit;
+	char *highlight;
+	int highlight_current;
 	GByteArray *write_queue;
 	GByteArray *write_backlog;
 	GPtrArray *attachments;
@@ -842,6 +844,19 @@ terminal_draw (GtkDrawingArea *area,
 			col++;
 		}
 		row++;
+	}
+
+	if (self->highlight != NULL) {
+		g_autoptr(GArray) matches = termac_vt_find_matches (self->terminal, self->cols, self->rows, self->highlight);
+		g_autoptr(GdkRGBA) accent = adw_style_manager_get_accent_color_rgba (adw_style_manager_get_default ());
+		for (guint i = 0; i < matches->len; i++) {
+			TermacVtMatch m = g_array_index (matches, TermacVtMatch, i);
+			cairo_set_source_rgba (cr, accent->red, accent->green, accent->blue,
+			                       (int) i == self->highlight_current ? 0.55 : 0.35);
+			cairo_rectangle (cr, m.column * self->cell_width, m.row * self->cell_height,
+			                 m.cells * self->cell_width, self->cell_height);
+			cairo_fill (cr);
+		}
 	}
 
 	if (self->hover_link && self->hover_row < self->rows)
@@ -1677,15 +1692,45 @@ termac_terminal_scroll_to_bottom (TermacTerminal *self)
 	gtk_widget_queue_draw (GTK_WIDGET (self));
 }
 
-gboolean
-termac_terminal_find (TermacTerminal *self,
-                      const char     *text,
-                      gboolean        backwards)
+void
+termac_terminal_set_highlight (TermacTerminal *self, const char *needle)
 {
+	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	if (g_strcmp0 (self->highlight, needle) != 0) {
+		g_free (self->highlight);
+		self->highlight = g_strdup (needle);
+		self->highlight_current = -1;
+	}
+	gtk_widget_queue_draw (GTK_WIDGET (self));
+}
+
+guint
+termac_terminal_get_highlight_count (TermacTerminal *self)
+{
+	g_autoptr(GArray) matches = NULL;
+	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), 0);
+	matches = termac_vt_find_matches (self->terminal, self->cols, self->rows, self->highlight);
+	return matches->len;
+}
+
+gboolean
+termac_terminal_find (TermacTerminal *self, const char *text, gboolean backwards)
+{
+	g_autoptr(GArray) matches = NULL;
 	gboolean found;
+	int next;
 
 	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), FALSE);
-	found = termac_vt_find (self->terminal, text, backwards);
+	termac_terminal_set_highlight (self, text);
+	matches = termac_vt_find_matches (self->terminal, self->cols, self->rows, text);
+	next = self->highlight_current + (backwards ? -1 : 1);
+	if (self->highlight_current >= 0 && next >= 0 && next < (int) matches->len) {
+		self->highlight_current = next;
+		gtk_widget_queue_draw (GTK_WIDGET (self));
+		return TRUE;
+	}
+	found = text != NULL && termac_vt_find (self->terminal, text, backwards);
+	self->highlight_current = backwards ? (int) termac_terminal_get_highlight_count (self) - 1 : 0;
 	gtk_widget_queue_draw (GTK_WIDGET (self));
 	return found;
 }
@@ -1818,6 +1863,7 @@ terminal_dispose (GObject *object)
 	g_clear_pointer (&self->initial_cwd, g_free);
 	g_clear_pointer (&self->initial_command, g_free);
 	g_clear_pointer (&self->session_id, g_free);
+	g_clear_pointer (&self->highlight, g_free);
 	G_OBJECT_CLASS (termac_terminal_parent_class)->dispose (object);
 }
 

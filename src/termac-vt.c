@@ -337,3 +337,86 @@ termac_vt_find (GhosttyTerminal terminal,
 	ghostty_terminal_scroll_viewport (terminal, viewport);
 	return TRUE;
 }
+
+/* Use the engine's grapheme clusters and widths, including combining marks,
+ * variation selectors and joined emoji. Unicode width guesses lose that data. */
+GArray *
+termac_vt_find_matches (GhosttyTerminal terminal, guint columns,
+                        guint rows, const char *needle)
+{
+ GArray *matches = g_array_new (FALSE, FALSE, sizeof (TermacVtMatch));
+ GhosttyRenderState state = NULL;
+ GhosttyRenderStateRowIterator iterator = NULL;
+ GhosttyRenderStateRowCells cells = NULL;
+ g_autofree char *query = NULL;
+ gboolean nonspace = FALSE;
+ guint row = 0;
+
+ if (terminal == NULL || needle == NULL || !g_utf8_validate (needle, -1, NULL))
+  return matches;
+ for (const char *p = needle; *p; p = g_utf8_next_char (p))
+  nonspace |= !g_unichar_isspace (g_utf8_get_char (p));
+ if (!nonspace) return matches;
+ query = g_utf8_casefold (needle, -1);
+ if (ghostty_render_state_new (NULL, &state) != GHOSTTY_SUCCESS ||
+     ghostty_render_state_row_iterator_new (NULL, &iterator) != GHOSTTY_SUCCESS ||
+     ghostty_render_state_row_cells_new (NULL, &cells) != GHOSTTY_SUCCESS)
+  goto out;
+ if (ghostty_render_state_update (state, terminal) != GHOSTTY_SUCCESS ||
+     ghostty_render_state_get (state, GHOSTTY_RENDER_STATE_DATA_ROW_ITERATOR, &iterator) != GHOSTTY_SUCCESS)
+  goto out;
+ while (row < rows && ghostty_render_state_row_iterator_next (iterator)) {
+  g_autoptr(GString) text = g_string_new (NULL);
+  g_autoptr(GArray) starts = g_array_new (FALSE, FALSE, sizeof (guint));
+  g_autoptr(GArray) ends = g_array_new (FALSE, FALSE, sizeof (guint));
+  guint column = 0;
+  if (ghostty_render_state_row_get (iterator, GHOSTTY_RENDER_STATE_ROW_DATA_CELLS, &cells) != GHOSTTY_SUCCESS)
+   break;
+  while (column < columns && ghostty_render_state_row_cells_next (cells)) {
+   GhosttyCell raw;
+   GhosttyCellWide wide = GHOSTTY_CELL_WIDE_NARROW;
+   char local[128];
+   GhosttyBuffer buffer = { .ptr = (uint8_t *) local, .cap = sizeof local - 1 };
+   g_autofree char *large = NULL;
+   g_autofree char *folded = NULL;
+   guint end;
+   ghostty_render_state_row_cells_get (cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_RAW, &raw);
+   ghostty_cell_get (raw, GHOSTTY_CELL_DATA_WIDE, &wide);
+   if (wide == GHOSTTY_CELL_WIDE_SPACER_TAIL || wide == GHOSTTY_CELL_WIDE_SPACER_HEAD) {
+    column++;
+    continue;
+   }
+   if (ghostty_render_state_row_cells_get (cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_GRAPHEMES_UTF8, &buffer) == GHOSTTY_OUT_OF_SPACE) {
+    large = g_malloc (buffer.len + 1);
+    buffer.ptr = (uint8_t *) large;
+    buffer.cap = buffer.len;
+    ghostty_render_state_row_cells_get (cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_GRAPHEMES_UTF8, &buffer);
+   }
+   buffer.ptr[buffer.len] = 0;
+   folded = buffer.len ? g_utf8_casefold ((char *) buffer.ptr, buffer.len) : g_strdup (" ");
+   end = MIN (column + (wide == GHOSTTY_CELL_WIDE_WIDE ? 2 : 1), columns);
+   for (gsize i = 0; i < strlen (folded); i++) {
+    g_array_append_val (starts, column);
+    g_array_append_val (ends, end);
+   }
+   g_string_append (text, folded);
+   column++;
+  }
+  for (const char *p = text->str; (p = strstr (p, query)) != NULL; p += strlen (query)) {
+   gsize start = p - text->str, last = start + strlen (query) - 1;
+   TermacVtMatch match = { row, g_array_index (starts, guint, start), 0 };
+   match.cells = g_array_index (ends, guint, last) - match.column;
+   /* Casefold expansion may otherwise report one cell twice. */
+   if (matches->len == 0 ||
+       g_array_index (matches, TermacVtMatch, matches->len - 1).row != row ||
+       g_array_index (matches, TermacVtMatch, matches->len - 1).column != match.column)
+    g_array_append_val (matches, match);
+  }
+  row++;
+ }
+out:
+ if (cells) ghostty_render_state_row_cells_free (cells);
+ if (iterator) ghostty_render_state_row_iterator_free (iterator);
+ if (state) ghostty_render_state_free (state);
+ return matches;
+}

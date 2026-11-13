@@ -55,4 +55,10 @@ gboolean termac_vt_find (GhosttyTerminal terminal,
                          const char     *needle,
                          gboolean        backwards);
 
+typedef struct { guint row; guint column; guint cells; } TermacVtMatch;
+
+/* Viewport matches in terminal cells; caller owns the returned array. */
+GArray *termac_vt_find_matches (GhosttyTerminal terminal, guint columns,
+                               guint rows, const char *needle);
+
 G_END_DECLS

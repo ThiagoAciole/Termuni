@@ -822,6 +822,8 @@ selected_page_changed_cb (AdwTabView *view,
 	if (page != NULL)
 	{
 		adw_tab_page_set_needs_attention (page, FALSE);
+		termac_terminal_set_highlight (TERMAC_TERMINAL (adw_tab_page_get_child (page)),
+		    gtk_search_bar_get_search_mode (self->find_bar) ? gtk_editable_get_text (GTK_EDITABLE (self->find_entry)) : NULL);
 		gtk_widget_grab_focus (adw_tab_page_get_child (page));
 	}
 }
@@ -926,9 +928,14 @@ find_bar_mode_changed_cb (GObject    *object,
                           gpointer    user_data)
 {
 	(void) pspec;
-	(void) user_data;
-	if (!gtk_search_bar_get_search_mode (GTK_SEARCH_BAR (object)))
+	TermacWindow *self = user_data;
+	if (!gtk_search_bar_get_search_mode (GTK_SEARCH_BAR (object))) {
 		gtk_widget_set_visible (GTK_WIDGET (object), FALSE);
+		for (int i = 0; i < adw_tab_view_get_n_pages (self->tab_view); i++) {
+			AdwTabPage *page = adw_tab_view_get_nth_page (self->tab_view, i);
+			termac_terminal_set_highlight (TERMAC_TERMINAL (adw_tab_page_get_child (page)), NULL);
+		}
+	}
 }
 
 static void
@@ -947,8 +954,10 @@ find_entry_search_changed_cb (GtkSearchEntry *entry,
 	TermacTerminal *terminal = window_selected_terminal (self);
 	const char *text = gtk_editable_get_text (GTK_EDITABLE (entry));
 	(void) entry;
-	if (terminal != NULL && text != NULL && *text != '\0')
-		termac_terminal_find (terminal, text, FALSE);
+	if (terminal != NULL) {
+		termac_terminal_set_highlight (terminal, text);
+		if (text != NULL && *text != '\0') termac_terminal_find (terminal, text, FALSE);
+	}
 }
 
 /* ---- attachments ------------------------------------------------------ */
@@ -1213,7 +1222,7 @@ termac_window_init (TermacWindow *self)
 	                  G_CALLBACK (termac_window_setup_menu_cb), self);
 	g_signal_connect (self->find_close_button, "clicked", G_CALLBACK (find_close_clicked_cb), self);
 	g_signal_connect (self->find_bar, "notify::search-mode-enabled",
-	                  G_CALLBACK (find_bar_mode_changed_cb), NULL);
+	                  G_CALLBACK (find_bar_mode_changed_cb), self);
 	g_signal_connect (self->find_entry, "search-changed",
 	                  G_CALLBACK (find_entry_search_changed_cb), self);
 	g_signal_connect (self->find_entry, "activate",
