@@ -32,6 +32,7 @@ check_schema (const char *mode)
 		{
 			g_assert_nonnull (settings);
 			g_assert_cmpuint (g_settings_get_uint (settings, "font-size"), ==, 11);
+			g_assert_false (g_settings_get_boolean (settings, "notifications"));
 		}
 		return;
 	}

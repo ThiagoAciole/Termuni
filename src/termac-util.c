@@ -333,3 +333,10 @@ termac_shell_argv (const char *shell, const char *cwd, const char *rcfile, gbool
 {
 	return termac_shell_command_argv (shell, cwd, rcfile, host, NULL);
 }
+
+gboolean
+termac_should_notify (gboolean setting_enabled, gboolean window_active,
+                      gboolean tab_selected, gboolean took_long_enough)
+{
+	return setting_enabled && (!window_active || !tab_selected) && took_long_enough;
+}

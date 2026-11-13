@@ -163,10 +163,22 @@ test_initial_command_after_rc (void)
 	g_unlink (rc); g_rmdir (dir);
 }
 
+static void
+test_should_notify (void)
+{
+ for (guint bits = 0; bits < 16; bits++) {
+  gboolean enabled = !!(bits & 1), active = !!(bits & 2);
+  gboolean selected = !!(bits & 4), long_enough = !!(bits & 8);
+  g_assert_cmpint (termac_should_notify (enabled, active, selected, long_enough), ==,
+                   enabled && (!active || !selected) && long_enough);
+ }
+}
+
 int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
+ g_test_add_func ("/util/should-notify", test_should_notify);
 	g_test_add_func ("/util/initial-command-after-rc", test_initial_command_after_rc);
 	g_test_add_func ("/util/session-directory", test_session_directory);
 	g_test_add_func ("/util/shell-argv", test_shell_argv);

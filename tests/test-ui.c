@@ -2277,6 +2277,39 @@ test_shortcut_conflict (void)
  pump (200);
 }
 
+static void
+test_show_session_closed_tab (void)
+{
+ TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+ AdwTabView *view;
+ AdwTabPage *first, *second;
+ g_autoptr(TermacTerminal) closed_terminal = NULL;
+ g_autofree char *closed_id = NULL, *live_id = NULL;
+ gtk_window_present (GTK_WINDOW (window));
+ pump (500);
+ view = ADW_TAB_VIEW (find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_VIEW));
+ first = adw_tab_view_get_selected_page (view);
+ live_id = g_strdup (termac_terminal_get_session_id (selected_terminal (window)));
+ g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
+ pump (500);
+ closed_terminal = g_object_ref (selected_terminal (window));
+ closed_id = g_strdup (termac_terminal_get_session_id (selected_terminal (window)));
+ g_action_group_activate_action (G_ACTION_GROUP (window), "close-tab", NULL);
+ pump (300);
+ g_assert_cmpuint (adw_tab_view_get_n_pages (view), ==, 1);
+ g_signal_emit_by_name (closed_terminal, "job-finished", (guint64) 12000);
+ g_action_group_activate_action (G_ACTION_GROUP (app), "show-session", g_variant_new_string (closed_id));
+ g_assert_true (adw_tab_view_get_selected_page (view) == first);
+ g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
+ pump (300);
+ second = adw_tab_view_get_selected_page (view);
+ g_assert_true (second != first);
+ g_action_group_activate_action (G_ACTION_GROUP (app), "show-session", g_variant_new_string (live_id));
+ g_assert_true (adw_tab_view_get_selected_page (view) == first);
+ gtk_window_destroy (GTK_WINDOW (window));
+ pump (200);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -2363,6 +2396,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/grid-fits-widget", test_grid_fits_widget);
  g_test_add_func ("/ui/search-highlight", test_search_highlight);
  g_test_add_func ("/ui/shortcut-conflict", test_shortcut_conflict);
+ g_test_add_func ("/ui/show-session-closed-tab", test_show_session_closed_tab);
 	{
 		int status = g_test_run ();
 

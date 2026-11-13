@@ -424,13 +424,6 @@ terminal_cwd_changed_cb (TermacTerminal *terminal,
 		termac_window_update_header (self);
 }
 
-static gboolean
-terminal_is_focused_view (TermacWindow   *self,
-                          TermacTerminal *terminal)
-{
-	return gtk_window_is_active (GTK_WINDOW (self)) && window_selected_terminal (self) == terminal;
-}
-
 static void
 terminal_flag_attention (TermacTerminal *terminal)
 {
@@ -480,16 +473,18 @@ static void
 terminal_notify_user (TermacWindow   *self,
                       TermacTerminal *terminal,
                       const char     *title,
-                      const char     *body)
+                      const char     *body,
+                      gboolean        took_long_enough)
 {
 	GtkApplication *app = gtk_window_get_application (GTK_WINDOW (self));
 	GSettings *settings = window_settings (self);
 	g_autoptr(GNotification) notification = NULL;
 	const char *session = termac_terminal_get_session_id (terminal);
 
-	if (app == NULL || (settings != NULL && !g_settings_get_boolean (settings, "notifications")))
-		return;
-	if (terminal_is_focused_view (self, terminal))
+	if (app == NULL || !termac_should_notify (
+	        settings != NULL && g_settings_get_boolean (settings, "notifications"),
+	        gtk_window_is_active (GTK_WINDOW (self)),
+	        window_selected_terminal (self) == terminal, took_long_enough))
 		return;
 	notification = g_notification_new (title);
 	g_notification_set_body (notification, body);
@@ -509,8 +504,10 @@ terminal_command_finished_cb (TermacTerminal *terminal,
 		return;
 	terminal_flag_attention (terminal);
 	body = exit_code == 0 ? NULL : g_strdup_printf (_("Exit status %d"), exit_code);
+	/* Explicit shell completion reports are eligible regardless of duration;
+	 * the process-polling fallback below retains its long-task threshold. */
 	terminal_notify_user (self, terminal, _("Command finished"),
-	                      body != NULL ? body : _("Completed successfully"));
+	                      body != NULL ? body : _("Completed successfully"), TRUE);
 }
 
 static void
@@ -519,15 +516,19 @@ terminal_job_finished_cb (TermacTerminal *terminal,
                           gpointer        user_data)
 {
 	TermacWindow *self = window_from_widget (GTK_WIDGET (terminal));
-	GSettings *settings = window_settings (self);
+	GSettings *settings;
 	(void) user_data;
+	if (self == NULL)
+		return;
+	settings = window_settings (self);
 	/* With shell integration the command result arrives as its own event. */
-	if (self == NULL || (settings != NULL && g_settings_get_boolean (settings, "shell-integration")))
+	if (settings != NULL && g_settings_get_boolean (settings, "shell-integration"))
 		return;
 	if (duration_ms < TERMAC_NOTIFY_LONG_TASK_MS)
 		return;
 	terminal_flag_attention (terminal);
-	terminal_notify_user (self, terminal, _("Task finished"), _("A long-running task in a tab has finished."));
+	terminal_notify_user (self, terminal, _("Task finished"), _("A long-running task in a tab has finished."),
+	                      duration_ms >= TERMAC_NOTIFY_LONG_TASK_MS);
 }
 
 /* ---- tabs ------------------------------------------------------------- */
