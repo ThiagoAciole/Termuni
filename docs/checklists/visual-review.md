@@ -48,7 +48,9 @@ Capturas principais em `/tmp/termac-p3-shots/`:
 - `preferences-behavior.png`, `preferences-appearance.png`, `preferences-all-palettes.png`, `preferences-shortcuts.png`, `preferences-attachments.png`;
 - `about.png`, `shortcuts.png`, `search-highlight.png`.
 
-A execução completa também salva as capturas de regressão já existentes (terminal, seleção, IME, anexos, temas e zoom). Esses arquivos são temporários e podem ser regenerados; não foram adicionados binários PNG ao Git.
+A execução completa produziu 32 PNGs: as 19 capturas principais acima e 13 auxiliares (`main-window`, `typed`, `interrupted`, `drop-image`, `paste-image`, `mouse-selection`, `large-output`, `tui-less`, `preedit`, `preferences`, `attachments-cleared`, `theme-dark-tabs`, `theme-zoom-tabs`). Todos foram abertos. São temporários e podem ser regenerados; não foram adicionados binários PNG ao Git.
+
+Limites observados nos auxiliares herdados: `typed`/`interrupted` contêm `Command 'xecho' not found` por conteúdo anterior da mesma sessão de teste; `large-output` mostra o comando `seq` anexado ao caminho de uma imagem e `Permission denied`, e portanto essa captura não comprova carga de 30 mil linhas; `attachments-cleared` mostra a página Geral, não Anexos. A captura principal `preferences-attachments.png` usa a página correta. A correção desses cenários anteriores ao P3 não foi incluída neste incremento; os PNGs auxiliares não fundamentam o aceite de seus recursos no P3.
 
 ## Validações reais ainda pendentes
 
@@ -57,3 +59,5 @@ A execução completa também salva as capturas de regressão já existentes (te
 - [ ] Repetir com a janela fora de foco, com a preferência desligada e com a aba já fechada antes do clique. O último caso tem cobertura automatizada da ação `app.show-session`, mas a entrega/clique do desktop não foi observado.
 
 A política pura cobre as 16 combinações de preferência/foco/elegibilidade. Relatos explícitos da integração Bash mantêm a elegibilidade de comandos curtos do comportamento anterior; a detecção por processo exige a duração mínima existente. Sem conexão de controle nativo do desktop nesta sessão, não se declarou entrega de notificações no GNOME como testada.
+
+Na revisão independente, foi reproduzido um conflito entre a consulta de busca e o estado de desenho do Ghostty. O finder passou a ler a grade sem consumir flags de atualização. `/vt/find-matches-preserves-render-updates` reproduz `old` → `new` pendente e verifica que o renderizador persistente recebe o novo texto depois da busca.

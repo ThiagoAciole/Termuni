@@ -227,11 +227,45 @@ test_find_matches_empty (void)
  ghostty_terminal_free (terminal);
 }
 
+static void
+test_find_matches_preserves_render_updates (void)
+{
+	GhosttyTerminal terminal = new_terminal ();
+	GhosttyRenderState state = NULL;
+	GhosttyRenderStateRowIterator iterator = NULL;
+	GhosttyRenderStateRowCells cells = NULL;
+	g_autoptr(GArray) matches = NULL;
+	char text[16] = { 0 };
+	GhosttyBuffer buffer = { .ptr = (uint8_t *) text, .cap = sizeof text - 1 };
+
+	g_assert_cmpint (ghostty_render_state_new (NULL, &state), ==, GHOSTTY_SUCCESS);
+	g_assert_cmpint (ghostty_render_state_row_iterator_new (NULL, &iterator), ==, GHOSTTY_SUCCESS);
+	g_assert_cmpint (ghostty_render_state_row_cells_new (NULL, &cells), ==, GHOSTTY_SUCCESS);
+	write_text (terminal, "old");
+	g_assert_cmpint (ghostty_render_state_update (state, terminal), ==, GHOSTTY_SUCCESS);
+	write_text (terminal, "\rnew");
+	matches = termac_vt_find_matches (terminal, COLS, ROWS, "new");
+	g_assert_cmpuint (matches->len, ==, 1);
+	/* The normal renderer must still receive this pending change after a query. */
+	g_assert_cmpint (ghostty_render_state_update (state, terminal), ==, GHOSTTY_SUCCESS);
+	g_assert_cmpint (ghostty_render_state_get (state, GHOSTTY_RENDER_STATE_DATA_ROW_ITERATOR, &iterator), ==, GHOSTTY_SUCCESS);
+	g_assert_true (ghostty_render_state_row_iterator_next (iterator));
+	g_assert_cmpint (ghostty_render_state_row_get (iterator, GHOSTTY_RENDER_STATE_ROW_DATA_CELLS, &cells), ==, GHOSTTY_SUCCESS);
+	g_assert_true (ghostty_render_state_row_cells_next (cells));
+	g_assert_cmpint (ghostty_render_state_row_cells_get (cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_GRAPHEMES_UTF8, &buffer), ==, GHOSTTY_SUCCESS);
+	g_assert_cmpstr (text, ==, "n");
+	ghostty_render_state_row_cells_free (cells);
+	ghostty_render_state_row_iterator_free (iterator);
+	ghostty_render_state_free (state);
+	ghostty_terminal_free (terminal);
+}
+
 int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
  g_test_add_func ("/vt/find-matches", test_find_matches);
+ g_test_add_func ("/vt/find-matches-preserves-render-updates", test_find_matches_preserves_render_updates);
  g_test_add_func ("/vt/find-matches-wide", test_find_matches_wide);
  g_test_add_func ("/vt/find-matches-empty", test_find_matches_empty);
 	g_test_add_func ("/vt/selection/ascii", test_selection_copies_ascii_text);
