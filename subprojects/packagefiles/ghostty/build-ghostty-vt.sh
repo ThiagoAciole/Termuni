@@ -13,7 +13,9 @@ if [ "$version" != 0.16.0 ]; then
 fi
 
 cd "$source_dir"
-"$zig" build -Demit-lib-vt --prefix "$prefix"
+# TERMAC_GHOSTTY_ZIG_FLAGS lets tools/valgrind-churn.sh build without SIMD, which valgrind cannot run.
+# shellcheck disable=SC2086
+"$zig" build -Demit-lib-vt ${TERMAC_GHOSTTY_ZIG_FLAGS:-} --prefix "$prefix"
 test -f "$prefix/include/ghostty/vt.h"
 test -f "$prefix/lib/libghostty-vt.a"
 touch "$stamp"

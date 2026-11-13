@@ -3,3 +3,4 @@
 /subprojects/packagecache/
 /.agents
 /.claude
+/build-valgrind/

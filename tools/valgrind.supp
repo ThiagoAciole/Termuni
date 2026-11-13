@@ -1,0 +1,37 @@
+# Suppressions for tools/valgrind-churn.sh. Every entry is a one-time or cached
+# allocation owned by a library, checked to stay the same size whether the test
+# opens 3 tabs or 15 (see PLANO_IMPLEMENTACAO.md, "Verificação com valgrind").
+{
+   fontconfig-font-set-cache
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:FcFontSetList
+}
+{
+   fontconfig-render-prepare
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:FcFontRenderPrepare
+}
+{
+   gdk-gl-display-setup
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:gdk_display_prepare_gl
+}
+{
+   pango-font-metrics-cache
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:pango_context_get_metrics
+}
+{
+   libadwaita-aligned-alloc-free
+   Memcheck:Free
+   ...
+   obj:*/libadwaita-1.so*
+}

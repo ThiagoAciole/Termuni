@@ -337,10 +337,12 @@ static void
 test_tab_churn (void)
 {
 	TermacWindow *window = main_window ();
+	const char *rounds_env = g_getenv ("TERMAC_CHURN_ROUNDS");
+	guint rounds = rounds_env != NULL ? (guint) g_ascii_strtoull (rounds_env, NULL, 10) : 10;
 	guint i;
 
 	g_assert_nonnull (window);
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < rounds; i++)
 	{
 		g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
 		pump (300);

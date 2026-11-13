@@ -562,7 +562,11 @@ termac_window_create_tab (TermacWindow *self,
 	title = g_strdup_printf ("%s@%s: ~", user, host);
 	self->tab_number++;
 	adw_tab_page_set_title (page, title);
-	adw_tab_page_set_icon (page, g_themed_icon_new ("utilities-terminal-symbolic"));
+	{
+		g_autoptr (GIcon) icon = g_themed_icon_new ("utilities-terminal-symbolic");
+
+		adw_tab_page_set_icon (page, icon);
+	}
 	if (manual_title != NULL && *manual_title != '\0')
 	{
 		g_object_set_data_full (G_OBJECT (terminal), "manual-title", g_strdup (manual_title), g_free);

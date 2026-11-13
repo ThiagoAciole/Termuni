@@ -46,6 +46,32 @@ Este quadro é o ponto de retomada. As seções 1–10 preservam o plano e suas 
 
 **Próxima retomada sugerida:** validar manualmente no Wayland a entrada pelo teclado, TUI, seleção e colagem com mouse, busca, anexos, renomear e reordenar abas, e as notificações. Depois implementar perfis, edição de atalhos e a integração por agente. Em paralelo, verificar duas ou mais abas, overview e preferências contra as referências. Para build de distribuição, resolver o schema dependente do diretório de build e validar o fluxo real do Builder.
 
+### Prioridades — 13/11/2026
+
+Ordem de trabalho definida pelo usuário. Cada item só fecha com evidência de execução no app, não apenas com build.
+
+- **P0 — Confiabilidade:** validar PTY com vim, IME, rastreamento de mouse, colagem, sessões independentes e restauração. Corrigir falhas reproduzíveis e investigar os vazamentos (valgrind ainda não executado) antes da versão estável.
+- **P1 — Integração GNOME:** compilar pelo GNOME Builder, validar o Flatpak, permissões do sandbox, ícone, acessibilidade e escalonamento de interface.
+- **P2 — Experiência com agentes:** criar seleção explícita entre Claude Code e Codex, configurar os adaptadores por CLI e validar anexos de imagem. Flags específicas de cada CLI não devem se espalhar pela interface.
+- **P3 — Acabamento:** realce de resultados da busca, detecção de conflito de atalhos, notificações e comparação visual com as referências.
+
+Perfis de terminal ficam fora da primeira versão estável (ver PDR, "Decisões de produto").
+
+Os planos de execução estão em `docs/superpowers/plans/2026-11-13-p0-reliability.md`, `...-p1-gnome-integration.md`, `...-p2-agent-experience.md` e `...-p3-polish.md`.
+
+#### P0 — resultados (13/11/2026, branch `p0-reliability`)
+
+Todos os testes novos rodam sob Xvfb com eventos XTest reais (`meson test -C build`, 7 de 7).
+
+- **vi pelo PTY** (`/ui/vim-session`): editar e salvar um arquivo, o PTY acompanha o redimensionamento da janela (`stty size` confere) e fechar a aba com o vi aberto não deixa processo órfão. Passou sem correção.
+- **Mouse** (`/ui/mouse-tracking`): clique chega ao programa como relatório SGR; Shift+arrastar seleciona e não é relatado. Passou sem correção.
+- **Entrada composta** (`/ui/input-method`): teclas mortas (`á`, `ñ`) funcionam. **Faltava** exibir o texto em composição e informar ao método de entrada a posição do cursor; foram implementados (`termac_terminal_set_preedit`, desenho no cursor, `gtk_im_context_set_cursor_location`). Ctrl+Shift+U não pôde ser verificado no Xvfb.
+- **Colagem** (`/ui/paste-integrity`, `/vt/paste/no-end-marker-injection`): **bug encontrado e corrigido** — uma colagem acima de 1 MiB era descartada inteira pelo limite da fila de escrita. Agora o excedente espera num backlog ordenado (limite de 256 MiB) e entra na fila conforme o programa lê. Colagem de 2 MiB chega inteira; o marcador de fim de colagem no texto não encerra a colagem (a libghostty já o remove).
+- **Sessões independentes** (`/ui/sessions-isolated`): variável de ambiente, pasta e texto digitado não vazam entre abas. Passou sem correção.
+- **Restauração** (`/ui/session-restore-roundtrip`, `/ui/session-corrupt-file`): **bug encontrado e corrigido** — uma aba que nunca recebeu OSC 7 era salva com a pasta pessoal, então abas restauradas perdiam a pasta ao salvar de novo. `termac_terminal_get_cwd` agora lê `/proc/<pid>/cwd` quando não há relatório do shell. Arquivos corrompidos, vazios e de tipo errado não impedem a abertura.
+- **Vazamentos** (`tools/valgrind-churn.sh`, `tools/valgrind.supp`): o valgrind não executa o código SIMD da libghostty-vt (SIGILL), então o script usa uma árvore `build-valgrind` com `-Dsimd=false`. Com 3 e com 15 ciclos de abrir e fechar aba, **vazamento real encontrado**: 1 referência de `GThemedIcon` por aba (`termac_window_create_tab`, ≈163 bytes por aba; crescia de 4 para 16 blocos). Corrigido; depois da correção os dois tamanhos dão exatamente 22.689 bytes em 128 blocos, sem frames do Termac. O restante é de bibliotecas e constante (fontconfig `FcFontSetList`, Pango, GDK GL), suprimido em `tools/valgrind.supp`. O vazamento de `pango_context_get_metrics` de 12/11 era cache do Pango, constante.
+- **Não verificado:** motores de entrada reais (ibus, fcitx, CJK) e Ctrl+Shift+U; comportamento no Wayland; o teste do vazamento de ícone é a execução do valgrind, não um caso automatizado em `meson test`.
+
 ### Atualização — 12/11/2026
 
 - **Anexo por arrastar (Marco 4, parcial):** verificado pelo usuário no app de dev, em Wayland. Arrastar um PNG para o terminal anexa a imagem ao prompt do Claude Code e do Codex. O Codex mostra `[Image #1]` com o aviso "Image attached to the prompt". O arquivo foi gravado no cache da sessão (`~/.cache/termac/attachments/`), conferido em disco.
