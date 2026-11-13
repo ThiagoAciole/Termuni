@@ -12,6 +12,12 @@
         </child>
         <child>
           <object class="AdwShortcutsItem">
+            <property name="title" translatable="yes" context="shortcut window">Open Agent</property>
+            <property name="action-name">win.launch-agent</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwShortcutsItem">
             <property name="title" translatable="yes" context="shortcut window">New window</property>
             <property name="action-name">win.new-window</property>
           </object>

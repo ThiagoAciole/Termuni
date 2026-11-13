@@ -5,6 +5,7 @@ data/thiago.aciole.termac.gschema.xml.in
 data/thiago.aciole.termac.metainfo.xml.in
 src/main.c
 src/shortcuts-dialog.ui
+src/termac-agent.c
 src/termac-application.c
 src/termac-attachments.c
 src/termac-terminal.c

@@ -23,6 +23,7 @@
 #include <adwaita.h>
 
 #include "termac-window.h"
+#include "termac-agent.h"
 
 G_BEGIN_DECLS
 
@@ -33,6 +34,7 @@ G_DECLARE_FINAL_TYPE (TermacApplication, termac_application, TERMAC, APPLICATION
 TermacApplication *termac_application_new (const char        *application_id,
                                            GApplicationFlags  flags);
 GSettings *termac_application_get_settings (TermacApplication *self);
+const TermacAgent *termac_application_get_agent (TermacApplication *self);
 
 /* Saves the tabs of a window so they can be restored at the next start. */
 void termac_application_save_session_now (TermacApplication *self);

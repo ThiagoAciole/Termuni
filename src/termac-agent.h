@@ -16,4 +16,17 @@ char *termac_agent_format_attachment (const TermacAgent *agent, const char *path
 
 gboolean termac_agent_is_installed (const TermacAgent *agent);
 
+typedef enum {
+	TERMAC_AGENT_AVAILABLE,
+	TERMAC_AGENT_MISSING,
+	TERMAC_AGENT_DIRECTORY_MISSING,
+} TermacAgentAvailability;
+
+/* Queries use the target folder and interactive shell PATH, native or host.
+ * Startup jobs are isolated and cleaned up on completion/timeout/cancellation. */
+void termac_agent_check_async (const TermacAgent *agent, const char *cwd, gboolean host,
+                              GCancellable *cancellable, GAsyncReadyCallback callback, gpointer user_data);
+TermacAgentAvailability termac_agent_check_finish (GAsyncResult *result, GError **error);
+char *termac_agent_build_launch_command (const TermacAgent *agent);
+
 G_END_DECLS

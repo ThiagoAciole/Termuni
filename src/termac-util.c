@@ -268,7 +268,7 @@ termac_path_from_pwd (const char *value)
 }
 
 char **
-termac_shell_argv (const char *shell, const char *cwd, const char *rcfile, gboolean host)
+termac_shell_command_argv (const char *shell, const char *cwd, const char *rcfile, gboolean host, const char *command)
 {
 	GPtrArray *args = g_ptr_array_new_with_free_func (g_free);
 	if (host)
@@ -282,10 +282,14 @@ termac_shell_argv (const char *shell, const char *cwd, const char *rcfile, gbool
 		/* script allocates the controlling PTY on the host. A PTY created
 		 * in the sandbox cannot become the host shell's controlling TTY. */
 		g_ptr_array_add (args, g_strdup_printf ("--env=TERMAC_HOST_RCFILE=%s", rcfile != NULL ? rcfile : ""));
+		if (command != NULL)
+			g_ptr_array_add (args, g_strdup_printf ("--env=TERMAC_START_COMMAND=%s; if [ \"${SHELL##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$SHELL\" --rcfile \"$TERMAC_HOST_RCFILE\" -i; else exec \"${SHELL:-/bin/sh}\" -i; fi", command));
 		g_ptr_array_add (args, g_strdup ("script"));
 		g_ptr_array_add (args, g_strdup ("-qefc"));
 		/* This fixed script uses the host's SHELL; paths are environment data. */
-		g_ptr_array_add (args, g_strdup ("cd -- \"$TERMAC_HOST_CWD\" 2>/dev/null || cd \"$HOME\" || exit; shell=${SHELL:-/bin/sh}; if [ \"${shell##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$shell\" --rcfile \"$TERMAC_HOST_RCFILE\" -i; else exec \"$shell\" -i; fi"));
+		g_ptr_array_add (args, g_strdup (command != NULL
+			? "cd -- \"$TERMAC_HOST_CWD\" 2>/dev/null || cd \"$HOME\" || exit; shell=${SHELL:-/bin/sh}; if [ \"${shell##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$shell\" --rcfile \"$TERMAC_HOST_RCFILE\" -ic \"$TERMAC_START_COMMAND\"; else exec \"$shell\" -ic \"$TERMAC_START_COMMAND\"; fi"
+			: "cd -- \"$TERMAC_HOST_CWD\" 2>/dev/null || cd \"$HOME\" || exit; shell=${SHELL:-/bin/sh}; if [ \"${shell##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$shell\" --rcfile \"$TERMAC_HOST_RCFILE\" -i; else exec \"$shell\" -i; fi"));
 		g_ptr_array_add (args, g_strdup ("/dev/null"));
 		g_ptr_array_add (args, NULL);
 		return (char **) g_ptr_array_free (args, FALSE);
@@ -297,6 +301,19 @@ termac_shell_argv (const char *shell, const char *cwd, const char *rcfile, gbool
 		g_ptr_array_add (args, g_strdup (rcfile));
 	}
 	g_ptr_array_add (args, g_strdup ("-i"));
+	if (command != NULL)
+	{
+		GString *run = g_string_new (command);
+		g_string_append (run, "; exec");
+		for (guint i = 0; i < args->len; i++)
+		{
+			g_autofree char *quoted = g_shell_quote (g_ptr_array_index (args, i));
+			g_string_append_c (run, ' ');
+			g_string_append (run, quoted);
+		}
+		g_ptr_array_add (args, g_strdup ("-c"));
+		g_ptr_array_add (args, g_string_free (run, FALSE));
+	}
 	g_ptr_array_add (args, NULL);
 	return (char **) g_ptr_array_free (args, FALSE);
 }
@@ -309,4 +326,10 @@ termac_session_directory (const char *cwd, gboolean host)
 	    (host || g_file_test (cwd, G_FILE_TEST_IS_DIR)))
 		return g_strdup (cwd);
 	return NULL;
+}
+
+char **
+termac_shell_argv (const char *shell, const char *cwd, const char *rcfile, gboolean host)
+{
+	return termac_shell_command_argv (shell, cwd, rcfile, host, NULL);
 }

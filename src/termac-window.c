@@ -142,6 +142,13 @@ window_confirm_close_enabled (TermacWindow *self)
 	return settings == NULL || g_settings_get_boolean (settings, "confirm-close");
 }
 
+static const TermacAgent *
+window_agent (TermacWindow *self)
+{
+	GtkApplication *application = gtk_window_get_application (GTK_WINDOW (self));
+	return TERMAC_IS_APPLICATION (application) ? termac_application_get_agent (TERMAC_APPLICATION (application)) : termac_agent_default ();
+}
+
 static void
 window_show_toast (TermacWindow *self,
                    const char   *text)
@@ -353,6 +360,7 @@ termac_window_build_menu (TermacWindow *self)
 	gtk_box_append (GTK_BOX (content), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
 	gtk_box_append (GTK_BOX (content), termac_window_menu_row (_("New tab"), "Ctrl+Shift+T", "win.new-tab"));
 	gtk_box_append (GTK_BOX (content), termac_window_menu_row (_("New window"), "Ctrl+Shift+N", "win.new-window"));
+	gtk_box_append (GTK_BOX (content), termac_window_menu_row (_("Open Agent"), "Ctrl+Shift+A", "win.launch-agent"));
 	gtk_box_append (GTK_BOX (content), termac_window_menu_row (_("Attach image"), "Ctrl+Shift+I", "win.attach-image"));
 	gtk_box_append (GTK_BOX (content), termac_window_menu_row (_("Full screen"), "F11", "win.fullscreen"));
 	gtk_box_append (GTK_BOX (content), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
@@ -525,18 +533,28 @@ terminal_job_finished_cb (TermacTerminal *terminal,
 /* ---- tabs ------------------------------------------------------------- */
 
 static AdwTabPage *
-termac_window_create_tab (TermacWindow *self,
-                          const char   *cwd,
-                          const char   *manual_title)
+termac_window_create_tab_with_command (TermacWindow *self,
+                                      const char *cwd,
+                                      const char *manual_title,
+                                      const char *command)
 {
 	GSettings *settings = window_settings (self);
 	gboolean integration = settings != NULL && g_settings_get_boolean (settings, "shell-integration");
-	GtkWidget *terminal = termac_terminal_new (cwd, integration);
+	GtkWidget *terminal = termac_terminal_new_command (cwd, integration, command);
 	AdwTabPage *page;
 	g_autofree char *title = NULL;
 	const char *user = g_get_user_name ();
 	const char *host = g_get_host_name ();
 
+	if (command != NULL && termac_terminal_get_error (TERMAC_TERMINAL (terminal)) != NULL)
+	{
+		window_show_toast (self, termac_terminal_get_error (TERMAC_TERMINAL (terminal)));
+		g_object_ref_sink (terminal);
+		g_object_unref (terminal);
+		return NULL;
+	}
+	termac_terminal_set_agent (TERMAC_TERMINAL (terminal),
+		window_agent (self));
 	page = adw_tab_view_append (self->tab_view, terminal);
 	if (settings != NULL)
 	{
@@ -574,6 +592,68 @@ termac_window_create_tab (TermacWindow *self,
 		adw_tab_page_set_title (page, manual_title);
 	}
 	return page;
+}
+
+static AdwTabPage *
+termac_window_create_tab (TermacWindow *self, const char *cwd, const char *manual_title)
+{
+	return termac_window_create_tab_with_command (self, cwd, manual_title, NULL);
+}
+
+typedef struct { GWeakRef window; const TermacAgent *agent; char *cwd; } AgentLaunch;
+
+static void
+agent_launch_checked (GObject *source, GAsyncResult *result, gpointer data)
+{
+	AgentLaunch *launch = data;
+	g_autoptr(TermacWindow) self = g_weak_ref_get (&launch->window);
+	g_autoptr(GError) error = NULL;
+	TermacAgentAvailability status = termac_agent_check_finish (result, &error);
+	if (self != NULL && gtk_widget_get_visible (GTK_WIDGET (self)))
+	{
+		g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (G_ACTION_MAP (self), "launch-agent")), TRUE);
+		if (error != NULL)
+			window_show_toast (self, _("Could not check agent availability. Try again."));
+		else if (status == TERMAC_AGENT_MISSING)
+		{
+			g_autofree char *message = g_strdup_printf (_("%s is not installed"), launch->agent->display_name);
+			window_show_toast (self, message);
+		}
+		else if (status == TERMAC_AGENT_DIRECTORY_MISSING)
+			window_show_toast (self, _("The folder no longer exists"));
+		else
+		{
+			g_autofree char *command = termac_agent_build_launch_command (launch->agent);
+			AdwTabPage *page = termac_window_create_tab_with_command (self, launch->cwd, NULL, command);
+			if (page != NULL)
+			{
+				adw_tab_view_set_selected_page (self->tab_view, page);
+				gtk_widget_grab_focus (adw_tab_page_get_child (page));
+			}
+		}
+	}
+	g_weak_ref_clear (&launch->window);
+	g_free (launch->cwd);
+	g_free (launch);
+}
+
+void
+termac_window_launch_agent (TermacWindow *self)
+{
+	TermacTerminal *terminal = window_selected_terminal (self);
+	const char *cwd = terminal != NULL ? termac_terminal_get_cwd (terminal) : NULL;
+	AgentLaunch *launch = g_new0 (AgentLaunch, 1);
+	g_weak_ref_init (&launch->window, self);
+	launch->agent = window_agent (self);
+	launch->cwd = g_strdup (cwd != NULL ? cwd : g_get_home_dir ());
+	g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (G_ACTION_MAP (self), "launch-agent")), FALSE);
+	termac_agent_check_async (launch->agent, launch->cwd, g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS), NULL, agent_launch_checked, launch);
+}
+
+static void
+termac_window_launch_agent_action (GSimpleAction *action, GVariant *parameter, gpointer data)
+{
+	termac_window_launch_agent (TERMAC_WINDOW (data));
 }
 
 static void
@@ -878,8 +958,8 @@ window_attach_stored (TermacWindow *self,
                       TermacTerminal *terminal,
                       const char     *stored_path)
 {
-	g_autofree char *quoted = termac_attachments_quote (stored_path);
-	g_autofree char *inserted = g_strconcat (quoted, " ", NULL);
+	g_autofree char *inserted = termac_agent_format_attachment (
+		window_agent (self), stored_path);
 
 	termac_terminal_add_attachment (terminal, stored_path);
 	termac_terminal_insert_text (terminal, inserted);
@@ -1064,6 +1144,7 @@ termac_window_terminal_action (GSimpleAction *action,
 
 static const GActionEntry window_actions[] = {
 	{ "new-tab", termac_window_add_tab },
+	{ "launch-agent", termac_window_launch_agent_action },
 	{ "new-window", termac_window_new_window },
 	{ "toggle-overview", termac_window_toggle_overview },
 	{ "close-tab", termac_window_close_tab },
@@ -1174,7 +1255,7 @@ termac_window_shortcut_is_reserved (TermacWindow   *self,
 	static const char *const actions[] = {
 		"win.new-tab", "win.new-window", "win.toggle-overview", "win.close-tab",
 		"win.fullscreen", "win.rename-tab", "win.move-tab-backward", "win.move-tab-forward",
-		"win.find", "win.find-next", "win.find-previous", "win.attach-image",
+		"win.find", "win.find-next", "win.find-previous", "win.attach-image", "win.launch-agent",
 		"win.terminal-copy", "win.terminal-copy-selection", "win.terminal-paste",
 		"win.terminal-paste-clipboard", "win.terminal-line-start", "win.terminal-select-all",
 		"app.preferences", "app.shortcuts", "app.quit",
@@ -1314,8 +1395,12 @@ termac_window_sync_settings (TermacWindow *self)
 	termac_window_set_font_size (self, size);
 	lines = g_settings_get_uint (settings, "scrollback-lines");
 	for (i = 0; i < adw_tab_view_get_n_pages (self->tab_view); i++)
-		termac_terminal_set_scrollback_lines (TERMAC_TERMINAL (
-			adw_tab_page_get_child (adw_tab_view_get_nth_page (self->tab_view, i))), lines);
+	{
+		TermacTerminal *terminal = TERMAC_TERMINAL (adw_tab_page_get_child (adw_tab_view_get_nth_page (self->tab_view, i)));
+		termac_terminal_set_scrollback_lines (terminal, lines);
+		termac_terminal_set_agent (terminal,
+			window_agent (self));
+	}
 	palette = window_effective_palette (settings);
 	window_apply_chrome (palette);
 	termac_window_set_palette (self, palette);

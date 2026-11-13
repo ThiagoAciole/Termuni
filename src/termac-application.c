@@ -541,6 +541,81 @@ palette_swatch_free (gpointer data)
 	g_free (data);
 }
 
+
+const TermacAgent *
+termac_application_get_agent (TermacApplication *self)
+{
+	g_autofree char *id = self->settings != NULL ? g_settings_get_string (self->settings, "agent") : NULL;
+	const TermacAgent *agent = termac_agent_find (id);
+	return agent != NULL ? agent : termac_agent_default ();
+}
+
+static void
+agent_selected_cb (AdwComboRow *row, GParamSpec *pspec, TermacApplication *self)
+{
+	gsize count;
+	const TermacAgent *const *agents = termac_agent_all (&count);
+	guint selected = adw_combo_row_get_selected (row);
+	if (self->settings != NULL && selected < count)
+		g_settings_set_string (self->settings, "agent", agents[selected]->id);
+}
+
+static void
+agent_row_refresh (GSettings *settings, const char *key, AdwComboRow *row)
+{
+	TermacApplication *self = g_object_get_data (G_OBJECT (row), "termac-application");
+	const TermacAgent *agent = termac_application_get_agent (self);
+	gsize count;
+	const TermacAgent *const *agents = termac_agent_all (&count);
+	g_signal_handlers_block_by_func (row, agent_selected_cb, self);
+	for (guint i = 0; i < count; i++)
+		if (agents[i] == agent) adw_combo_row_set_selected (row, i);
+	{
+		const gint *statuses = g_object_get_data (G_OBJECT (row), "agent-statuses");
+		guint selected = adw_combo_row_get_selected (row);
+		gint status = statuses != NULL && selected < count ? statuses[selected] : TERMAC_AGENT_MISSING;
+		adw_action_row_set_subtitle (ADW_ACTION_ROW (row), status == -1 ? _("Checking availability…") : status == -2 ? _("Could not check availability") : status == TERMAC_AGENT_AVAILABLE
+			? _("Use Open Agent in the main menu to start it in a new tab.") : _("Not installed"));
+	}
+	g_signal_handlers_unblock_by_func (row, agent_selected_cb, self);
+}
+
+
+typedef struct { GWeakRef row; guint index; } AgentRowCheck;
+
+static void
+agent_row_cancel (gpointer data)
+{
+	g_cancellable_cancel (G_CANCELLABLE (data));
+	g_object_unref (data);
+}
+
+static void
+agent_row_checked (GObject *source, GAsyncResult *result, gpointer data)
+{
+	AgentRowCheck *query = data;
+	g_autoptr(AdwComboRow) row = g_weak_ref_get (&query->row);
+	g_autoptr(GError) error = NULL;
+	TermacAgentAvailability status = termac_agent_check_finish (result, &error);
+	if (row != NULL)
+	{
+		TermacApplication *self = g_object_get_data (G_OBJECT (row), "termac-application");
+		gint *statuses = g_object_get_data (G_OBJECT (row), "agent-statuses");
+		const TermacAgent *const *agents = termac_agent_all (NULL);
+		g_autofree char *name = status == TERMAC_AGENT_MISSING && error == NULL
+			? g_strdup_printf (_("%s — Not installed"), agents[query->index]->display_name)
+			: g_strdup (agents[query->index]->display_name);
+		const char *added[] = { name, NULL };
+		statuses[query->index] = error != NULL ? -2 : (gint) status;
+		g_signal_handlers_block_by_func (row, agent_selected_cb, self);
+		gtk_string_list_splice (GTK_STRING_LIST (adw_combo_row_get_model (row)), query->index, 1, added);
+		agent_row_refresh (self->settings, "agent", row);
+		g_signal_handlers_unblock_by_func (row, agent_selected_cb, self);
+	}
+	g_weak_ref_clear (&query->row);
+	g_free (query);
+}
+
 /* ---- attachments page ------------------------------------------------- */
 
 /* Every image stored in the attachment cache, across all sessions. */
@@ -697,7 +772,7 @@ attachments_list_populate (GtkListBox *list)
 }
 
 static GtkWidget *
-termac_application_attachments_page (void)
+termac_application_attachments_page (TermacApplication *self)
 {
 	GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 	AdwPreferencesPage *page = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
@@ -706,6 +781,42 @@ termac_application_attachments_page (void)
 	GtkWidget *footer = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 	GtkWidget *clear = gtk_button_new_with_label (_("Clear All"));
 
+	{
+		AdwPreferencesGroup *agent_group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
+		AdwComboRow *agent_row = ADW_COMBO_ROW (adw_combo_row_new ());
+		GtkStringList *names = gtk_string_list_new (NULL);
+		gsize count;
+		const TermacAgent *const *agents = termac_agent_all (&count);
+		gboolean host = g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS);
+		gint *statuses = g_new (gint, count);
+		GCancellable *cancel = g_cancellable_new ();
+		g_object_set_data_full (G_OBJECT (agent_row), "agent-statuses", statuses, g_free);
+		g_object_set_data_full (G_OBJECT (agent_row), "agent-query-cancel", cancel, agent_row_cancel);
+		for (guint i = 0; i < count; i++)
+		{
+			g_autofree char *name = NULL;
+			statuses[i] = -1;
+			name = statuses[i] != TERMAC_AGENT_MISSING ? g_strdup (agents[i]->display_name)
+				: g_strdup_printf (_("%s — Not installed"), agents[i]->display_name);
+			gtk_string_list_append (names, name);
+		}
+		adw_preferences_row_set_title (ADW_PREFERENCES_ROW (agent_row), _("Agent"));
+		adw_combo_row_set_model (agent_row, G_LIST_MODEL (names));
+		g_object_unref (names);
+		g_object_set_data_full (G_OBJECT (agent_row), "termac-application", g_object_ref (self), g_object_unref);
+		g_signal_connect (agent_row, "notify::selected", G_CALLBACK (agent_selected_cb), self);
+		g_signal_connect_object (self->settings, "changed::agent", G_CALLBACK (agent_row_refresh), agent_row, 0);
+		agent_row_refresh (self->settings, "agent", agent_row);
+		for (guint i = 0; i < count; i++)
+			{
+				AgentRowCheck *query = g_new0 (AgentRowCheck, 1);
+				g_weak_ref_init (&query->row, agent_row);
+				query->index = i;
+				termac_agent_check_async (agents[i], NULL, host, cancel, agent_row_checked, query);
+			}
+		adw_preferences_group_add (agent_group, GTK_WIDGET (agent_row));
+		adw_preferences_page_add (page, agent_group);
+	}
 	adw_preferences_page_set_title (page, _("Attachments"));
 	adw_preferences_page_set_icon_name (page, "mail-attachment-symbolic");
 	adw_preferences_group_set_title (group, _("Images"));
@@ -763,6 +874,7 @@ static const struct
 	{ "win.terminal-line-start", N_("Start of line"), "<control>Left" },
 	{ "win.terminal-select-all", N_("Select all"), "<control>a" },
 	{ "win.attach-image", N_("Attach image"), "<control><shift>i" },
+	{ "win.launch-agent", N_("Open Agent"), "<control><shift>a" },
 	{ "app.preferences", N_("Preferences"), "<control>comma" },
 	{ "app.shortcuts", N_("Keyboard shortcuts"), "<control>question" },
 };
@@ -1160,7 +1272,7 @@ termac_application_preferences_action (GSimpleAction *action,
 	                                     _("Appearance"), "applications-graphics-symbolic");
 	adw_view_stack_add_titled_with_icon (stack, GTK_WIDGET (shortcuts), "shortcuts",
 	                                     _("Shortcuts"), "input-keyboard-symbolic");
-	adw_view_stack_add_titled_with_icon (stack, termac_application_attachments_page (),
+	adw_view_stack_add_titled_with_icon (stack, termac_application_attachments_page (self),
 	                                     "attachments", _("Attachments"), "mail-attachment-symbolic");
 	adw_view_switcher_bar_set_stack (switcher, stack);
 	adw_view_switcher_bar_set_reveal (switcher, TRUE);
@@ -1286,6 +1398,7 @@ termac_application_init (TermacApplication *self)
 	                  G_CALLBACK (settings_changed_cb), self);
 	g_signal_connect (self->settings, "changed::palette",
 	                  G_CALLBACK (settings_changed_cb), self);
+	g_signal_connect (self->settings, "changed::agent", G_CALLBACK (settings_changed_cb), self);
 	g_signal_connect (self->settings, "changed::scrollback-lines",
 	                  G_CALLBACK (settings_changed_cb), self);
 	termac_application_apply_action_shortcuts (self);

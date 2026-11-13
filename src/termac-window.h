@@ -9,6 +9,8 @@ G_BEGIN_DECLS
 
 G_DECLARE_FINAL_TYPE (TermacWindow, termac_window, TERMAC, WINDOW, AdwApplicationWindow)
 
+void termac_window_launch_agent (TermacWindow *self);
+
 void termac_window_set_font_size (TermacWindow *self, guint size);
 void termac_window_sync_settings (TermacWindow *self);
 void termac_window_set_palette (TermacWindow *self, const char *name);

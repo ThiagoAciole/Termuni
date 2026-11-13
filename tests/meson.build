@@ -68,3 +68,7 @@ test_agent = executable('test-agent',
   include_directories: include_directories('../src'),
 )
 test('agent', test_agent)
+
+test('agent-names-contained', find_program('python3'),
+  args: [files('../tools/check-agent-boundary.py'), meson.project_source_root() / 'src'],
+)

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <gtk/gtk.h>
+#include "termac-agent.h"
 
 G_BEGIN_DECLS
 
@@ -12,7 +13,10 @@ G_DECLARE_FINAL_TYPE (TermacTerminal, termac_terminal, TERMAC, TERMINAL, GtkDraw
 #define TERMAC_COMMAND_NOTIFICATION_TITLE "termac-command"
 
 GtkWidget *termac_terminal_new (const char *cwd, gboolean shell_integration);
+/* Run an explicit initial command after the user's shell initialization. */
+GtkWidget *termac_terminal_new_command (const char *cwd, gboolean shell_integration, const char *command);
 
+void        termac_terminal_set_agent (TermacTerminal *self, const TermacAgent *agent);
 void        termac_terminal_set_font_size (TermacTerminal *self, guint size);
 void        termac_terminal_set_palette (TermacTerminal *self, const char *name);
 

@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="termac">
   <schema id="@application_id@" path="@settings_path@">
+    <key name="agent" type="s">
+      <default>'claude'</default>
+      <summary>Preferred command-line agent</summary>
+      <description>The agent used to format attachments and open new agent tabs.</description>
+    </key>
     <key name="color-scheme" type="s">
       <default>'system'</default>
       <summary>Color scheme</summary>

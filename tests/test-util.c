@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <glib.h>
+#include <glib/gstdio.h>
+#include <sys/wait.h>
 
 #include "termac-util.h"
 
@@ -145,10 +147,27 @@ test_shell_argv (void)
 	g_assert_true (g_strv_equal ((const char * const *) local, native));
 }
 
+static void
+test_initial_command_after_rc (void)
+{
+	g_autofree char *dir = g_dir_make_tmp ("termac-initial-command-XXXXXX", NULL);
+	g_autofree char *rc = g_build_filename (dir, "rc with ' quote", NULL);
+	g_auto(GStrv) args = NULL;
+	g_autofree char *output = NULL;
+	int status;
+	g_assert_true (g_file_set_contents (rc, "TERMAC_TEST_INITIAL=rc-loaded; export TERMAC_TEST_INITIAL\n", -1, NULL));
+	args = termac_shell_command_argv ("/bin/bash", dir, rc, FALSE, "printf %s \"$TERMAC_TEST_INITIAL\"; exit 23");
+	g_assert_true (g_spawn_sync (dir, args, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL, &output, NULL, &status, NULL));
+	g_assert_cmpstr (output, ==, "rc-loaded");
+	g_assert_cmpint (WEXITSTATUS (status), ==, 23);
+	g_unlink (rc); g_rmdir (dir);
+}
+
 int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
+	g_test_add_func ("/util/initial-command-after-rc", test_initial_command_after_rc);
 	g_test_add_func ("/util/session-directory", test_session_directory);
 	g_test_add_func ("/util/shell-argv", test_shell_argv);
 	g_test_add_func ("/util/pwd", test_path_from_pwd_strips_file_uri);

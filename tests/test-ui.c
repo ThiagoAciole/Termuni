@@ -18,6 +18,7 @@
 #include <adwaita.h>
 
 #include "termac-application.h"
+#include "termac-agent.h"
 #include "termac-terminal.h"
 #include "termac-vt.h"
 #include "termac-window.h"
@@ -1505,7 +1506,9 @@ test_theme_zoom_with_tabs (void)
 static void
 test_attachment_sequence (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	GSettings *settings = termac_application_get_settings (app);
 	g_autofree char *first = write_test_png ("termac-seq-1.png");
 	g_autofree char *second = write_test_png ("termac-seq-2.png");
 	GSList *files = NULL;
@@ -1517,12 +1520,40 @@ test_attachment_sequence (void)
 
 	g_assert_nonnull (window);
 	before = attachment_count ();
-	files = g_slist_append (files, g_file_new_for_path (first));
-	files = g_slist_append (files, g_file_new_for_path (second));
-	list = gdk_file_list_new_from_list (files);
-	g_assert_true (termac_window_attach_file_list (window, list));
-	g_boxed_free (GDK_TYPE_FILE_LIST, list);
-	pump (1500);
+	gtk_window_present (GTK_WINDOW (window));
+	pump (500);
+	for (guint a = 0; a < 2; a++)
+	{
+		const TermacAgent *agent = termac_agent_find (a == 0 ? "claude" : "codex");
+		g_autofree char *capture = g_build_filename (g_get_user_state_dir (), "agent-attachment-input.txt", NULL);
+		g_autofree char *quoted_capture = g_shell_quote (capture);
+		g_autofree char *command = g_strconcat ("/bin/cat > ", quoted_capture, NULL);
+		g_autofree char *actual = NULL;
+		g_autofree char *formatted = NULL;
+		g_autofree char *expected = NULL;
+		GPtrArray *attachments;
+		g_settings_set_string (settings, "agent", agent->id);
+		pump (100);
+		run_in_terminal (window, terminal, command);
+		pump (200);
+		files = g_slist_append (NULL, g_file_new_for_path (a == 0 ? first : second));
+		list = gdk_file_list_new_from_list (files);
+		g_assert_true (termac_window_attach_file_list (window, list));
+		g_boxed_free (GDK_TYPE_FILE_LIST, list);
+		g_slist_free_full (files, g_object_unref);
+		pump (200);
+		attachments = termac_terminal_get_attachments (terminal);
+		g_assert_cmpuint (attachments->len, ==, a + 1);
+		formatted = termac_agent_format_attachment (agent, g_ptr_array_index (attachments, a));
+		expected = g_strconcat (formatted, "\n", NULL);
+		send_keysym (XK_Return, FALSE);
+		send_keysym (XK_d, TRUE);
+		pump (300);
+		g_assert_true (g_file_get_contents (capture, &actual, NULL, NULL));
+		g_assert_cmpstr (actual, ==, expected);
+		g_unlink (capture);
+	}
+	g_settings_reset (settings, "agent");
 	g_assert_cmpuint (attachment_count (), ==, before + 2);
 
 	g_action_group_activate_action (G_ACTION_GROUP (app), "preferences", NULL);
@@ -1557,6 +1588,16 @@ test_attachment_sequence (void)
 	pump (300);
 	g_unlink (first);
 	g_unlink (second);
+	gtk_window_destroy (GTK_WINDOW (window));
+}
+
+static void
+test_attach_without_agent_binary (void)
+{
+	g_autofree char *previous = g_strdup (g_getenv ("PATH"));
+	g_setenv ("PATH", "/nonexistent", TRUE);
+	test_attachment_sequence ();
+	g_setenv ("PATH", previous != NULL ? previous : "", TRUE);
 }
 
 static GtkButton *
@@ -1910,24 +1951,258 @@ test_flatpak_host_session (void)
 	pump (500);
 }
 
+static AdwComboRow *
+find_agent_row (GtkWidget *root)
+{
+	if (ADW_IS_COMBO_ROW (root) && g_strcmp0 (adw_preferences_row_get_title (ADW_PREFERENCES_ROW (root)), "Agent") == 0)
+		return ADW_COMBO_ROW (root);
+	for (GtkWidget *child = gtk_widget_get_first_child (root); child != NULL; child = gtk_widget_get_next_sibling (child))
+	{
+		AdwComboRow *row = find_agent_row (child);
+		if (row != NULL) return row;
+	}
+	return NULL;
+}
+
+static void
+test_agent_choice (void)
+{
+	GtkWindow *preferences;
+	AdwComboRow *row;
+	GSettings *settings = termac_application_get_settings (app);
+	g_autofree char *choice = NULL;
+	g_action_group_activate_action (G_ACTION_GROUP (app), "preferences", NULL);
+	pump (400);
+	preferences = find_preferences_window ();
+	g_assert_nonnull (preferences);
+	row = find_agent_row (GTK_WIDGET (preferences));
+	g_assert_nonnull (row);
+	adw_combo_row_set_selected (row, 1);
+	choice = g_settings_get_string (settings, "agent");
+	g_assert_cmpstr (choice, ==, "codex");
+	g_assert_cmpstr (termac_application_get_agent (app)->id, ==, "codex");
+	g_settings_set_string (settings, "agent", "bogus");
+	g_assert_true (termac_application_get_agent (app) == termac_agent_default ());
+	pump (100);
+	g_assert_cmpuint (adw_combo_row_get_selected (row), ==, 0);
+	g_settings_reset (settings, "agent");
+	gtk_window_destroy (preferences);
+}
+
+static TermacTerminal *
+selected_terminal (TermacWindow *window)
+{
+	AdwTabView *view = ADW_TAB_VIEW (find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_VIEW));
+	return TERMAC_TERMINAL (adw_tab_page_get_child (adw_tab_view_get_selected_page (view)));
+}
+
+static void
+test_launch_agent (void)
+{
+	g_autofree char *dir = g_dir_make_tmp ("termac-agent-ui-XXXXXX", NULL);
+	g_autofree char *path = g_build_filename (dir, "claude", NULL);
+	g_autofree char *previous = g_strdup (g_getenv ("PATH"));
+	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
+	TermacWindow *window;
+	g_assert_true (g_file_set_contents (path, "#!/bin/sh\nprintf 'AGENT-%s\\n' STARTED\nexec /bin/sleep 30\n", -1, NULL));
+	g_assert_cmpint (g_chmod (path, 0755), ==, 0);
+	g_setenv ("PATH", dir, TRUE);
+	g_setenv ("SHELL", "/bin/sh", TRUE);
+	g_settings_reset (termac_application_get_settings (app), "agent");
+	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	gtk_window_present (GTK_WINDOW (window));
+	pump (200);
+	g_assert_true (g_action_group_has_action (G_ACTION_GROUP (window), "launch-agent"));
+	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent", NULL);
+	pump (300);
+	g_assert_cmpuint (tab_count (window), ==, 2);
+	g_assert_true (wait_for_screen (selected_terminal (window), "AGENT-STARTED", 5000));
+	gtk_window_destroy (GTK_WINDOW (window));
+	g_setenv ("PATH", previous != NULL ? previous : "", TRUE);
+	g_setenv ("SHELL", old_shell != NULL ? old_shell : "/bin/sh", TRUE);
+	g_unlink (path);
+	g_rmdir (dir);
+}
+
+static void
+test_launch_agent_missing (void)
+{
+	g_autofree char *previous = g_strdup (g_getenv ("PATH"));
+	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
+	TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	gtk_window_present (GTK_WINDOW (window));
+	g_setenv ("PATH", "/nonexistent", TRUE);
+	g_setenv ("SHELL", "/bin/sh", TRUE);
+	g_assert_true (g_action_group_has_action (G_ACTION_GROUP (window), "launch-agent"));
+	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent", NULL);
+	pump (400);
+	g_assert_cmpuint (tab_count (window), ==, 1);
+	g_assert_true (label_has_text (GTK_WIDGET (window), "Claude Code is not installed"));
+	g_action_group_activate_action (G_ACTION_GROUP (app), "preferences", NULL);
+	pump (200);
+	{
+		GtkWindow *preferences = find_preferences_window ();
+		AdwComboRow *row = find_agent_row (GTK_WIDGET (preferences));
+		g_assert_cmpstr (adw_action_row_get_subtitle (ADW_ACTION_ROW (row)), ==, "Not installed");
+		g_assert_true (g_str_has_suffix (gtk_string_list_get_string (GTK_STRING_LIST (adw_combo_row_get_model (row)), 0), "Not installed"));
+		gtk_window_destroy (preferences);
+	}
+	g_setenv ("PATH", previous != NULL ? previous : "", TRUE);
+	g_setenv ("SHELL", old_shell != NULL ? old_shell : "/bin/sh", TRUE);
+	gtk_window_destroy (GTK_WINDOW (window));
+}
+
+static void
+test_launch_agent_missing_folder (void)
+{
+	g_autofree char *dir = g_dir_make_tmp ("termac-agent-folder-XXXXXX", NULL);
+	g_autofree char *command = g_strdup_printf ("cd '%s'", dir);
+	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
+	TermacWindow *window;
+	TermacTerminal *terminal;
+	g_setenv ("SHELL", "/bin/sh", TRUE);
+	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	gtk_window_present (GTK_WINDOW (window));
+	terminal = selected_terminal (window);
+	pump (300);
+	run_in_terminal (window, terminal, command);
+	pump (300);
+	g_assert_cmpstr (termac_terminal_get_cwd (terminal), ==, dir);
+	g_assert_cmpint (g_rmdir (dir), ==, 0);
+	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent", NULL);
+	pump (400);
+	g_assert_cmpuint (tab_count (window), ==, 1);
+	g_assert_true (label_has_text (GTK_WIDGET (window), "The folder no longer exists"));
+	gtk_window_destroy (GTK_WINDOW (window));
+	g_setenv ("SHELL", old_shell != NULL ? old_shell : "/bin/sh", TRUE);
+}
+
+static void
+record_command_event (TermacTerminal *terminal, gint status, gpointer data)
+{
+	g_array_append_val ((GArray *) data, status);
+}
+
+static void
+test_bash_command_events (void)
+{
+	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
+	g_autofree char *old_home = g_strdup (g_getenv ("HOME"));
+	g_autofree char *rc = g_build_filename (g_get_user_state_dir (), ".bashrc", NULL);
+	g_autoptr(GArray) events = g_array_new (FALSE, FALSE, sizeof (gint));
+	GtkWidget *window;
+	TermacTerminal *terminal;
+	g_assert_true (g_file_set_contents (rc, "PROMPT_COMMAND=':'\n", -1, NULL));
+	g_setenv ("SHELL", "/bin/bash", TRUE);
+	g_setenv ("HOME", g_get_user_state_dir (), TRUE);
+	window = gtk_application_window_new (GTK_APPLICATION (app));
+	terminal = TERMAC_TERMINAL (termac_terminal_new (g_get_user_state_dir (), TRUE));
+	g_signal_connect (terminal, "command-finished", G_CALLBACK (record_command_event), events);
+	gtk_window_set_child (GTK_WINDOW (window), GTK_WIDGET (terminal));
+	gtk_window_present (GTK_WINDOW (window));
+	pump (600);
+	g_assert_cmpuint (events->len, ==, 0);
+	focus_terminal (window, GTK_WIDGET (terminal));
+	termac_terminal_insert_text (terminal, "false"); send_keysym (XK_Return, FALSE); pump (400);
+	g_assert_cmpuint (events->len, ==, 1);
+	g_assert_cmpint (g_array_index (events, gint, 0), ==, 1);
+	termac_terminal_insert_text (terminal, "true"); send_keysym (XK_Return, FALSE); pump (400);
+	g_assert_cmpuint (events->len, ==, 2);
+	g_assert_cmpint (g_array_index (events, gint, 1), ==, 0);
+	gtk_window_destroy (GTK_WINDOW (window));
+	g_setenv ("SHELL", old_shell != NULL ? old_shell : "/bin/sh", TRUE);
+	g_setenv ("HOME", old_home != NULL ? old_home : g_get_home_dir (), TRUE);
+	g_unlink (rc);
+}
+
+typedef struct { gboolean done; TermacAgentAvailability status; GError *error; } UiAgentCheck;
+static void
+ui_agent_checked (GObject *source, GAsyncResult *result, gpointer data)
+{
+	UiAgentCheck *check = data;
+	check->status = termac_agent_check_finish (result, &check->error);
+	check->done = TRUE;
+}
+
+static void
+test_flatpak_agent_context (void)
+{
+	gsize count;
+	const TermacAgent *const *agents = termac_agent_all (&count);
+	GtkWidget *window;
+	TermacTerminal *terminal;
+	g_autoptr(GArray) events = g_array_new (FALSE, FALSE, sizeof (gint));
+	if (!g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS))
+	{
+		g_test_skip ("requires the host's installed agents and Flatpak sandbox");
+		return;
+	}
+	for (guint i = 0; i < count; i++)
+	{
+		UiAgentCheck check = { 0 };
+		termac_agent_check_async (agents[i], "/tmp", TRUE, NULL, ui_agent_checked, &check);
+		for (guint tries = 0; !check.done && tries < 80; tries++) pump (100);
+		g_assert_true (check.done);
+		g_assert_no_error (check.error);
+		g_assert_cmpint (check.status, ==, TERMAC_AGENT_AVAILABLE);
+	}
+	window = gtk_application_window_new (GTK_APPLICATION (app));
+	terminal = TERMAC_TERMINAL (termac_terminal_new_command ("/tmp", FALSE, "printf 'P2%s:%s\\n' AGENT_START \"$PWD\""));
+	g_signal_connect (terminal, "command-finished", G_CALLBACK (record_command_event), events);
+	gtk_window_set_default_size (GTK_WINDOW (window), 800, 650);
+	gtk_window_set_child (GTK_WINDOW (window), GTK_WIDGET (terminal));
+	gtk_window_present (GTK_WINDOW (window));
+	g_assert_true (wait_for_screen (terminal, "P2AGENT_START:/tmp", 5000));
+	focus_terminal (window, GTK_WIDGET (terminal));
+	termac_terminal_insert_text (terminal, "printf 'P2%s\\n' AFTER_RETURN");
+	send_keysym (XK_Return, FALSE);
+	g_assert_true (wait_for_screen (terminal, "P2AFTER_RETURN", 5000));
+	{
+		g_autofree char *directory = g_build_filename (g_get_user_cache_dir (), "project's ação", NULL);
+		g_autofree char *quoted = g_shell_quote (directory);
+		g_autofree char *command = g_strdup_printf ("cd -- %s", quoted);
+		g_assert_cmpint (g_mkdir_with_parents (directory, 0700), ==, 0);
+		termac_terminal_insert_text (terminal, command);
+		send_keysym (XK_Return, FALSE);
+		for (guint tries = 0; tries < 30 && g_strcmp0 (termac_terminal_get_cwd (terminal), directory) != 0; tries++) pump (100);
+		g_assert_cmpstr (termac_terminal_get_cwd (terminal), ==, directory);
+		g_rmdir (directory);
+	}
+	g_assert_cmpuint (events->len, ==, 0); /* cwd reporting must not enable notifications */
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (500);
+}
+
+#include "real-agent-driver.inc"
+
 int
 main (int argc, char **argv)
 {
 	g_autofree char *root = NULL;
 
-	if (!gtk_init_check ())
-	{
-		g_test_message ("skipped: no display available");
-		return 77;
-	}
 	g_setenv ("LANGUAGE", "C", TRUE);
-	root = g_dir_make_tmp ("termac-ui-XXXXXX", NULL);
+	if (g_getenv ("TERMAC_TEST_CACHE_DIR") != NULL)
+	{
+		/* The QA driver binds only its private temporary directory at the
+		 * same path on both sides, so host rc files and images are visible. */
+		const char *cache = g_getenv ("TERMAC_TEST_CACHE_DIR");
+		g_assert_nonnull (cache);
+		g_assert_cmpint (g_mkdir_with_parents (cache, 0700), ==, 0);
+		root = g_build_filename (cache, "termac-ui-XXXXXX", NULL);
+		g_assert_nonnull (g_mkdtemp (root));
+	}
+	else root = g_dir_make_tmp ("termac-ui-XXXXXX", NULL);
 	g_assert_nonnull (root);
 	g_setenv ("XDG_STATE_HOME", root, TRUE);
 	g_setenv ("XDG_CACHE_HOME", root, TRUE);
 	g_setenv ("XDG_CONFIG_HOME", root, TRUE);
 	g_setenv ("XDG_DATA_HOME", root, TRUE);
 	g_setenv ("GSETTINGS_BACKEND", "memory", TRUE);
+	if (!gtk_init_check ())
+	{
+		g_test_message ("skipped: no display available");
+		return 77;
+	}
 	if (!GDK_IS_X11_DISPLAY (gdk_display_get_default ()))
 	{
 		g_test_message ("skipped: the input test needs the X11 backend");
@@ -1973,6 +2248,14 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/session-v2-migration", test_session_v2_migration);
 	g_test_add_func ("/ui/session-restore-roundtrip", test_session_restore_roundtrip);
 	g_test_add_func ("/ui/session-corrupt-file", test_session_corrupt_file);
+	g_test_add_func ("/ui/attach-without-agent-binary", test_attach_without_agent_binary);
+	g_test_add_func ("/ui/launch-agent", test_launch_agent);
+	g_test_add_func ("/ui/launch-agent-missing-folder", test_launch_agent_missing_folder);
+	g_test_add_func ("/ui/launch-agent-missing", test_launch_agent_missing);
+	g_test_add_func ("/ui/bash-command-events", test_bash_command_events);
+	g_test_add_func ("/ui/real-agent-driver", test_real_agent_driver);
+	g_test_add_func ("/ui/agent-choice", test_agent_choice);
+	g_test_add_func ("/ui/flatpak-agent-context", test_flatpak_agent_context);
 	g_test_add_func ("/ui/flatpak-host-session", test_flatpak_host_session);
 	g_test_add_func ("/ui/accessibility-labels", test_accessibility_labels);
 	g_test_add_func ("/ui/grid-fits-widget", test_grid_fits_widget);
