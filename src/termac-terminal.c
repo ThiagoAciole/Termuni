@@ -24,6 +24,9 @@
 
 #define READ_BUDGET (64 * 1024)
 #define WRITE_QUEUE_LIMIT (1024 * 1024)
+/* Input that does not fit the queue waits here, in order, and is moved in as the
+ * program reads. The cap only guards against a runaway producer. */
+#define WRITE_BACKLOG_LIMIT (256 * 1024 * 1024)
 #define TERMAC_TERMINAL_INSET_START 8
 #define TERMAC_TERMINAL_INSET_TOP 12
 #define TERMAC_TERMINAL_WHEEL_LINES 3
@@ -46,6 +49,7 @@ struct _TermacTerminal
 	GtkIMContext *im_context;
 	char *preedit;
 	GByteArray *write_queue;
+	GByteArray *write_backlog;
 	GPtrArray *attachments;
 	GPid child_pid;
 	guint io_source;
@@ -180,23 +184,35 @@ terminal_write_ready (gint         fd,
 	if (condition & (G_IO_ERR | G_IO_NVAL))
 		goto done;
 
-	while (self->write_queue->len > 0 && written_total < READ_BUDGET)
+	for (;;)
 	{
-		ssize_t n = write (fd, self->write_queue->data, self->write_queue->len);
-		if (n > 0)
+		gsize room = WRITE_QUEUE_LIMIT - self->write_queue->len;
+		gsize move = MIN (room, (gsize) self->write_backlog->len);
+
+		if (move > 0)
 		{
-			g_byte_array_remove_range (self->write_queue, 0, (guint) n);
-			written_total += (gsize) n;
-			continue;
+			g_byte_array_append (self->write_queue, self->write_backlog->data, (guint) move);
+			g_byte_array_remove_range (self->write_backlog, 0, (guint) move);
 		}
-		if (n < 0 && errno == EINTR)
-			continue;
-		if (n < 0 && errno == EAGAIN)
-			return G_SOURCE_CONTINUE;
-		goto done;
+		if (self->write_queue->len == 0 || written_total >= READ_BUDGET)
+			break;
+		{
+			ssize_t n = write (fd, self->write_queue->data, self->write_queue->len);
+			if (n > 0)
+			{
+				g_byte_array_remove_range (self->write_queue, 0, (guint) n);
+				written_total += (gsize) n;
+				continue;
+			}
+			if (n < 0 && errno == EINTR)
+				continue;
+			if (n < 0 && errno == EAGAIN)
+				return G_SOURCE_CONTINUE;
+			goto done;
+		}
 	}
 
-	if (self->write_queue->len > 0)
+	if (self->write_queue->len > 0 || self->write_backlog->len > 0)
 		return G_SOURCE_CONTINUE;
 
 done:
@@ -211,12 +227,17 @@ terminal_queue_bytes (TermacTerminal *self,
 {
 	if (self->pty_fd < 0 || len == 0 || self->closing)
 		return;
-	if (len > WRITE_QUEUE_LIMIT - self->write_queue->len)
+	if (self->write_backlog->len > 0 || len > WRITE_QUEUE_LIMIT - self->write_queue->len)
 	{
-		g_warning ("terminal input queue reached its 1 MiB limit");
-		return;
+		if (len > WRITE_BACKLOG_LIMIT - self->write_backlog->len)
+		{
+			g_warning ("terminal input backlog reached its 256 MiB limit");
+			return;
+		}
+		g_byte_array_append (self->write_backlog, bytes, (guint) len);
 	}
-	g_byte_array_append (self->write_queue, bytes, (guint) len);
+	else
+		g_byte_array_append (self->write_queue, bytes, (guint) len);
 	if (self->write_source == 0)
 		self->write_source = g_unix_fd_add (self->pty_fd,
 		                                    G_IO_OUT | G_IO_ERR | G_IO_HUP,
@@ -1731,6 +1752,7 @@ terminal_dispose (GObject *object)
 	termac_vt_selector_free (self->selector);
 	self->selector = NULL;
 	g_clear_pointer (&self->write_queue, g_byte_array_unref);
+	g_clear_pointer (&self->write_backlog, g_byte_array_unref);
 	g_clear_pointer (&self->attachments, g_ptr_array_unref);
 	g_clear_pointer (&self->error, g_free);
 	g_clear_pointer (&self->cwd, g_free);
@@ -1790,6 +1812,7 @@ termac_terminal_init (TermacTerminal *self)
 	self->rows = 24;
 	self->session_id = g_uuid_string_random ();
 	self->write_queue = g_byte_array_new ();
+	self->write_backlog = g_byte_array_new ();
 	self->attachments = g_ptr_array_new_with_free_func (g_free);
 	self->selector = termac_vt_selector_new ();
 	context = gtk_widget_get_pango_context (GTK_WIDGET (self));

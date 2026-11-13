@@ -123,6 +123,24 @@ test_paste_is_wrapped_only_when_bracketed (void)
 	g_assert_cmpmem (plain, length, "a\rb", 3);
 }
 
+/* Text that contains the end-of-paste marker must not end the paste early. */
+static void
+test_paste_cannot_inject_end_marker (void)
+{
+	const char *text = "a\x1b[201~b";
+	gsize length = 0;
+	gsize count = 0;
+	g_autofree char *encoded = termac_vt_encode_paste (text, strlen (text), TRUE, &length);
+	gsize i;
+
+	g_assert_nonnull (encoded);
+	for (i = 0; i + 6 <= length; i++)
+		if (memcmp (encoded + i, "\x1b[201~", 6) == 0)
+			count++;
+	g_assert_cmpuint (count, ==, 1);
+	g_assert_cmpmem (encoded + length - 6, 6, "\x1b[201~", 6);
+}
+
 static void
 test_mouse_tracking_is_reported (void)
 {
@@ -167,6 +185,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/vt/selection/wide", test_selection_copies_wide_characters);
 	g_test_add_func ("/vt/bracketed-paste/mode", test_bracketed_paste_mode_is_reported);
 	g_test_add_func ("/vt/paste/encode", test_paste_is_wrapped_only_when_bracketed);
+	g_test_add_func ("/vt/paste/no-end-marker-injection", test_paste_cannot_inject_end_marker);
 	g_test_add_func ("/vt/mouse/tracking", test_mouse_tracking_is_reported);
 	g_test_add_func ("/vt/find/scroll", test_find_scrolls_to_match);
 	return g_test_run ();

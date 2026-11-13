@@ -874,6 +874,54 @@ test_dead_key_and_unicode (void)
 	g_assert_true (wait_for_job_end (terminal, 100));
 }
 
+static void
+set_clipboard_and_paste (TermacTerminal *terminal, const char *text)
+{
+	gdk_clipboard_set_text (gtk_widget_get_clipboard (GTK_WIDGET (terminal)), text);
+	pump (300);
+	termac_terminal_paste (terminal);
+}
+
+/* Pasted text arrives intact: line breaks survive and nothing is dropped, even
+ * far above the size of the input queue. */
+static void
+test_paste_integrity (void)
+{
+	TermacWindow *window = main_window ();
+	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	g_autofree char *path = g_build_filename (g_get_tmp_dir (), "termac-paste-out.txt", NULL);
+	g_autofree char *command = g_strdup_printf ("cat > %s", path);
+	g_autofree char *contents = NULL;
+	GString *big = g_string_new (NULL);
+	guint i;
+
+	g_assert_nonnull (terminal);
+	g_remove (path);
+
+	run_in_terminal (window, terminal, command);
+	pump (500);
+	set_clipboard_and_paste (terminal, "one\ntwo\nthree");
+	pump (500);
+	send_keysym (XK_Return, FALSE);
+	send_keysym (XK_d, TRUE);
+	g_assert_true (wait_for_job_end (terminal, 4000));
+	g_assert_true (g_file_get_contents (path, &contents, NULL, NULL));
+	g_assert_cmpstr (contents, ==, "one\ntwo\nthree\n");
+
+	/* 26214 lines of 80 bytes: about 2 MiB, past the 1 MiB write queue. */
+	for (i = 0; i < 26214; i++)
+		g_string_append (big, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n");
+	g_assert_cmpuint (big->len, ==, 2097120);
+	run_in_terminal (window, terminal, "wc -c");
+	pump (500);
+	set_clipboard_and_paste (terminal, big->str);
+	pump (500);
+	send_keysym (XK_d, TRUE);
+	g_assert_true (wait_for_screen (terminal, "2097120", 30000));
+	g_string_free (big, TRUE);
+	g_remove (path);
+}
+
 static void collect_terminals (GtkWidget *root, GPtrArray *out);
 
 /* vi is a real full-screen program: edit and save through the PTY, follow a
@@ -1533,6 +1581,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/vim-session", test_vim_session);
 	g_test_add_func ("/ui/mouse-tracking", test_mouse_tracking_report);
 	g_test_add_func ("/ui/input-method", test_dead_key_and_unicode);
+	g_test_add_func ("/ui/paste-integrity", test_paste_integrity);
 	g_test_add_func ("/ui/tabs-independent", test_tabs_are_independent);
 	g_test_add_func ("/ui/closed-tab-releases-terminal", test_closed_tab_releases_terminal);
 	g_test_add_func ("/ui/no-orphan-shells", test_no_orphan_shells);
