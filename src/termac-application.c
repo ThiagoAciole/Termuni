@@ -73,12 +73,15 @@ write_session_file (GVariant *sessions)
 	gboolean written = FALSE;
 
 	size = g_variant_get_size (sessions);
-	buffer = g_malloc (size);
+	/* An empty session has zero serialized bytes, but g_variant_store still
+	 * requires a non-NULL destination. g_malloc (0) would return NULL. */
+	buffer = g_malloc (MAX (size, (gsize) 1));
 	g_variant_store (sessions, buffer);
 	g_variant_unref (sessions);
 	if (g_mkdir_with_parents (dir, 0700) != 0)
 		return FALSE;
-	/* g_file_set_contents writes a temporary file and renames it into place. */
+	/* GLib provides consistent replacement for existing files. Keep v2 as
+	 * recovery data; first-creation durability is tracked separately. */
 	written = g_file_set_contents (path, (const char *) buffer, (gssize) size, NULL);
 	if (!written)
 		g_warning ("Could not save the session");

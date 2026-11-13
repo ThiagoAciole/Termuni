@@ -15,11 +15,15 @@ O plano vigente e o roadmap orientam a próxima tarefa. Relatórios provam o que
 
 ## Checklists de aceite
 
+- [Critérios de estabilidade e auditoria das recomendações](checklists/stability.md).
+
 - [GNOME/Builder/Flatpak/Orca/escala](checklists/gnome-manual.md).
 - [Agentes reais e anexos](checklists/agents-manual.md): matriz observada e reprodução opt-in.
 - [Revisão visual](checklists/visual-review.md): capturas inspecionadas, diferenças e limites.
 
 ## Relatórios e planos executados
+
+- [Revisão arquitetural/estabilidade, 13/11/2026](reports/2026-11-13-stability-review.md).
 
 - [Organização e auditoria, 13/11/2026](reports/2026-11-13-project-organization.md).
 - [Resultados consolidados P0–P3, 13/11/2026](reports/2026-11-13-p0-p3.md).

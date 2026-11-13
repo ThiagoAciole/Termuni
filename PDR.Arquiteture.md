@@ -4,7 +4,7 @@ Atualizado em 13/11/2026. O estado dos marcos e suas evidências ficam no quadro
 
 ## Produto
 
-O Termac é um terminal para Linux com interface GNOME, sessões em abas e entrada de imagens para agentes de linha de comando. A prova inicial precisa abrir o shell do usuário em uma janela responsiva, preservar texto Unicode, cores e redimensionamento e, depois, sustentar aplicações TUI interativas. A aparência e as interações previstas estão em [DESIGN.md](DESIGN.md).
+O Termac é primeiro um terminal nativo GNOME para Linux, com sessões em abas e suporte a aplicações TUI. Shell, PTY, entrada, seleção, colagem, Unicode/emoji e cores True Color são parte do terminal. Claude Code/Codex são integrações opcionais: sua ausência não deve comprometer o emulador. A aparência e as interações previstas estão em [DESIGN.md](DESIGN.md).
 
 A implementação atual inclui seleção, copiar e colar, scrollback, visão geral de abas, preferências, busca com realce, anexação de imagens para Claude Code/Codex e persistência de organização. Acessibilidade do conteúdo do terminal permanece incompleta. O [roadmap](docs/ROADMAP.md) separa código ausente, correções e aceite manual; a presença de uma ação ou tela não garante sua validação.
 
@@ -13,9 +13,15 @@ A implementação atual inclui seleção, copiar e colar, scrollback, visão ger
 - Perfis de terminal ficam fora do escopo da primeira versão estável.
 - Integração com agentes: Claude Code e Codex CLI são o MVP. Preferências → Anexos guarda a escolha explícita; Abrir agente cria uma aba no diretório conhecido da sessão. Os adaptadores concentram binários/formatação/comando e consultas de disponibilidade. PNG, JPEG e Ctrl+V foram validados com os dois CLIs reais no P2 sob Xvfb; demais agentes ficam fora deste aceite.
 - Atalhos: Ctrl+C, Ctrl+V, Ctrl+Shift+C, Ctrl+Shift+V, Ctrl+Seta para a esquerda e Ctrl+A são ações de janela editáveis em Preferências, com os padrões de fábrica preservados e restauração em "Restaurar padrões".
-- Sessão: o formato atual é `session-v3.gvariant` (com geometria da janela). A sessão `session-v2.gvariant` é convertida uma única vez, quando o v3 ainda não existe, preservando as abas e as pastas. Depois disso o v2 não é mais lido.
+- Sessão: o formato atual é `session-v3.gvariant` (com geometria da janela). A sessão `session-v2.gvariant` é convertida uma única vez, quando o v3 ainda não existe, preservando as abas e as pastas. Depois disso o v2 não é mais lido. A origem v2 não é apagada; os testes cobrem idempotência e falha de gravação sem perda da origem. Uma sessão sem janelas é um estado válido, com serialização de zero bytes.
 - Notificações são opt-in (`notifications=false` por padrão). A política exige janela ou aba fora de foco e evento elegível; relatos explícitos Bash mantêm o comportamento anterior de comandos curtos, enquanto o fallback por processo aplica o limiar de tarefa longa. Entrega/clique no desktop ainda precisam de aceite.
 - Créditos: `translator-credits` é reservado aos tradutores. A autoria e os créditos de desenvolvimento ficam na janela Sobre.
+
+## Critério de estabilidade
+
+Os [critérios da primeira versão estável](docs/checklists/stability.md) são o contrato de aceite: confiabilidade do terminal, restauração, distribuição/Builder, fluxos suportados de anexo, ausência de crescimento contínuo de memória inexplicado, acessibilidade/escalas e consistência visual/documental. O Marco 5 inteiro não é pré-requisito; busca com realce e conflitos já existem. Expansões opcionais não devem adiar correções do emulador, persistência ou distribuição.
+
+A matriz distingue o que já foi implementado de validação pendente. TUI moderna, Unicode/emoji e True Color têm cenários explícitos; não se infere compatibilidade com toda aplicação a partir das capacidades do motor.
 
 ## Decisões técnicas
 

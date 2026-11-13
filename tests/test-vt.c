@@ -260,10 +260,43 @@ test_find_matches_preserves_render_updates (void)
 	ghostty_terminal_free (terminal);
 }
 
+static void
+test_truecolor (void)
+{
+	GhosttyTerminal terminal = new_terminal ();
+	GhosttyRenderState state = NULL;
+	GhosttyRenderStateRowIterator iterator = NULL;
+	GhosttyRenderStateRowCells cells = NULL;
+	GhosttyColorRgb foreground, background;
+
+	write_text (terminal, "\033[38;2;17;83;149;48;2;203;41;7mX\033[0m");
+	g_assert_cmpint (ghostty_render_state_new (NULL, &state), ==, GHOSTTY_SUCCESS);
+	g_assert_cmpint (ghostty_render_state_row_iterator_new (NULL, &iterator), ==, GHOSTTY_SUCCESS);
+	g_assert_cmpint (ghostty_render_state_row_cells_new (NULL, &cells), ==, GHOSTTY_SUCCESS);
+	g_assert_cmpint (ghostty_render_state_update (state, terminal), ==, GHOSTTY_SUCCESS);
+	g_assert_cmpint (ghostty_render_state_get (state, GHOSTTY_RENDER_STATE_DATA_ROW_ITERATOR, &iterator), ==, GHOSTTY_SUCCESS);
+	g_assert_true (ghostty_render_state_row_iterator_next (iterator));
+	g_assert_cmpint (ghostty_render_state_row_get (iterator, GHOSTTY_RENDER_STATE_ROW_DATA_CELLS, &cells), ==, GHOSTTY_SUCCESS);
+	g_assert_true (ghostty_render_state_row_cells_next (cells));
+	g_assert_cmpint (ghostty_render_state_row_cells_get (cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_FG_COLOR, &foreground), ==, GHOSTTY_SUCCESS);
+	g_assert_cmpint (ghostty_render_state_row_cells_get (cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_BG_COLOR, &background), ==, GHOSTTY_SUCCESS);
+	g_assert_cmpuint (foreground.r, ==, 17);
+	g_assert_cmpuint (foreground.g, ==, 83);
+	g_assert_cmpuint (foreground.b, ==, 149);
+	g_assert_cmpuint (background.r, ==, 203);
+	g_assert_cmpuint (background.g, ==, 41);
+	g_assert_cmpuint (background.b, ==, 7);
+	ghostty_render_state_row_cells_free (cells);
+	ghostty_render_state_row_iterator_free (iterator);
+	ghostty_render_state_free (state);
+	ghostty_terminal_free (terminal);
+}
+
 int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
+	g_test_add_func ("/vt/truecolor", test_truecolor);
  g_test_add_func ("/vt/find-matches", test_find_matches);
  g_test_add_func ("/vt/find-matches-preserves-render-updates", test_find_matches_preserves_render_updates);
  g_test_add_func ("/vt/find-matches-wide", test_find_matches_wide);

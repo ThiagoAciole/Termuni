@@ -1,6 +1,6 @@
 # Melhorias do Termac
 
-Auditoria de 13/11/2026 sobre o código até `5a14a91`, após P0–P3. **Este é o backlog vigente.** O [plano atual](../PLANO_IMPLEMENTACAO.md) resume o estado; [evidências anteriores](reports/2026-11-13-p0-p3.md) não são substituídas por esta organização.
+Auditoria de 13/11/2026 sobre o código até `5a14a91`, após P0–P3. **Este é o backlog vigente**, complementado pela revisão arquitetural/estabilidade sobre `51fa0b4`. Os [critérios de estabilidade](checklists/stability.md) definem bloqueadores de lançamento; o backlog inteiro não define. O [plano atual](../PLANO_IMPLEMENTACAO.md) resume o estado; [evidências anteriores](reports/2026-11-13-p0-p3.md) não são substituídas por esta organização.
 
 Tipos: **correção** = comportamento inadequado identificado; **implementação** = capacidade ausente; **validação** = código existe, falta comprovar o aceite. “Alta” indica a ordem recomendada de trabalho, não uma declaração de que todas as versões já falham nesses cenários.
 
@@ -21,8 +21,12 @@ Tipos: **correção** = comportamento inadequado identificado; **implementação
 | M11 | Média / distribuição | **Preparar release verificável.** O manifesto ativo é development; o perfil default compila, mas não há homepage/releases publicados registrados nem aceite desktop completo. | Rodar V01–V06 abaixo, instalar pacote default isolado com ícone/schema próprios, testar atualização/persistência e registrar a versão distribuída. Adicionar URLs/releases apenas quando existirem; não inventar metadata. |
 | M12 | Média / correção de ferramenta | **Restringir restart de desenvolvimento à instância correta.** `tools/dev.sh` usa `pgrep/pkill -x termac`, sem distinguir caminho/perfil. Uma instância pessoal/default pode impedir abrir development e ser encerrada por `--restart`. O modo já exige aviso, mas não tem isolamento de processo. | Identificar PID/executável desta raiz e perfil, preservar outras instâncias e confirmar o escopo antes de encerrar; verificar com duas instâncias/projetos isolados. Não testar o restart contra sessões pessoais. |
 | M13 | Posterior / manutenção | **Separação incremental de responsabilidades.** `termac-terminal.c` reúne PTY/entrada/renderização; `termac-application.c` reúne sessão/Preferências/atalhos; `test-ui.c` compartilha contexto e cresce. | Primeiro M01; depois extrair uma responsabilidade por vez, com interfaces pequenas, ownership/cancelamento e regressões de lifecycle. Preservar Meson/Builder, caminho de recursos e semântica de sessão. Nenhuma migração de toolkit/motor é necessária para organizar o projeto. |
+| M14 | Média / implementação | **Anunciar True Color aos programas.** SGR 24-bit e desenho RGB já foram verificados nesta revisão. O shell define TERM, mas não exporta COLORTERM explicitamente; btop foi exercitado com True Color ativado na configuração. | Definir/propagar capacidade de forma consistente no lançamento nativo e bridge host, preservando dotfiles; testar autodetecção real, sem confundir ausência de anúncio com ausência de renderização RGB. |
+| M15 | Alta / persistência | **Primeira gravação consistente/durável sem bloquear a UI.** A migração preserva v2 e agora tem testes de idempotência/falha. `g_file_set_contents` usa CONSISTENT com ONLY_EXISTING; a primeira criação não tem garantia completa contra queda de energia. | Definir flags/política para gravação consistente/durável, ownership de I/O assíncrono e falhas/retry. Testar criação, substituição, erro e último estado válido; manter v2 intacto e não reimportar v2 obsoleto sobre um v3 existente. |
 
-M01 e M02 são os melhores próximos incrementos: há evidência concreta e o escopo é limitado. M03 e M04 precisam de planos próprios, pois alteram ciclo de vida e contrato do widget.
+Prioridade de lançamento: M01 primeiro para confiar na evidência; em seguida M03/M15 (encerramento/persistência), V01/V05/V07 (distribuição/reinício) e M04 (acessibilidade). M02 continua uma correção concreta, mas não transforma o Marco 5 inteiro em pré-requisito. Busca com realce, conflitos, adaptadores e migração já existem; não reabrir esses itens como implementação ausente.
+
+M03/M04/M15 precisam de planos próprios por alterarem lifecycle, contrato do widget ou I/O persistente. Nesta revisão foi corrigido o caso de salvar zero janelas e reforçada a migração; isso não conclui todos esses itens.
 
 ## Aceite pendente: código existente
 
@@ -34,6 +38,7 @@ M01 e M02 são os melhores próximos incrementos: há evidência concreta e o es
 | V04 | Notificações do desktop | [Revisão visual](checklists/visual-review.md): habilitar a preferência, executar `sleep 12; echo done` fora de foco, receber e clicar; testar preferência desligada e aba já fechada. A política/ação têm testes, a entrega GNOME não foi observada. |
 | V05 | Imagem real pelo Flatpak | [Agentes](checklists/agents-manual.md) e [GNOME](checklists/gnome-manual.md): PNG/JPEG/clipboard nos dois CLIs pelo bridge do host; confirmar conteúdo visual. Detecção de executáveis não é anexo multimodal. |
 | V06 | Orca e aceitação acessível | [Checklist GNOME](checklists/gnome-manual.md): navegação/nomes já podem ser exercitados; saída/caret/seleção dependem de M04. |
+| V07 | Restauração entre processos | [Estabilidade](checklists/stability.md): encerrar e iniciar executáveis distintos, incluindo atualização e erro de gravação, com perfil/XDG de teste isolado. A reativação no mesmo processo já tem teste; o ciclo real ainda deve ser aceito. |
 
 ## Expansões de produto fora do MVP
 
@@ -54,4 +59,4 @@ Essas expansões são propostas, não promessas de implementação nem bloqueios
 - Dois backups `*~` movidos sem alterar bytes; builds/caches e novos backups ignorados no Git.
 - `inspect_termac.py` passou a ignorar o Ghostty baixado e artefatos locais: a auditoria do frontend não deve confundir a aplicação GTK do upstream com o código do Termac. A revisão do motor continua no wrap e nos headers fixados.
 
-Não houve refatoração do widget, mudança de permissões, remoção de builds ou reinício de sessões pessoais nesta organização. Os itens M01–M13 continuam abertos; o objetivo desta rodada é organizar e diagnosticar, não declarar essas melhorias implementadas.
+Não houve refatoração do widget, mudança de permissões, remoção de builds ou reinício de sessões pessoais nesta organização. Os itens M01–M15 continuam abertos; o objetivo desta rodada é organizar e diagnosticar, não declarar essas melhorias implementadas.

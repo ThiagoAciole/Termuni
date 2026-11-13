@@ -1747,6 +1747,12 @@ test_session_v2_migration (void)
 	GList *windows;
 	GList *iter;
 	TermacWindow *window;
+	g_autofree char *source = NULL;
+	g_autofree char *saved_v3 = NULL;
+	gsize source_length = 0, saved_length = 0;
+	g_autoptr(GVariant) before = NULL;
+	g_autoptr(GVariant) after = NULL;
+	gint selected_before = 0, selected_after = 0;
 
 	/* Destroying a window removes it from the application's list, so iterate over a copy. */
 	windows = g_list_copy (gtk_application_get_windows (GTK_APPLICATION (app)));
@@ -1775,6 +1781,25 @@ test_session_v2_migration (void)
 	window = TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
 	g_assert_true (TERMAC_IS_WINDOW (window));
 	g_assert_cmpuint (tab_count (window), ==, 2);
+	g_assert_true (g_file_get_contents (v2, &source, &source_length, NULL));
+	g_assert_cmpmem (source, source_length, g_bytes_get_data (data, NULL), g_bytes_get_size (data));
+	before = g_variant_ref_sink (termac_window_session_state (window, &selected_before));
+	g_assert_true (g_file_get_contents (v3, &saved_v3, &saved_length, NULL));
+
+	/* Once v3 exists, stale (even invalid) v2 must not overwrite it. */
+	destroy_all_windows ();
+	g_assert_true (g_file_set_contents (v3, saved_v3, (gssize) saved_length, NULL));
+	g_assert_true (g_file_set_contents (v2, "do not migrate again", -1, NULL));
+	g_application_activate (G_APPLICATION (app));
+	pump (300);
+	window = main_window ();
+	g_assert_nonnull (window);
+	after = g_variant_ref_sink (termac_window_session_state (window, &selected_after));
+	g_assert_cmpint (selected_before, ==, selected_after);
+	g_assert_true (g_variant_equal (before, after));
+	g_clear_pointer (&source, g_free);
+	g_assert_true (g_file_get_contents (v2, &source, NULL, NULL));
+	g_assert_cmpstr (source, ==, "do not migrate again");
 }
 
 static void
@@ -2471,6 +2496,179 @@ test_search_current_match (void)
  pump (200);
 }
 
+static void
+test_session_migration_write_failure (void)
+{
+	g_autofree char *dir = g_build_filename (g_get_user_state_dir (), "termac", NULL);
+	g_autofree char *v2 = g_build_filename (dir, "session-v2.gvariant", NULL);
+	g_autofree char *v3 = session_file ();
+	g_autoptr(GVariant) legacy = g_variant_parse (G_VARIANT_TYPE ("a(ia(ss))"),
+	    "[(0, [('/tmp', 'Safe')])]", NULL, NULL, NULL);
+	g_autoptr(GBytes) data = g_variant_get_data_as_bytes (legacy);
+	g_autofree char *contents = NULL;
+	gsize length = 0;
+	TermacWindow *window;
+
+	destroy_all_windows ();
+	forget_saved_sessions ();
+	g_assert_cmpint (g_mkdir_with_parents (dir, 0700), ==, 0);
+	g_assert_true (g_file_set_contents (v2, g_bytes_get_data (data, NULL),
+	    (gssize) g_bytes_get_size (data), NULL));
+	/* A directory at the destination forces a real write failure, even as root. */
+	g_assert_cmpint (g_mkdir (v3, 0700), ==, 0);
+	g_test_expect_message (NULL, G_LOG_LEVEL_WARNING, "*Could not save the session*");
+	g_application_activate (G_APPLICATION (app));
+	g_test_assert_expected_messages ();
+	pump (200);
+	window = main_window ();
+	g_assert_nonnull (window);
+	g_assert_cmpuint (tab_count (window), ==, 1);
+	g_assert_cmpstr (termac_terminal_get_cwd (selected_terminal (window)), ==, "/tmp");
+	g_assert_true (g_file_test (v3, G_FILE_TEST_IS_DIR));
+	g_assert_true (g_file_get_contents (v2, &contents, &length, NULL));
+	g_assert_cmpmem (contents, length, g_bytes_get_data (data, NULL), g_bytes_get_size (data));
+	g_assert_cmpint (g_rmdir (v3), ==, 0);
+	destroy_all_windows ();
+	forget_saved_sessions ();
+	g_application_activate (G_APPLICATION (app));
+	pump (300);
+}
+
+static void
+test_truecolor_unicode_render (void)
+{
+	TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	TermacTerminal *terminal;
+	GhosttyTerminal vt;
+	const char *text = "\033[?2027h\033[2J\033[H日本語 é 👩‍💻 ❤️\r\n"
+	    "\033[38;2;17;83;149;48;2;203;41;7m  \033[0m\033[?25l";
+	g_autofree char *line = NULL;
+	g_autoptr(GdkPaintable) paintable = NULL;
+	GtkSnapshot *snapshot;
+	GskRenderNode *node;
+	g_autoptr(GdkTexture) texture = NULL;
+	g_autofree guchar *pixels = NULL;
+	gsize stride, offset;
+	guint cw, ch;
+	guint32 pixel;
+
+	gtk_window_present (GTK_WINDOW (window));
+	pump (700);
+	terminal = selected_terminal (window);
+	termac_terminal_set_font_size (terminal, 11);
+	vt = termac_terminal_get_vt_handle (terminal);
+	ghostty_terminal_vt_write (vt, (const uint8_t *) text, strlen (text));
+	gtk_widget_queue_draw (GTK_WIDGET (terminal));
+	pump (300);
+	g_assert_true (termac_vt_viewport_row_text (vt, termac_terminal_get_columns (terminal), 0, &line));
+	g_assert_nonnull (strstr (line, "日本語 é 👩‍💻 ❤️"));
+	paintable = gtk_widget_paintable_new (GTK_WIDGET (terminal));
+	snapshot = gtk_snapshot_new ();
+	gdk_paintable_snapshot (paintable, GDK_SNAPSHOT (snapshot),
+	    gtk_widget_get_width (GTK_WIDGET (terminal)), gtk_widget_get_height (GTK_WIDGET (terminal)));
+	node = gtk_snapshot_free_to_node (snapshot);
+	g_assert_nonnull (node);
+	texture = gsk_renderer_render_texture (gtk_native_get_renderer (
+	    gtk_widget_get_native (GTK_WIDGET (terminal))), node, NULL);
+	gsk_render_node_unref (node);
+	termac_terminal_get_cell_size (terminal, &cw, &ch);
+	g_assert_cmpint (gdk_texture_get_width (texture), >, 8);
+	g_assert_cmpint (gdk_texture_get_height (texture), >, 12 + ch + 1);
+	stride = gdk_texture_get_width (texture) * 4;
+	pixels = g_malloc (stride * gdk_texture_get_height (texture));
+	gdk_texture_download (texture, pixels, stride);
+	offset = (12 + ch + 1) * stride + 8 * 4;
+	/* GDK_MEMORY_DEFAULT is native-endian premultiplied ARGB32. The sampled
+	 * cell is opaque, with no glyph/cursor, so its RGB must be exact. */
+	memcpy (&pixel, pixels + offset, sizeof pixel);
+	g_assert_cmpuint ((pixel >> 16) & 0xff, ==, 203);
+	g_assert_cmpuint ((pixel >> 8) & 0xff, ==, 41);
+	g_assert_cmpuint (pixel & 0xff, ==, 7);
+	save_widget_png (GTK_WIDGET (window), "truecolor-unicode.png");
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
+}
+
+static void
+test_modern_tui (void)
+{
+	g_autofree char *btop = g_find_program_in_path ("btop");
+	g_autofree char *config = g_build_filename (g_get_user_config_dir (), "termac-btop-test.conf", NULL);
+	g_autofree char *quoted_config = NULL;
+	g_autofree char *quoted_btop = NULL;
+	g_autofree char *command = NULL;
+	g_autofree char *text = NULL;
+	g_autofree char *folded = NULL;
+	TermacWindow *window;
+	TermacTerminal *terminal;
+	GhosttyTerminal vt;
+
+	if (btop == NULL)
+	{
+		g_test_skip ("btop is not installed; modern-TUI acceptance remains pending");
+		return;
+	}
+	/* Isolated configuration; do not show the host's process commands. */
+	g_assert_true (g_file_set_contents (config,
+	    "shown_boxes = \"cpu mem\"\ntruecolor = true\ncheck_temp = false\nshow_disks = false\n", -1, NULL));
+	quoted_config = g_shell_quote (config);
+	quoted_btop = g_shell_quote (btop);
+	command = g_strdup_printf ("%s --config %s --force-utf --no-tty", quoted_btop, quoted_config);
+	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	gtk_window_set_default_size (GTK_WINDOW (window), 1100, 720);
+	gtk_window_present (GTK_WINDOW (window));
+	pump (700);
+	terminal = selected_terminal (window);
+	termac_terminal_set_font_size (terminal, 11);
+	vt = termac_terminal_get_vt_handle (terminal);
+	run_in_terminal (window, terminal, command);
+	g_assert_true (wait_for_alternate_screen (vt, TRUE, 6000));
+	pump (1500);
+	g_assert_true (termac_terminal_has_foreground_job (terminal));
+	text = screen_text (terminal);
+	folded = g_utf8_casefold (text, -1);
+	g_assert_nonnull (strstr (folded, "cpu"));
+	g_assert_nonnull (strstr (folded, "mem"));
+	save_widget_png (GTK_WIDGET (window), "modern-tui-btop.png");
+	gtk_window_set_default_size (GTK_WINDOW (window), 1000, 640);
+	pump (700);
+	g_assert_true (termac_vt_alternate_screen (vt));
+	g_clear_pointer (&text, g_free);
+	g_clear_pointer (&folded, g_free);
+	text = screen_text (terminal);
+	folded = g_utf8_casefold (text, -1);
+	g_assert_nonnull (strstr (folded, "cpu"));
+	g_assert_nonnull (strstr (folded, "mem"));
+	send_keysym (XK_q, FALSE);
+	g_assert_true (wait_for_alternate_screen (vt, FALSE, 5000));
+	g_assert_true (wait_for_job_end (terminal, 3000));
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
+	g_unlink (config);
+}
+
+static void
+test_save_empty_session (void)
+{
+	g_autofree char *path = session_file ();
+	g_autofree char *contents = NULL;
+	gsize length = 1;
+	g_autoptr(GBytes) bytes = NULL;
+	g_autoptr(GVariant) sessions = NULL;
+
+	destroy_all_windows ();
+	termac_application_save_session_now (app);
+	g_assert_true (g_file_get_contents (path, &contents, &length, NULL));
+	bytes = g_bytes_new (contents, length);
+	sessions = g_variant_ref_sink (g_variant_new_from_bytes (
+	    G_VARIANT_TYPE ("a(iiiba(ss))"), bytes, FALSE));
+	g_assert_true (g_variant_is_normal_form (sessions));
+	g_assert_cmpuint (g_variant_n_children (sessions), ==, 0);
+	forget_saved_sessions ();
+	g_application_activate (G_APPLICATION (app));
+	pump (300);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -2560,6 +2758,10 @@ main (int argc, char **argv)
  g_test_add_func ("/ui/show-session-closed-tab", test_show_session_closed_tab);
  g_test_add_func ("/ui/visual-screens", test_visual_screens);
  g_test_add_func ("/ui/search-current-match", test_search_current_match);
+	g_test_add_func ("/ui/session-migration-write-failure", test_session_migration_write_failure);
+	g_test_add_func ("/ui/save-empty-session", test_save_empty_session);
+	g_test_add_func ("/ui/truecolor-unicode-render", test_truecolor_unicode_render);
+	g_test_add_func ("/ui/modern-tui", test_modern_tui);
 	{
 		int status = g_test_run ();
 
