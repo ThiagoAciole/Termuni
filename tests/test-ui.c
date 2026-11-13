@@ -1034,7 +1034,13 @@ test_session_restore_roundtrip (void)
 	TermacTerminal *second;
 	TermacTerminal *third;
 
-	g_assert_nonnull (window);
+	/* Start from one fresh tab whatever an earlier test left behind. */
+	destroy_all_windows ();
+	g_unlink (path);
+	g_application_activate (G_APPLICATION (app));
+	pump (800);
+	window = TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
+	g_assert_true (TERMAC_IS_WINDOW (window));
 	g_assert_cmpuint (tab_count (window), ==, 1);
 	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
 	pump (800);
