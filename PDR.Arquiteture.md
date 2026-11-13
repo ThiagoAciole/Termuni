@@ -1,12 +1,20 @@
 # Termac — requisitos e arquitetura
 
-Atualizado em 09/11/2026. O estado dos marcos e suas evidências ficam no quadro **Estado atual** de [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md); consulte-o antes de continuar a implementação.
+Atualizado em 13/11/2026. O estado dos marcos e suas evidências ficam no quadro **Estado atual** de [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md); consulte-o antes de continuar a implementação.
 
 ## Produto
 
 O Termac é um terminal para Linux com interface GNOME, sessões em abas e futura entrada de imagens para agentes de linha de comando. A prova inicial precisa abrir o shell do usuário em uma janela responsiva, preservar texto Unicode, cores e redimensionamento e, depois, sustentar aplicações TUI interativas. A aparência e as interações previstas estão em [DESIGN.md](DESIGN.md).
 
-Os marcos seguintes incluem seleção, copiar e colar, scrollback, visão geral de abas, preferências, anexação de imagens para Codex, Claude Code, Hermes, OpenCode e Gemini, persistência de organização e acessibilidade. O plano descreve os critérios de aceite; a presença de uma ação ou tela no código não garante sua conclusão.
+Os marcos seguintes incluem seleção, copiar e colar, scrollback, visão geral de abas, preferências, anexação de imagens para Claude Code e Codex CLI, persistência de organização e acessibilidade. O plano descreve os critérios de aceite; a presença de uma ação ou tela no código não garante sua conclusão.
+
+## Decisões de produto
+
+- Perfis de terminal ficam fora do escopo da primeira versão estável.
+- Integração com agentes: prioridade para Claude Code e Codex CLI. A arquitetura deve permitir adicionar outros agentes sem reescrever o fluxo de anexos.
+- Atalhos: Ctrl+C, Ctrl+V, Ctrl+Shift+C, Ctrl+Shift+V, Ctrl+Seta para a esquerda e Ctrl+A são ações de janela editáveis em Preferências, com os padrões de fábrica preservados e restauração em "Restaurar padrões".
+- Sessão: o formato atual é `session-v3.gvariant` (com geometria da janela). A sessão `session-v2.gvariant` é convertida uma única vez, quando o v3 ainda não existe, preservando as abas e as pastas. Depois disso o v2 não é mais lido.
+- Créditos: `translator-credits` é reservado aos tradutores. A autoria e os créditos de desenvolvimento ficam na janela Sobre.
 
 ## Decisões técnicas
 
@@ -53,4 +61,4 @@ O Zig usado na sessão de 09/11/2026 foi `/tmp/termac-tools/zig-0.16.0/zig`; `/t
 - O encerramento atual usa `waitpid(..., 0)` no `dispose`, o que pode bloquear a interface se o processo filho não terminar. A fila de escrita tem limite de 1 MiB e rejeita dados excedentes; avaliar a política de pressão e erros.
 - `TERM` é definido como `xterm-256color`; as capacidades anunciadas precisam ser confrontadas com o comportamento realmente implementado.
 - Entrada composta, teclas, TUI, seleção, colagem, scrollback, Unicode complexo e desempenho exigem verificações específicas. A API e o desenho por célula não provam compatibilidade completa.
-- As preferências visíveis cobrem esquema de cores, tamanho de fonte e paleta. As demais páginas e opções das referências continuam no plano.
+- As preferências cobrem as páginas Geral, Aparência, Atalhos e Anexos. Janelas e abas entram em Geral quando tiverem opções. Visão final contra as referências visuais continua pendente.

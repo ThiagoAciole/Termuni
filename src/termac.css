@@ -37,3 +37,12 @@ button.theme-card {
 button.theme-card:checked {
   border-color: @accent_color;
 }
+
+.attachment-thumb {
+  border-radius: 10px;
+}
+
+row.attachment-row {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}

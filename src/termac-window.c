@@ -494,11 +494,12 @@ terminal_command_finished_cb (TermacTerminal *terminal,
                               gpointer        user_data)
 {
 	TermacWindow *self = window_from_widget (GTK_WIDGET (terminal));
+	g_autofree char *body = NULL;
 	(void) user_data;
 	if (self == NULL)
 		return;
 	terminal_flag_attention (terminal);
-	g_autofree char *body = exit_code == 0 ? NULL : g_strdup_printf (_("Exit status %d"), exit_code);
+	body = exit_code == 0 ? NULL : g_strdup_printf (_("Exit status %d"), exit_code);
 	terminal_notify_user (self, terminal, _("Command finished"),
 	                      body != NULL ? body : _("Completed successfully"));
 }
@@ -924,6 +925,24 @@ termac_window_attach_image (GSimpleAction *action,
 	g_object_unref (dialog);
 }
 
+gboolean
+termac_window_attach_file_list (TermacWindow *self, GdkFileList *list)
+{
+	TermacTerminal *terminal = window_selected_terminal (self);
+	GSList *iter;
+
+	g_return_val_if_fail (TERMAC_IS_WINDOW (self), FALSE);
+	if (terminal == NULL || list == NULL)
+		return FALSE;
+	for (iter = gdk_file_list_get_files (list); iter != NULL; iter = iter->next)
+	{
+		g_autofree char *path = g_file_get_path (G_FILE (iter->data));
+		if (path != NULL)
+			window_attach_file (self, terminal, path);
+	}
+	return TRUE;
+}
+
 static gboolean
 window_drop_files (GtkDropTarget *target,
                    const GValue  *value,
@@ -932,23 +951,14 @@ window_drop_files (GtkDropTarget *target,
                    gpointer       user_data)
 {
 	TermacWindow *self = user_data;
-	TermacTerminal *terminal = window_selected_terminal (self);
-	GdkFileList *list;
-	GSList *iter;
 	(void) target;
 	(void) x;
 	(void) y;
 
-	if (terminal == NULL || !G_VALUE_HOLDS (value, GDK_TYPE_FILE_LIST))
+	if (!G_VALUE_HOLDS (value, GDK_TYPE_FILE_LIST))
 		return GDK_EVENT_PROPAGATE;
-	list = (GdkFileList *) g_value_peek_pointer (value);
-	for (iter = gdk_file_list_get_files (list); iter != NULL; iter = iter->next)
-	{
-		g_autofree char *path = g_file_get_path (G_FILE (iter->data));
-		if (path != NULL)
-			window_attach_file (self, terminal, path);
-	}
-	return GDK_EVENT_STOP;
+	return termac_window_attach_file_list (self, (GdkFileList *) g_value_peek_pointer (value))
+	       ? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
 }
 
 /* ---- rename ------------------------------------------------------------ */
@@ -1014,6 +1024,33 @@ termac_window_rename_tab (GSimpleAction *action,
 
 /* ---- window actions and lifecycle ------------------------------------ */
 
+/* Terminal shortcuts are window actions, so they can be edited like the others.
+ * They act on the terminal of the selected tab. */
+static void
+termac_window_terminal_action (GSimpleAction *action,
+                               GVariant      *parameter,
+                               gpointer       user_data)
+{
+	TermacWindow *self = user_data;
+	TermacTerminal *terminal = window_selected_terminal (self);
+	const char *name = g_action_get_name (G_ACTION (action));
+	(void) parameter;
+
+	if (terminal == NULL)
+		return;
+	if (g_strcmp0 (name, "terminal-copy") == 0)
+		termac_terminal_copy_or_interrupt (terminal);
+	else if (g_strcmp0 (name, "terminal-copy-selection") == 0)
+		termac_terminal_copy (terminal);
+	else if (g_strcmp0 (name, "terminal-paste") == 0 ||
+	         g_strcmp0 (name, "terminal-paste-clipboard") == 0)
+		termac_terminal_paste (terminal);
+	else if (g_strcmp0 (name, "terminal-select-all") == 0)
+		termac_terminal_select_all (terminal);
+	else
+		termac_terminal_line_start (terminal);
+}
+
 static const GActionEntry window_actions[] = {
 	{ "new-tab", termac_window_add_tab },
 	{ "new-window", termac_window_new_window },
@@ -1028,6 +1065,12 @@ static const GActionEntry window_actions[] = {
 	{ "find-next", termac_window_find_action },
 	{ "find-previous", termac_window_find_action },
 	{ "attach-image", termac_window_attach_image },
+	{ "terminal-copy", termac_window_terminal_action },
+	{ "terminal-copy-selection", termac_window_terminal_action },
+	{ "terminal-paste", termac_window_terminal_action },
+	{ "terminal-paste-clipboard", termac_window_terminal_action },
+	{ "terminal-line-start", termac_window_terminal_action },
+	{ "terminal-select-all", termac_window_terminal_action },
 };
 
 static void termac_window_constructed (GObject *object);
@@ -1119,6 +1162,8 @@ termac_window_shortcut_is_reserved (TermacWindow   *self,
 		"win.new-tab", "win.new-window", "win.toggle-overview", "win.close-tab",
 		"win.fullscreen", "win.rename-tab", "win.move-tab-backward", "win.move-tab-forward",
 		"win.find", "win.find-next", "win.find-previous", "win.attach-image",
+		"win.terminal-copy", "win.terminal-copy-selection", "win.terminal-paste",
+		"win.terminal-paste-clipboard", "win.terminal-line-start", "win.terminal-select-all",
 		"app.preferences", "app.shortcuts", "app.quit",
 		NULL,
 	};

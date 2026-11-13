@@ -78,6 +78,13 @@ termac_vt_select_all (GhosttyTerminal terminal)
 		ghostty_terminal_set (terminal, GHOSTTY_TERMINAL_OPT_SELECTION, &selection);
 }
 
+void
+termac_vt_clear_selection (GhosttyTerminal terminal)
+{
+	/* A NULL selection clears the active screen selection. */
+	ghostty_terminal_set (terminal, GHOSTTY_TERMINAL_OPT_SELECTION, NULL);
+}
+
 gboolean
 termac_vt_selector_event (TermacVtSelector                  *selector,
                           GhosttyTerminal                    terminal,

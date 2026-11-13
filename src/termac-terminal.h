@@ -30,7 +30,14 @@ void        termac_terminal_retry (TermacTerminal *self);
 gboolean    termac_terminal_has_foreground_job (TermacTerminal *self);
 
 gboolean termac_terminal_copy (TermacTerminal *self);
+
+/* The libghostty-vt terminal handle, for tests that drive the selection directly. */
+gpointer termac_terminal_get_vt_handle (TermacTerminal *self);
+guint    termac_terminal_get_font_size (TermacTerminal *self);
 void     termac_terminal_paste (TermacTerminal *self);
+void     termac_terminal_copy_or_interrupt (TermacTerminal *self);
+void     termac_terminal_line_start (TermacTerminal *self);
+void     termac_terminal_select_all (TermacTerminal *self);
 void     termac_terminal_insert_text (TermacTerminal *self, const char *text);
 void     termac_terminal_scroll_pages (TermacTerminal *self, gint pages);
 void     termac_terminal_scroll_to_bottom (TermacTerminal *self);

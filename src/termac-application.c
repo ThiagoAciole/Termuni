@@ -42,8 +42,10 @@ static void termac_application_finalize (GObject *object);
 static void termac_application_apply_settings (TermacApplication *self);
 static void style_dark_changed_cb (AdwStyleManager *manager, GParamSpec *pspec, gpointer user_data);
 
-#define TERMAC_SESSION_FILE "session-v2.gvariant"
-#define TERMAC_SESSION_TYPE "a(ia(ss))"
+#define TERMAC_SESSION_FILE "session-v3.gvariant"
+#define TERMAC_SESSION_TYPE "a(iiiba(ss))"
+#define TERMAC_SESSION_FILE_V2 "session-v2.gvariant"
+#define TERMAC_SESSION_TYPE_V2 "a(ia(ss))"
 #define TERMAC_SESSION_SAVE_DELAY_MS 800
 #define TERMAC_ATTACHMENT_RETENTION_SECONDS (7 * 24 * 60 * 60)
 
@@ -53,19 +55,45 @@ session_file_path (void)
 	return g_build_filename (g_get_user_state_dir (), "termac", TERMAC_SESSION_FILE, NULL);
 }
 
+static char *
+session_file_path_v2 (void)
+{
+	return g_build_filename (g_get_user_state_dir (), "termac", TERMAC_SESSION_FILE_V2, NULL);
+}
+
+/* Stores the sessions in the current file. Takes ownership of sessions. */
+static gboolean
+write_session_file (GVariant *sessions)
+{
+	g_autofree char *dir = g_build_filename (g_get_user_state_dir (), "termac", NULL);
+	g_autofree char *path = session_file_path ();
+	g_autofree guint8 *buffer = NULL;
+	gsize size;
+	gboolean written = FALSE;
+
+	size = g_variant_get_size (sessions);
+	buffer = g_malloc (size);
+	g_variant_store (sessions, buffer);
+	g_variant_unref (sessions);
+	if (g_mkdir_with_parents (dir, 0700) != 0)
+		return FALSE;
+	/* g_file_set_contents writes a temporary file and renames it into place. */
+	written = g_file_set_contents (path, (const char *) buffer, (gssize) size, NULL);
+	if (!written)
+		g_warning ("Could not save the session");
+	return written;
+}
+
 /* Writes the tabs of every window that still exists. Each window is stored
- * as (selected index, tabs); an empty list is saved as an empty session. */
+ * as (selected index, width, height, maximized, tabs); an empty list is saved
+ * as an empty session. */
 void
 termac_application_save_session_now (TermacApplication *self)
 {
 	GVariantBuilder builder;
 	GList *windows;
 	GList *iter;
-	g_autofree char *dir = NULL;
-	g_autofree char *path = NULL;
 	GVariant *sessions;
-	gsize size;
-	g_autofree guint8 *buffer = NULL;
 
 	g_return_if_fail (TERMAC_IS_APPLICATION (self));
 	if (self->session_save_source != 0)
@@ -88,20 +116,14 @@ termac_application_save_session_now (TermacApplication *self)
 			g_variant_unref (tabs);
 			continue;
 		}
-		g_variant_builder_add (&builder, "(i@a(ss))", selected, tabs);
+		g_variant_builder_add (&builder, "(iiib@a(ss))", selected,
+		                       gtk_widget_get_width (GTK_WIDGET (iter->data)),
+		                       gtk_widget_get_height (GTK_WIDGET (iter->data)),
+		                       gtk_window_is_maximized (GTK_WINDOW (iter->data)),
+		                       tabs);
 	}
 	sessions = g_variant_builder_end (&builder);
-	size = g_variant_get_size (sessions);
-	buffer = g_malloc (size);
-	g_variant_store (sessions, buffer);
-	g_variant_unref (sessions);
-	dir = g_build_filename (g_get_user_state_dir (), "termac", NULL);
-	path = session_file_path ();
-	if (g_mkdir_with_parents (dir, 0700) != 0)
-		return;
-	/* g_file_set_contents writes a temporary file and renames it into place. */
-	if (!g_file_set_contents (path, (const char *) buffer, (gssize) size, NULL))
-		g_warning ("Could not save the session");
+	write_session_file (sessions);
 }
 
 static gboolean
@@ -137,6 +159,53 @@ termac_application_request_session_save (TermacApplication *self)
 		                                           session_save_timeout, self);
 }
 
+/* Converts the v2 layout, (selected, tabs), to v3 with default geometry. */
+static GVariant *
+session_from_v2 (GVariant *v2)
+{
+	GVariantBuilder builder;
+	gsize count = g_variant_n_children (v2);
+	gsize i;
+
+	g_variant_builder_init (&builder, G_VARIANT_TYPE (TERMAC_SESSION_TYPE));
+	for (i = 0; i < count; i++)
+	{
+		gint selected = 0;
+		GVariant *tabs = NULL;
+
+		g_variant_get_child (v2, i, "(i@a(ss))", &selected, &tabs);
+		g_variant_builder_add (&builder, "(iiib@a(ss))", selected, 0, 0, FALSE, tabs);
+	}
+	return g_variant_builder_end (&builder);
+}
+
+/* Runs once: when there is no v3 file, the v2 tabs are converted and written
+ * as v3. Once v3 exists, v2 is never read again. Returns NULL if no v2 is valid. */
+static GVariant *
+migrate_v2_session (void)
+{
+	g_autofree char *path = session_file_path_v2 ();
+	g_autofree char *contents = NULL;
+	gsize length = 0;
+	g_autoptr (GBytes) bytes = NULL;
+	g_autoptr (GVariant) v2 = NULL;
+	GVariant *sessions;
+
+	if (!g_file_get_contents (path, &contents, &length, NULL))
+		return NULL;
+	bytes = g_bytes_new (contents, length);
+	v2 = g_variant_new_from_bytes (G_VARIANT_TYPE (TERMAC_SESSION_TYPE_V2), bytes, FALSE);
+	if (v2 == NULL || !g_variant_is_normal_form (v2))
+	{
+		g_warning ("Ignoring an invalid v2 session");
+		return NULL;
+	}
+	sessions = g_variant_ref_sink (session_from_v2 (v2));
+	/* Keep a reference for the caller: a failed write must not loop back here. */
+	write_session_file (g_variant_ref (sessions));
+	return sessions;
+}
+
 /* Loads the saved windows. Returns NULL when there is no valid session. */
 static GVariant *
 load_sessions (void)
@@ -148,7 +217,7 @@ load_sessions (void)
 	GVariant *sessions;
 
 	if (!g_file_get_contents (path, &contents, &length, NULL))
-		return NULL;
+		return migrate_v2_session ();
 	bytes = g_bytes_new (contents, length);
 	sessions = g_variant_new_from_bytes (G_VARIANT_TYPE (TERMAC_SESSION_TYPE), bytes, FALSE);
 	g_bytes_unref (bytes);
@@ -192,13 +261,21 @@ termac_application_restore_windows (TermacApplication *self)
 	for (i = 0; i < count; i++)
 	{
 		gint selected = 0;
+		gint width = 0;
+		gint height = 0;
+		gboolean maximized = FALSE;
 		GVariant *tabs = NULL;
 		TermacWindow *window;
 
-		g_variant_get_child (sessions, i, "(i@a(ss))", &selected, &tabs);
+		g_variant_get_child (sessions, i, "(iiib@a(ss))", &selected, &width, &height,
+		                     &maximized, &tabs);
 		if (g_variant_n_children (tabs) > 0)
 		{
 			window = termac_application_new_window (self);
+			if (width > 0 && height > 0)
+				gtk_window_set_default_size (GTK_WINDOW (window), width, height);
+			if (maximized)
+				gtk_window_maximize (GTK_WINDOW (window));
 			termac_window_restore_tabs (window, tabs, selected);
 			gtk_window_present (GTK_WINDOW (window));
 			restored = TRUE;
@@ -493,6 +570,47 @@ attachments_collect (void)
 	return paths;
 }
 
+#define ATTACHMENT_THUMBNAIL_SIZE 64
+
+/* Square, centred 64 px thumbnail: the scaled texture keeps the image from
+ * taking its full size in the row. */
+static GtkWidget *
+attachment_thumbnail_new (const char *path)
+{
+	GtkWidget *image = gtk_image_new ();
+	g_autoptr (GdkPixbuf) source = gdk_pixbuf_new_from_file (path, NULL);
+
+	if (source != NULL)
+	{
+		int width = gdk_pixbuf_get_width (source);
+		int height = gdk_pixbuf_get_height (source);
+		int side = MIN (width, height);
+		g_autoptr (GdkPixbuf) square = gdk_pixbuf_new_subpixbuf (source,
+		                                                         (width - side) / 2,
+		                                                         (height - side) / 2,
+		                                                         side, side);
+		g_autoptr (GdkPixbuf) scaled = gdk_pixbuf_scale_simple (square,
+		                                                        ATTACHMENT_THUMBNAIL_SIZE,
+		                                                        ATTACHMENT_THUMBNAIL_SIZE,
+		                                                        GDK_INTERP_BILINEAR);
+		g_autoptr (GBytes) pixels = g_bytes_new (gdk_pixbuf_read_pixels (scaled),
+		                                         (gsize) gdk_pixbuf_get_rowstride (scaled) *
+		                                         ATTACHMENT_THUMBNAIL_SIZE);
+		g_autoptr (GdkTexture) texture = gdk_memory_texture_new (ATTACHMENT_THUMBNAIL_SIZE,
+		                                                         ATTACHMENT_THUMBNAIL_SIZE,
+		                                                         gdk_pixbuf_get_has_alpha (scaled) ?
+		                                                         GDK_MEMORY_R8G8B8A8 : GDK_MEMORY_R8G8B8,
+		                                                         pixels,
+		                                                         gdk_pixbuf_get_rowstride (scaled));
+
+		gtk_image_set_from_paintable (GTK_IMAGE (image), GDK_PAINTABLE (texture));
+	}
+	gtk_image_set_pixel_size (GTK_IMAGE (image), ATTACHMENT_THUMBNAIL_SIZE);
+	gtk_widget_add_css_class (image, "attachment-thumb");
+	gtk_widget_set_overflow (image, GTK_OVERFLOW_HIDDEN);
+	return image;
+}
+
 static void attachments_list_populate (GtkListBox *list);
 
 static void
@@ -553,10 +671,8 @@ attachments_list_populate (GtkListBox *list)
 		GtkWidget *copy = gtk_button_new_from_icon_name ("edit-copy-symbolic");
 		GtkWidget *delete_button = gtk_button_new_from_icon_name ("user-trash-symbolic");
 
-		GtkWidget *thumbnail = gtk_picture_new_for_filename (path);
+		GtkWidget *thumbnail = attachment_thumbnail_new (path);
 
-		gtk_picture_set_content_fit (GTK_PICTURE (thumbnail), GTK_CONTENT_FIT_COVER);
-		gtk_widget_set_size_request (thumbnail, 64, 64);
 		gtk_widget_add_css_class (row_widget, "attachment-row");
 		adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row_widget), base);
 		adw_action_row_set_subtitle (ADW_ACTION_ROW (row_widget), path);
@@ -566,6 +682,8 @@ attachments_list_populate (GtkListBox *list)
 		gtk_widget_add_css_class (delete_button, "flat");
 		gtk_widget_set_tooltip_text (copy, _("Copy path"));
 		gtk_widget_set_tooltip_text (delete_button, _("Remove"));
+		gtk_accessible_update_property (GTK_ACCESSIBLE (copy), GTK_ACCESSIBLE_PROPERTY_LABEL, _("Copy path"), -1);
+		gtk_accessible_update_property (GTK_ACCESSIBLE (delete_button), GTK_ACCESSIBLE_PROPERTY_LABEL, _("Remove"), -1);
 		g_object_set_data_full (G_OBJECT (copy), "termac-path", g_strdup (path), g_free);
 		g_object_set_data_full (G_OBJECT (delete_button), "termac-path", g_strdup (path), g_free);
 		g_signal_connect (copy, "clicked", G_CALLBACK (attachment_copy_clicked_cb), NULL);
@@ -624,16 +742,189 @@ application_dialog_parent (TermacApplication *self)
 	return windows != NULL ? GTK_WINDOW (windows->data) : NULL;
 }
 
-static void
-add_shortcut_row (AdwPreferencesGroup *group, const char *title, const char *accel)
+static const struct
 {
-	AdwActionRow *row = ADW_ACTION_ROW (adw_action_row_new ());
-	GtkWidget *label = gtk_label_new (accel);
+	const char *action;
+	const char *title;
+	const char *accel;
+} editable_shortcuts[] = {
+	{ "win.new-tab", N_("New tab"), "<control><shift>t" },
+	{ "win.new-window", N_("New window"), "<control><shift>n" },
+	{ "win.toggle-overview", N_("Show open tabs"), "<control><shift>o" },
+	{ "win.close-tab", N_("Close tab"), "<control><shift>w" },
+	{ "win.fullscreen", N_("Full screen"), "F11" },
+	{ "win.rename-tab", N_("Rename tab"), "<control><shift>r" },
+	{ "win.find", N_("Find in terminal"), "<control><shift>f" },
+	{ "win.terminal-copy", N_("Copy selection or cancel command"), "<control>c" },
+	{ "win.terminal-copy-selection", N_("Copy selection"), "<control><shift>c" },
+	{ "win.terminal-paste", N_("Paste"), "<control>v" },
+	{ "win.terminal-paste-clipboard", N_("Paste from clipboard"), "<control><shift>v" },
+	{ "win.terminal-line-start", N_("Start of line"), "<control>Left" },
+	{ "win.terminal-select-all", N_("Select all"), "<control>a" },
+	{ "win.attach-image", N_("Attach image"), "<control><shift>i" },
+	{ "app.preferences", N_("Preferences"), "<control>comma" },
+	{ "app.shortcuts", N_("Keyboard shortcuts"), "<control>question" },
+};
+#define EDITABLE_SHORTCUT_COUNT G_N_ELEMENTS (editable_shortcuts)
 
-	adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), title);
-	gtk_widget_add_css_class (label, "dim-label");
-	adw_action_row_add_suffix (row, label);
-	adw_preferences_group_add (group, GTK_WIDGET (row));
+static char *
+shortcut_override_get (GSettings *settings, const char *action)
+{
+	g_autoptr (GVariant) overrides = g_settings_get_value (settings, "action-shortcuts");
+	const char *accel = NULL;
+
+	if (!g_variant_lookup (overrides, action, "&s", &accel))
+		return NULL;
+	return g_strdup (accel);
+}
+
+static void
+shortcut_override_set (GSettings *settings, const char *action, const char *accel)
+{
+	g_autoptr (GVariant) current = g_settings_get_value (settings, "action-shortcuts");
+	GVariantBuilder builder;
+	GVariantIter iter;
+	const char *key;
+	const char *value;
+
+	g_variant_builder_init (&builder, G_VARIANT_TYPE ("a{ss}"));
+	g_variant_iter_init (&iter, current);
+	while (g_variant_iter_next (&iter, "{&s&s}", &key, &value))
+		if (g_strcmp0 (key, action) != 0)
+			g_variant_builder_add (&builder, "{ss}", key, value);
+	if (accel != NULL)
+		g_variant_builder_add (&builder, "{ss}", action, accel);
+	g_settings_set_value (settings, "action-shortcuts", g_variant_builder_end (&builder));
+}
+
+/* Registers every editable action with its custom or built-in accelerator. */
+static void
+termac_application_apply_action_shortcuts (TermacApplication *self)
+{
+	guint i;
+
+	if (self->settings == NULL)
+		return;
+	for (i = 0; i < EDITABLE_SHORTCUT_COUNT; i++)
+	{
+		g_autofree char *override = shortcut_override_get (self->settings, editable_shortcuts[i].action);
+		const char *accels[] = { editable_shortcuts[i].accel, NULL };
+		guint key = 0;
+		GdkModifierType mods = 0;
+
+		if (override != NULL && gtk_accelerator_parse (override, &key, &mods))
+			accels[0] = override;
+		gtk_application_set_accels_for_action (GTK_APPLICATION (self), editable_shortcuts[i].action, accels);
+	}
+}
+
+static void
+shortcut_button_refresh (GtkButton *button, TermacApplication *self)
+{
+	const char *action = g_object_get_data (G_OBJECT (button), "shortcut-action");
+	const char *fallback = g_object_get_data (G_OBJECT (button), "shortcut-default");
+	g_autofree char *override = shortcut_override_get (self->settings, action);
+	const char *accel = fallback;
+	guint key = 0;
+	GdkModifierType mods = 0;
+	g_autofree char *label = NULL;
+
+	if (override != NULL && gtk_accelerator_parse (override, &key, &mods))
+		accel = override;
+	if (gtk_accelerator_parse (accel, &key, &mods))
+		label = gtk_accelerator_get_label (key, mods);
+	gtk_button_set_label (button, label != NULL ? label : accel);
+}
+
+typedef struct
+{
+	TermacApplication *app;
+	GtkButton *button;
+	AdwDialog *dialog;
+} ShortcutCapture;
+
+static gboolean
+shortcut_capture_key_cb (GtkEventControllerKey *controller,
+                         guint                  keyval,
+                         guint                  keycode,
+                         GdkModifierType        state,
+                         gpointer               user_data)
+{
+	ShortcutCapture *capture = user_data;
+	GdkModifierType mods = state & gtk_accelerator_get_default_mod_mask ();
+	const char *action = g_object_get_data (G_OBJECT (capture->button), "shortcut-action");
+	g_autofree char *accel = NULL;
+
+	(void) controller;
+	(void) keycode;
+	if (keyval == GDK_KEY_Escape)
+	{
+		adw_dialog_close (capture->dialog);
+		return GDK_EVENT_STOP;
+	}
+	switch (keyval)
+	{
+	case GDK_KEY_Control_L: case GDK_KEY_Control_R:
+	case GDK_KEY_Shift_L: case GDK_KEY_Shift_R:
+	case GDK_KEY_Alt_L: case GDK_KEY_Alt_R:
+	case GDK_KEY_Super_L: case GDK_KEY_Super_R:
+	case GDK_KEY_Meta_L: case GDK_KEY_Meta_R:
+	case GDK_KEY_ISO_Level3_Shift:
+		return GDK_EVENT_STOP;
+	default:
+		break;
+	}
+	if ((mods & (GDK_CONTROL_MASK | GDK_ALT_MASK | GDK_SHIFT_MASK | GDK_SUPER_MASK)) == 0 &&
+	    !(keyval >= GDK_KEY_F1 && keyval <= GDK_KEY_F12))
+		return GDK_EVENT_STOP;
+	accel = gtk_accelerator_name (keyval, mods);
+	shortcut_override_set (capture->app->settings, action, accel);
+	termac_application_apply_action_shortcuts (capture->app);
+	shortcut_button_refresh (capture->button, capture->app);
+	adw_dialog_close (capture->dialog);
+	return GDK_EVENT_STOP;
+}
+
+static void
+shortcut_edit_clicked_cb (GtkButton *button, gpointer user_data)
+{
+	TermacApplication *app = user_data;
+	/* The capture belongs to the window that holds the button (Preferences), not to
+	 * whichever window is active. */
+	GtkWidget *parent = GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (button)));
+	AdwDialog *dialog = adw_dialog_new ();
+	AdwStatusPage *page = ADW_STATUS_PAGE (adw_status_page_new ());
+	GtkEventController *keys = gtk_event_controller_key_new ();
+	ShortcutCapture *capture = g_new0 (ShortcutCapture, 1);
+
+	capture->app = app;
+	capture->button = button;
+	capture->dialog = dialog;
+	adw_dialog_set_title (dialog, _("Shortcut"));
+	adw_dialog_set_content_width (dialog, 360);
+	adw_status_page_set_icon_name (page, "input-keyboard-symbolic");
+	adw_status_page_set_title (page, _("Press the new shortcut"));
+	adw_status_page_set_description (page, _("Use Ctrl, Alt, Shift or Super. Press Escape to cancel."));
+	gtk_widget_set_focusable (GTK_WIDGET (page), TRUE);
+	g_signal_connect (keys, "key-pressed", G_CALLBACK (shortcut_capture_key_cb), capture);
+	gtk_widget_add_controller (GTK_WIDGET (page), keys);
+	adw_dialog_set_child (dialog, GTK_WIDGET (page));
+	g_object_set_data_full (G_OBJECT (dialog), "shortcut-capture", capture, g_free);
+	adw_dialog_present (dialog, parent);
+	gtk_widget_grab_focus (GTK_WIDGET (page));
+}
+
+static void
+shortcut_reset_clicked_cb (GtkButton *button, gpointer user_data)
+{
+	TermacApplication *app = user_data;
+	GPtrArray *buttons = g_object_get_data (G_OBJECT (button), "shortcut-buttons");
+	guint i;
+
+	g_settings_reset (app->settings, "action-shortcuts");
+	termac_application_apply_action_shortcuts (app);
+	for (i = 0; buttons != NULL && i < buttons->len; i++)
+		shortcut_button_refresh (g_ptr_array_index (buttons, i), app);
 }
 
 static void
@@ -643,7 +934,7 @@ termac_application_preferences_action (GSimpleAction *action,
 {
 	TermacApplication *self = user_data;
 	GtkWindow *parent = application_dialog_parent (self);
-	AdwDialog *dialog = adw_dialog_new ();
+	AdwWindow *dialog = ADW_WINDOW (adw_window_new ());
 	AdwToolbarView *toolbar = ADW_TOOLBAR_VIEW (adw_toolbar_view_new ());
 	AdwHeaderBar *header = ADW_HEADER_BAR (adw_header_bar_new ());
 	GtkToggleButton *search_button = GTK_TOGGLE_BUTTON (gtk_toggle_button_new ());
@@ -658,7 +949,6 @@ termac_application_preferences_action (GSimpleAction *action,
 	AdwPreferencesPage *behavior = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
 	AdwPreferencesGroup *terminal_group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
 	AdwPreferencesPage *shortcuts = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
-	AdwPreferencesGroup *shortcuts_group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
 	AdwComboRow *scheme = ADW_COMBO_ROW (adw_combo_row_new ());
 	AdwSpinRow *font = ADW_SPIN_ROW (adw_spin_row_new_with_range (8, 32, 1));
 	GtkWidget *grid = gtk_grid_new ();
@@ -690,16 +980,15 @@ termac_application_preferences_action (GSimpleAction *action,
 	(void) action;
 	(void) parameter;
 
-	adw_dialog_set_title (dialog, _("Preferences"));
-	adw_dialog_set_content_width (dialog, 560);
-	adw_dialog_set_content_height (dialog, 640);
+	gtk_window_set_title (GTK_WINDOW (dialog), _("Preferences"));
+	gtk_window_set_default_size (GTK_WINDOW (dialog), 560, 640);
 
 	/* Header: search toggle, title and close button. */
 	gtk_button_set_icon_name (GTK_BUTTON (search_button), "system-search-symbolic");
 	adw_header_bar_set_title_widget (header, adw_window_title_new (_("Preferences"), NULL));
 	adw_header_bar_pack_start (header, GTK_WIDGET (search_button));
 	adw_header_bar_pack_end (header, GTK_WIDGET (close_button));
-	g_signal_connect_swapped (close_button, "clicked", G_CALLBACK (adw_dialog_close), dialog);
+	g_signal_connect_swapped (close_button, "clicked", G_CALLBACK (gtk_window_close), dialog);
 	gtk_search_bar_set_child (GTK_SEARCH_BAR (search_bar), search);
 	gtk_search_bar_connect_entry (GTK_SEARCH_BAR (search_bar), GTK_EDITABLE (search));
 	g_object_bind_property (search_button, "active", search_bar, "search-mode-enabled",
@@ -831,22 +1120,37 @@ termac_application_preferences_action (GSimpleAction *action,
 		adw_preferences_page_add (behavior, safety_group);
 	}
 
-	/* Shortcuts: read-only list of the bindings the app uses. */
+	/* Shortcuts: editable window and app actions, then the fixed terminal list. */
 	adw_preferences_page_set_title (shortcuts, _("Shortcuts"));
-	adw_preferences_group_set_title (shortcuts_group, _("Shortcuts"));
-	add_shortcut_row (shortcuts_group, _("New tab"), "Ctrl+Shift+T");
-	add_shortcut_row (shortcuts_group, _("New window"), "Ctrl+Shift+N");
-	add_shortcut_row (shortcuts_group, _("Attach image"), "Ctrl+Shift+I");
-	add_shortcut_row (shortcuts_group, _("Find in terminal"), "Ctrl+Shift+F");
-	add_shortcut_row (shortcuts_group, _("Full screen"), "F11");
-	add_shortcut_row (shortcuts_group, _("Preferences"), "Ctrl+,");
-	add_shortcut_row (shortcuts_group, _("Keyboard shortcuts"), "Ctrl+?");
-	add_shortcut_row (shortcuts_group, _("Copy selection"), "Ctrl+C");
-	add_shortcut_row (shortcuts_group, _("Cancel command (press twice)"), "Ctrl+C Ctrl+C");
-	add_shortcut_row (shortcuts_group, _("Paste"), "Ctrl+V");
-	add_shortcut_row (shortcuts_group, _("Select all"), "Ctrl+A");
-	add_shortcut_row (shortcuts_group, _("Start of line"), "Ctrl+Left");
-	adw_preferences_page_add (shortcuts, shortcuts_group);
+	{
+		AdwPreferencesGroup *editor_group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
+		GtkWidget *reset = gtk_button_new_with_label (_("Restore defaults"));
+		GPtrArray *buttons = g_ptr_array_new ();
+		guint k;
+
+		adw_preferences_group_set_title (editor_group, _("Editable shortcuts"));
+		adw_preferences_group_set_header_suffix (editor_group, reset);
+		gtk_widget_add_css_class (reset, "flat");
+		for (k = 0; k < EDITABLE_SHORTCUT_COUNT; k++)
+		{
+			AdwActionRow *row = ADW_ACTION_ROW (adw_action_row_new ());
+			GtkWidget *button = gtk_button_new ();
+
+			adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), _(editable_shortcuts[k].title));
+			g_object_set_data (G_OBJECT (button), "shortcut-action", (gpointer) editable_shortcuts[k].action);
+			g_object_set_data (G_OBJECT (button), "shortcut-default", (gpointer) editable_shortcuts[k].accel);
+			gtk_widget_add_css_class (button, "flat");
+			g_signal_connect (button, "clicked", G_CALLBACK (shortcut_edit_clicked_cb), self);
+			shortcut_button_refresh (GTK_BUTTON (button), self);
+			adw_action_row_add_suffix (row, button);
+			adw_preferences_group_add (editor_group, GTK_WIDGET (row));
+			g_ptr_array_add (buttons, button);
+		}
+		g_object_set_data_full (G_OBJECT (reset), "shortcut-buttons", buttons,
+		                        (GDestroyNotify) g_ptr_array_unref);
+		g_signal_connect (reset, "clicked", G_CALLBACK (shortcut_reset_clicked_cb), self);
+		adw_preferences_page_add (shortcuts, editor_group);
+	}
 
 	/* Stack and bottom switcher. */
 	adw_view_stack_add_titled_with_icon (stack, GTK_WIDGET (behavior), "behavior",
@@ -864,8 +1168,9 @@ termac_application_preferences_action (GSimpleAction *action,
 	adw_toolbar_view_add_top_bar (toolbar, search_bar);
 	adw_toolbar_view_set_content (toolbar, GTK_WIDGET (stack));
 	adw_toolbar_view_add_bottom_bar (toolbar, GTK_WIDGET (switcher));
-	adw_dialog_set_child (dialog, GTK_WIDGET (toolbar));
-	adw_dialog_present (dialog, GTK_WIDGET (parent));
+	adw_window_set_content (dialog, GTK_WIDGET (toolbar));
+	gtk_window_set_transient_for (GTK_WINDOW (dialog), parent);
+	gtk_window_present (GTK_WINDOW (dialog));
 }
 
 static void
@@ -989,6 +1294,7 @@ termac_application_init (TermacApplication *self)
 	                  G_CALLBACK (settings_changed_cb), self);
 	g_signal_connect (self->settings, "changed::scrollback-lines",
 	                  G_CALLBACK (settings_changed_cb), self);
+	termac_application_apply_action_shortcuts (self);
 
 }
 

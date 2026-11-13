@@ -110,13 +110,16 @@ static void
 test_paste_is_wrapped_only_when_bracketed (void)
 {
 	gsize length = 0;
-	g_autofree char *wrapped = termac_vt_encode_paste ("abc", 3, TRUE, &length);
+	g_autofree char *wrapped = NULL;
+	g_autofree char *plain = NULL;
+	g_autofree char *discarded = NULL;
 
+	wrapped = termac_vt_encode_paste ("abc", 3, TRUE, &length);
 	g_assert_nonnull (wrapped);
 	g_assert_cmpmem (wrapped, length, "\x1b[200~abc\x1b[201~", 12 + 3);
 
-	g_free (termac_vt_encode_paste ("x", 1, FALSE, &length));
-	g_autofree char *plain = termac_vt_encode_paste ("a\nb", 3, FALSE, &length);
+	discarded = termac_vt_encode_paste ("x", 1, FALSE, &length);
+	plain = termac_vt_encode_paste ("a\nb", 3, FALSE, &length);
 	g_assert_cmpmem (plain, length, "a\rb", 3);
 }
 

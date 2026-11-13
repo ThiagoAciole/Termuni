@@ -40,11 +40,122 @@ Este quadro é o ponto de retomada. As seções 1–10 preservam o plano e suas 
   - i18n: textos em inglês como msgid, `po/pt_BR.po` com 94 traduções e `LINGUAS` com `pt_BR`; `msgfmt --check` sem erros.
   - Verificação feita: `meson test` com 3 suítes (`util`, `vt`, `attachments`) passando; `vt` cobre seleção ASCII e de caracteres largos, bracketed paste, rastreamento de mouse, busca com rolagem e geração do paste; `attachments` cobre gravação, rejeição, citação e poda. O script de integração com Bash foi executado em um bash interativo sob pty: códigos 1, 0 e 7 reportados corretamente, sem notificações espúrias do prompt. O binário foi iniciado por 8 a 10 s sem falhas, em barramento de sessão isolado.
   - Não verificado: interação real pelo teclado e mouse, aparência da barra de busca, diálogos, notificações no desktop, restauração ao reiniciar, arrastar e soltar, e troca de aba entre janelas. A instância que estava aberta continua com o binário anterior.
-  - Não implementado nesta rodada: perfis de terminal, edição de atalhos pela interface (as ações existem e o schema permite ajustar, mas sem editor), escolha explícita de perfil de agente e adaptadores por CLI (Codex, Claude Code e OpenCode estão instalados, mas o anexo nativo exige flags no momento de iniciar o agente, o que não se injeta num prompt já aberto), eventos de conclusão por agente, realce visual dos resultados da busca, medições de desempenho em 1, 5 e 10 abas, verificação de vazamentos (valgrind não está instalado), instalação por usuário, e acessibilidade além do rótulo e papel do widget.
+  - Não implementado nesta rodada: perfis de terminal, edição de atalhos pela interface (as ações existem e o schema permite ajustar, mas sem editor), escolha explícita de perfil de agente e adaptadores por CLI (Codex, Claude Code e OpenCode estão instalados, mas o anexo nativo exige flags no momento de iniciar o agente, o que não se injeta num prompt já aberto), eventos de conclusão por agente, realce visual dos resultados da busca, medições de desempenho em 1, 5 e 10 abas, verificação de vazamentos (valgrind 3.27.1 instalado em /usr/bin/valgrind; ainda não executado), instalação por usuário, e acessibilidade além do rótulo e papel do widget.
 
 - Ajuste de menu e anexos em 09/11/2026: removidos do menu principal "Colar imagem" e "Anexos"; Ctrl+Shift+V cola imagem como anexo quando o clipboard tem só imagem, e os anexos passaram a uma aba "Anexos" em Preferências (copiar caminho, remover, limpar tudo). Também saíram do menu "Buscar no terminal" e "Mostrar abas abertas", que já têm botões no cabeçalho; os atalhos Ctrl+Shift+F e Ctrl+Shift+O continuam. Verificação: `meson compile -C build` sem erros e `meson test` com 6 testes passando. Não verificado visualmente; a instância aberta usa o binário anterior.
 
 **Próxima retomada sugerida:** validar manualmente no Wayland a entrada pelo teclado, TUI, seleção e colagem com mouse, busca, anexos, renomear e reordenar abas, e as notificações. Depois implementar perfis, edição de atalhos e a integração por agente. Em paralelo, verificar duas ou mais abas, overview e preferências contra as referências. Para build de distribuição, resolver o schema dependente do diretório de build e validar o fluxo real do Builder.
+
+### Atualização — 12/11/2026
+
+- **Anexo por arrastar (Marco 4, parcial):** verificado pelo usuário no app de dev, em Wayland. Arrastar um PNG para o terminal anexa a imagem ao prompt do Claude Code e do Codex. O Codex mostra `[Image #1]` com o aviso "Image attached to the prompt". O arquivo foi gravado no cache da sessão (`~/.cache/termac/attachments/`), conferido em disco.
+- **Correção do arrastar:** o handler de soltura (`window_drop_files`, `src/termac-window.c`) não recebia a lista de arquivos porque a verificação `G_VALUE_HOLDS_OBJECT` retornava falso para `GdkFileList`. Agora usa `G_VALUE_HOLDS` e `g_value_peek_pointer`. A causa exata da falha da macro não foi investigada.
+- **Ctrl+V nativo:** o Claude Code leu a imagem do clipboard quando `wl-clipboard` estava instalado. Hipótese: as ferramentas de clipboard são dependência do caminho nativo, inclusive dentro do Flatpak.
+- **Atalhos (confirmados pelo usuário no app de dev, 12/11):** Ctrl+C copia a seleção; sem seleção, duas pressões em até 1 s enviam `^C`. Ctrl+V cola texto ou anexa imagem quando o clipboard só tem imagem. Ctrl+A seleciona todo o conteúdo. Ctrl+Seta para a esquerda envia Home. Ctrl+Shift+C e Ctrl+Shift+V continuam. Conflitos conhecidos: Ctrl+C e Ctrl+V do Claude Code, Ctrl+V do vim e salto por palavra com Ctrl+Seta.
+- **Ctrl+V no Claude Code (confirmado, 12/11):** com o Termac interceptando o Ctrl+V e o clipboard contendo imagem, o Claude Code recebeu o anexo; a captura mostra o aviso "Image attached to the prompt" no prompt do Claude Code.
+- **Preferências (visual não conferido):** diálogo em janela separada, transitória da janela principal, com páginas Geral, Aparência, Atalhos e Anexos. Busca na barra do cabeçalho. Botão "Mostrar todas as paletas" (9 temas, depois 12). Cartões sem texto de exemplo, por decisão do usuário. Grupos da página Geral: Inicialização, Terminal, Integração e Segurança, só com opções implementadas.
+- **Anexos:** miniaturas quadradas de 64×64 px, recortadas do centro, com cantos arredondados. Nome e caminho com o caminho cortado em uma linha. "Clear All" no rodapé.
+- **Traduções:** `po/pt_BR.po` com 125 mensagens traduzidas. Restam `translator-credits`, que é do tradutor, e a confirmação visual das telas em português.
+- **Verificação:** `meson compile -C build` sem erros; `meson test -C build` com 6 testes passando; app de dev reiniciado a cada mudança. Não houve inspeção visual das preferências nem dos atalhos.
+- **Pendências desta rodada:** validar dependência de `wl-clipboard` no Flatpak; avisos de compilação (`gdk_texture_new_for_pixbuf` obsoleto e declarações mistas em `terminal_command_finished_cb`). OpenCode foi retirado do MVP por decisão do usuário em 12/11/2026. Hermes e Gemini não estão instalados.
+
+### Implementação — 12/11/2026 (continuação)
+
+- **Falha de inicialização (Marco 1):** já existia. O terminal mostra a mensagem de erro com "Press Enter or click to try again" (`src/termac-terminal.c`, desenho do erro). Não foi testado com falha real.
+- **Links clicáveis (Marco 5):** já existia. Ctrl+clique abre a URL do texto da linha (`terminal_open_url_at`, `termac_url_at_column`). Não há sublinhado ao passar o mouse. Não foi testado pelo usuário.
+- **Salvar e restaurar workspace (Marco 5):** a sessão já guardava ordem, pastas, títulos e aba selecionada. Agora guarda também largura, altura e estado maximizado de cada janela, no arquivo `session-v3.gvariant`. A v2 deixa de ser lida, então a primeira abertura depois dessa mudança começa sem as abas anteriores. Comandos nunca são salvos nem executados, então não há confirmação a fazer.
+- **Acessibilidade (Marco 6):** rótulos acessíveis nos botões só com ícone da barra (visão geral, busca, menu e nova aba) e nos botões de copiar e remover anexo. Não foi testado com leitor de tela.
+- **Editor de atalhos (Marco 5):** dez ações de janela e aplicativo podem ser trocadas em Preferências, em Atalhos, grupo Aplicativo. Cada troca é guardada na chave `action-shortcuts` do GSettings. "Restaurar padrões" limpa as trocas. Os atalhos de terminal (Ctrl+C, Ctrl+V, Ctrl+A, Ctrl+Seta para a esquerda) continuam fixos. Não há detecção de conflito entre atalhos. Não foi testado visualmente.
+- **Traduções:** os textos novos do editor de atalhos e da barra de busca foram traduzidos; restam `translator-credits` (do tradutor) e a conferência visual.
+- **Verificação:** `meson compile -C build` sem avisos de código do projeto; `meson test -C build` com 6 testes passando; app de dev reiniciado.
+
+### Testes automatizados de interface — 12/11/2026
+
+- Novo teste `tests/test-ui.c` (`meson test -C build ui`) roda o Termac real dentro de um Xvfb, com diretórios XDG temporários e GSettings em memória, sem tocar na sessão do usuário.
+- Casos: janela com uma aba; nova aba e fechar aba; 10 ciclos de abrir e fechar abas; abertura de Preferências; salvamento da sessão em `session-v3.gvariant`; digitação real pelo servidor X (XTest, carregado com `dlopen`, `libXtst.so.6`), com comando executado no shell; `sleep 30` interrompido por Ctrl+C de duas pressões (uma pressão não interrompe, duas interrompem).
+- Capturas: com `TERMAC_UI_SCREENSHOTS=<pasta>` o teste grava PNGs da janela principal, da digitação, da interrupção e das Preferências, renderizados pelo próprio GTK.
+- Limitações: o teste não cobre arrastar e soltar, Ctrl+V com clipboard de imagem, IME, editor de atalhos, os agentes externos nem o visual das abas de Preferências além de Geral. Rodar o valgrind sobre o teste derrubou o processo com "Illegal instruction", então a verificação de vazamento ainda usa o app.
+- Verificação: `meson test -C build` com 7 testes passando (inclui validação de arquivos desktop, appstream e schema).
+
+### Automação de interface — continuação (12/11/2026)
+
+- `tests/test-ui.c` agora cobre também: arrastar imagem para o terminal (chama `termac_window_attach_file_list`, a mesma função do sinal de soltura; o disparo do sinal GTK sem evento real não funciona), Ctrl+V com imagem no clipboard (passa: anexo criado), seleção com mouse pelo XTest (roda, mas a cópia não gerou texto no clipboard) e editor de atalhos (falha).
+- Falha aberta 1, editor de atalhos: após clicar no botão de "Nova aba" e enviar Ctrl+Shift+Y, o atalho continua `<Control><Shift>t`. Possível causa: o diálogo de captura não recebe o foco do teclado virtual. Não investigado além disso.
+- Achado aberto 2, cópia de seleção com mouse: a seleção aparece na captura, mas `termac_terminal_copy` retorna FALSE, então o clipboard não recebe texto. Pode ser bug real ou da forma como o teste faz o arrasto. Não resolvido.
+- Limitações sem automação aqui: agentes externos (Claude Code, Codex) e IME.
+- `meson test -C build`: 6 de 7 passam; `ui` falha no editor de atalhos.
+
+### Plano de correção — execução (12/11/2026)
+
+- **Editor de atalhos:** o app funciona; o teste falhava por causa do ambiente. O editor só recebe as teclas quando é a janela de cima. Quando a janela principal fica por cima, o teste perde as teclas. Correção aplicada no teste: o caso roda primeiro. Não há mudança de comportamento no app. Comparação de atalhos passou a ser semântica (mesma tecla e modificadores, independente de ordem e caixa).
+- **Cópia por seleção:** o gesto de seleção do motor e Ctrl+Shift+C copiam "termac-ok" para o clipboard. O teste alimenta o gesto pela API VT porque o ponteiro do XTest não chega ao GTK neste Xvfb. O clique real do mouse continua sem teste automatizado.
+- **Arrastar imagem:** a lógica foi separada em `termac_window_attach_file_list`, chamada pelo sinal de soltura. O teste chama a mesma função.
+- **Ctrl+V com imagem:** passa no teste.
+- **Verificação:** `meson test -C build` com 7 de 7 passando.
+- **Pendente da fase 1:** valgrind sobre o teste (ainda derruba com "Illegal instruction"). Ainda não tentado nesta rodada.
+
+### Fase 2 da correção — 13/11/2026
+
+- **Causa raiz corrigida (vazamento de terminal e shell órfão):** o terminal de uma aba fechada não era liberado. O `GtkIMContext` mantinha o widget como cliente, e o terminal mantinha o contexto, formando um ciclo. Com isso, `dispose` nunca rodava e o shell da aba continuava vivo. Correção em `src/termac-terminal.c`: o widget cliente só fica definido enquanto o terminal está realizado (`realize`/`unrealize`). Teste `closed-tab-releases-terminal` (referência fraca) e `no-orphan-shells` passam.
+- **Memória sob churn:** 40 ciclos de abrir e fechar abas, sem crescimento (401 MB antes, 400 MB depois). Teste `memory-churn`.
+- **Saída grande:** `seq 1 30000` termina e o prompt volta. Teste `large-output`.
+- **TUI:** `less` entra na tela alternativa e sai ao pressionar q. Teste `tui-alternate-screen`.
+- **Abas independentes:** dois terminais, com shells próprios; fechar uma mantém a outra. Teste `tabs-independent`.
+- **Geometria salva:** o arquivo `session-v3.gvariant` guarda largura e altura. Teste `geometry-saved`.
+- **Diálogo de atalhos:** a lista usa `action-name`, então acompanha as combinações editadas. Nenhuma mudança necessária.
+- **Verificação:** `meson test -C build` com 7 de 7 passando.
+- **Tema, fonte e zoom com três abas (13/11/2026):** teste `theme-zoom-with-tabs`. Clica os cartões de tema (sistema, claro, escuro) e confere `AdwStyleManager`; aciona zoom (+3, −1) e confere o tamanho de fonte de todas as abas e o rótulo de porcentagem. Foi preciso o acessor de leitura `termac_terminal_get_font_size`. Nenhum defeito encontrado no app.
+- **Anexos em sequência (13/11/2026):** teste `attachment-sequence`. Anexa duas imagens por arrastar, confere +2 no cache; remove uma pelo botão "Remover" da página Anexos de Preferências (+1); usa "Clear All" (0) e confere o estado vazio. Passa.
+- **Ainda não feito na fase 2:** verificação com leitor de tela; detecção de conflito entre atalhos; decisão sobre a migração da sessão v2; vim não automatizado; paleta não é conferida por leitura de estado (só se clica o cartão, sem teste de cor aplicada); as capturas dos novos testes só são gravadas com `TERMAC_UI_SCREENSHOTS`, e não as inspecionei visualmente.
+- **Verificação (13/11/2026):** `meson compile -C build` sem erros; `meson test -C build` com 7 de 7 suítes passando (`ui` com 18 casos, 73 s).
+- **Atalhos do terminal editáveis (13/11/2026):** Ctrl+C (copiar ou cancelar comando), Ctrl+V (colar) e Ctrl+Seta esquerda (início da linha) agora são ações de janela `win.terminal-copy`, `win.terminal-paste` e `win.terminal-line-start`. Aparecem no editor de Preferências > Atalhos > Atalhos editáveis, com "Restaurar padrões", e na ajuda de atalhos. O terminal só deixa passar essas teclas quando a janela as reconhece; por isso reatribuir Ctrl+C libera a tecla, que então segue ao programa como ^C. Ctrl+Shift+C/V e Ctrl+A continuam fixos e aparecem como "não editável". Mudanças: `src/termac-terminal.c` (envio de tecla nomeada extraído em `terminal_send_key`, atalhos fixos removidos), `src/termac-window.c` (ações e lista de reservados), `src/termac-application.c` (editor e linhas de Preferências), `src/shortcuts-dialog.ui`, e `po/pt_BR.po` (tradução completa, sem fuzzy).
+- **Correção encontrada no editor:** a janela de captura de atalho era anexada à janela ativa, e não à janela de Preferências que contém o botão. Agora é anexada à janela do botão (`shortcut_edit_clicked_cb`).
+- **Teste novo:** `/ui/terminal-shortcut-rebind` reatribui Ctrl+C para Ctrl+Shift+Y, confirma que um `sleep 30` é interrompido por um único Ctrl+C e restaura o padrão. O teste de colar imagem (`/ui/paste-image-clipboard`) continua usando Ctrl+V padrão e passa.
+- **Verificação (13/11/2026):** `meson test -C build`: 7 de 7 suítes passando (`ui` com 19 casos, 81 s). `msgfmt --statistics`: 126 traduzidas, sem fuzzy; restam `translator-credits` (do tradutor) e a entrada do cabeçalho.
+- **Incremento de funcionalidades (13/11/2026):**
+  - **Ctrl+A editável:** agora é `win.terminal-select-all`, na mesma lista de atalhos editáveis; a ajuda também usa a ação.
+  - **Seleção termina ao digitar:** `terminal_send_input` limpa a seleção (`termac_vt_clear_selection`). Antes, um Ctrl+C depois de copiar copiava de novo em vez de interromper o comando.
+  - **Links com Ctrl:** com Ctrl pressionado sobre uma URL, o cursor vira mão e a URL ganha sublinhado (`terminal_update_link_hover`). Sai ao mover o ponteiro sem Ctrl ou ao sair do terminal. Novo `termac_url_span_at_column`, com colunas de início e fim; teste unitário `/util/url-span`.
+  - **Teste novo:** `/ui/select-all-shortcut` confere o atalho, o Ctrl+A e que digitar limpa a seleção.
+  - **Aviso de compilação:** `tests/test-vt.c` tinha declaração misturada com código; corrigido. O build está sem avisos.
+  - **Verificação:** `meson test -C build` com 7 de 7 suítes (`ui` com 20 casos).
+  - **Não coberto por teste:** o sublinhado e o cursor de mão. O ponteiro do XTest não chega ao GTK neste ambiente, então isso precisa de conferência manual.
+  - **Ainda pendente:** realce dos resultados da busca. Hoje a busca só rola até a linha; destacar cada ocorrência exige mapear colunas e acompanhar a rolagem.
+- **Pendente desta mudança:** não conferi visualmente a linha "Atalhos editáveis" nem a ajuda; o editor de Ctrl+Seta e Ctrl+C ainda precisa ser testado com a versão de dev em uso real, inclusive a diferença entre Ctrl+C e o cancelamento por duas pressões agora que o padrão é uma ação.
+
+### Decisões de produto e migração — 13/11/2026
+
+- **Ctrl+Shift+C e Ctrl+Shift+V editáveis:** novas ações `win.terminal-copy-selection` (copiar seleção, sem ^C) e `win.terminal-paste-clipboard` (colar), com os mesmos padrões. Aparecem em Preferências > Atalhos > Atalhos editáveis e na ajuda de atalhos. A linha fixa "Copiar e colar (não editável)" e o grupo "Terminal" de Atalhos foram removidos, e o atalho fixo do terminal saiu de `src/termac-terminal.c`.
+- **Sessão v2 → v3:** `migrate_v2_session` (`src/termac-application.c`) converte `session-v2.gvariant` em v3 uma única vez, quando o v3 não existe. Abas e pastas são preservadas; a geometria recebe o padrão. O v2 não é apagado e não é lido depois da migração. Teste `/ui/session-v2-migration`.
+- **Atenção nesta máquina:** o `session-v3.gvariant` já existe (gravado em 13/11/2026 às 05:15), então a migração **não roda** neste ambiente. As abas da v2 de 12/11/2026 seguem no disco e não foram restauradas. Ver pendências.
+- **PDR.Arquiteture.md:** OpenCode removido; Claude Code e Codex CLI como prioridade do MVP de agentes; decisões de produto registradas.
+- **Créditos:** `translator-credits` fica vazio no `.po` para tradutores. Autoria e créditos de desenvolvimento estão em `developers` e `developer-name` no diálogo Sobre (`src/termac-application.c`); nada de desenvolvimento usa `translator-credits`.
+- **Perfis de terminal:** fora do escopo da primeira versão estável.
+- **Traduções:** `po/pt_BR.po` com 129 mensagens traduzidas e sem aproximações (fuzzy). Duas entradas novas, "Copy selection" e "Paste from clipboard", foram conferidas à mão, pois o `msgmerge` as marcou como aproximadas e sugeriu traduções de outras frases. `msgid "Copy and paste (not editable)"` ficou obsoleta.
+- **Verificação:** `meson test -C build` com 7 de 7 suítes. `ui` com 22 casos, incluindo `/ui/clipboard-shortcuts-default` e `/ui/session-v2-migration`. O build do app não tem avisos. `tests/test-ui.c` ainda tem três avisos de API X11 depreciada da GTK 4.24, não tratados nesta rodada.
+- **Não verificado visualmente:** a nova linha de Ctrl+Shift+C/V em Atalhos e a ajuda de atalhos.
+
+### Verificação com valgrind — 12/11/2026
+
+- Executado com `valgrind --leak-check=full` (valgrind 3.27.1, `/usr/bin/valgrind`), uma janela com uma aba, abertura de Preferências e saída pelo menu. Log em `scratchpad/valgrind-115337.log`.
+- Erros de acesso inválido e leitura não inicializada: nenhum.
+- `Mismatched aligned_alloc/free` (2 ocorrências): originado em `libadwaita`, não no código do Termac.
+- Vazamentos definitivos atribuídos ao Termac: cerca de 30 KB em `termac_terminal_init` e 10 KB em `termac_terminal_set_font_size`, na linha de `pango_context_get_metrics`. O `PangoFontMetrics` é liberado na mesma função. Ainda não é claro se a retenção é do Pango ou de uso nosso; precisa de uma execução mais longa com criação e fechamento de abas para medir crescimento.
+- Revisão feita: `pango_font_description_free` já existia nas duas funções; uma edição temporária foi desfeita e o arquivo ficou como estava.
+- Pendente: rodar com várias abas abertas e fechadas, e medir crescimento de memória.
+
+### Mapeamento para conclusão — 12/11/2026
+
+Escopo de conclusão: uso diário, com o MVP de agentes formado por Claude Code e Codex. OpenCode saiu do MVP; Hermes e Gemini ficam fora da validação do MVP.
+
+- **Marco 0:** falta observar o build pelo GNOME Builder e validar o build Flatpak com `wl-clipboard` no sandbox.
+- **Marco 1:** falta validar TUI (vim, less), saída extensa, respostas VT e encerramento durante I/O; falta mensagem de recuperação na falha de inicialização.
+- **Marco 2:** falta validar texto composto (IME, ABNT2), mouse em programas com rastreamento, seleção com caracteres largos e emoji, e bracketed paste em uso. Os atalhos novos já foram confirmados pelo usuário.
+- **Marco 3:** falta validar três sessões independentes, overview, persistência após reinício, comparação visual com as referências, ícone no desktop e a ajuda de teclado.
+- **Marco 4:** falta confirmar que o Codex descreve a imagem anexada. Claude Code já anexou por arrastar e Ctrl+V.
+- **Marco 5:** falta validar busca, notificações e transferência de aba em uso. Links clicáveis, editor de atalhos, eventos de conclusão por agente e salvar workspace não estão implementados; perfis foram removidos por enquanto.
+- **Marco 6:** falta acessibilidade além de rótulos, testes em X11 e múltiplas escalas, medições com 1, 5 e 10 abas, verificação de vazamentos com valgrind (instalado: valgrind 3.27.1 em /usr/bin/valgrind), comparação final com as referências e instalação por usuário.
+- **Decisões tomadas:** OpenCode fora do MVP. Janelas e abas entram em Geral quando tiverem opções. Os créditos de tradução (`translator-credits`) ficam com o usuário.
 
 ### Atualização do Marco 0 — versão do runtime (09/11/2026)
 
@@ -220,7 +331,6 @@ Conferir a API real da revisão selecionada antes de fechar as estruturas intern
 | Codex | A levantar | A verificar | A verificar | Pendente |
 | Claude Code | A levantar | A verificar | A verificar | Pendente |
 | Hermes | A levantar | A verificar | A verificar | Pendente |
-| OpenCode | A levantar | A verificar | A verificar | Pendente |
 | Gemini | A levantar | A verificar | A verificar | Pendente |
 
 **Aceite.** Copiar uma captura ou arrastar uma imagem, anexar e pedir ao agente uma descrição de texto, cores e formas que só aparecem na imagem. Registrar a versão e a resposta observada. Colar um caminho no prompt será avaliado separadamente do recebimento multimodal.
@@ -264,11 +374,11 @@ Usar sessões locais como alvo inicial. Acesso ao arquivo, instalação do CLI, 
 | --- | --- | --- |
 | Prova técnica | Marcos 0 e 1 | Shell funcional e renderização GTK usando libghostty-vt |
 | Alpha utilizável | Marcos 2 e 3 | Terminal interativo, abas e interface das referências |
-| MVP com agentes | Marco 4 | Anexação validada individualmente nos cinco agentes alvo |
+| MVP com agentes | Marco 4 | Anexação validada em Claude Code e Codex, os agentes do MVP |
 | Incremento de produtividade | Marco 5 | Sessões organizadas, busca, links e notificações |
 | Versão para uso diário | Marco 6 | Estabilidade, acessibilidade e medições de desempenho |
 
-É possível disponibilizar um candidato do MVP com os agentes já validados, apresentando explicitamente o estado das demais integrações. A compatibilidade completa fica concluída após validar os cinco alvos.
+É possível disponibilizar um candidato do MVP com os agentes já validados, apresentando explicitamente o estado das demais integrações. A compatibilidade completa fica concluída após validar Hermes e Gemini, que seguem fora da validação do MVP.
 
 ## 8. Estrutura proposta
 
@@ -320,7 +430,7 @@ A primeira hora termina com um estado técnico verificável e uma estimativa rev
 | Dependência, ligação C e primeira tela com shell | 1 a 3 dias |
 | Renderer, entrada, seleção e TUI utilizáveis | 3 a 7 dias |
 | Abas, menu, visão geral e preferências essenciais | 2 a 4 dias |
-| Anexação comum e validação dos cinco agentes | 2 a 5 dias |
+| Anexação comum e validação de Claude Code e Codex | 2 a 5 dias |
 | Persistência, busca, links e notificações | 3 a 6 dias |
 | Acessibilidade, estabilidade e otimização | 4 a 10 dias |
 

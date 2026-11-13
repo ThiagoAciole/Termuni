@@ -38,6 +38,11 @@
       <summary>Shell integration</summary>
       <description>Report command exit status to Termac. Currently supported for Bash, in new tabs.</description>
     </key>
+    <key name="action-shortcuts" type="a{ss}">
+      <default>{}</default>
+      <summary>Custom accelerators for window and application actions</summary>
+      <description>Maps action names such as win.new-tab to accelerators. Actions missing from this dictionary use the built-in shortcut.</description>
+    </key>
     <key name="restore-session" type="b">
       <default>true</default>
       <summary>Restore tabs at startup</summary>

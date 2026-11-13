@@ -25,6 +25,12 @@ gboolean termac_url_at_column (const char *line,
                                guint       column,
                                gsize      *start,
                                gsize      *end);
+gboolean termac_url_span_at_column (const char *line,
+                                    guint       column,
+                                    gsize      *start,
+                                    gsize      *end,
+                                    guint      *first_column,
+                                    guint      *last_column);
 
 char *termac_display_path (const char *path,
                            const char *home);

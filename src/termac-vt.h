@@ -27,6 +27,7 @@ gboolean termac_vt_selector_event (TermacVtSelector                  *selector,
 
 void termac_vt_selection_clear (GhosttyTerminal terminal);
 void termac_vt_select_all (GhosttyTerminal terminal);
+void termac_vt_clear_selection (GhosttyTerminal terminal);
 
 /* Text of the active selection, unwrapped and trimmed. */
 gboolean termac_vt_selection_text (GhosttyTerminal terminal,

@@ -21,6 +21,7 @@
                       <object class="GtkButton" id="overview_button">
                         <property name="icon-name">view-grid-symbolic</property>
                         <property name="tooltip-text" translatable="yes">Show open tabs</property>
+                        <accessibility><property name="label" translatable="yes">Show open tabs</property></accessibility>
                         <property name="action-name">win.toggle-overview</property>
                         <style><class name="flat"/></style>
                       </object>
@@ -29,6 +30,7 @@
                       <object class="GtkButton" id="find_button">
                         <property name="icon-name">system-search-symbolic</property>
                         <property name="tooltip-text" translatable="yes">Find in terminal</property>
+                        <accessibility><property name="label" translatable="yes">Find in terminal</property></accessibility>
                         <property name="action-name">win.find</property>
                         <style><class name="flat"/></style>
                       </object>
@@ -46,12 +48,14 @@
                         <property name="primary">true</property>
                         <property name="icon-name">open-menu-symbolic</property>
                         <property name="tooltip-text" translatable="yes">Main menu</property>
+                        <accessibility><property name="label" translatable="yes">Main menu</property></accessibility>
                       </object>
                     </child>
                     <child type="end">
                       <object class="GtkButton" id="new_tab_button">
                         <property name="icon-name">tab-new-symbolic</property>
                         <property name="tooltip-text" translatable="yes">New tab</property>
+                        <accessibility><property name="label" translatable="yes">New tab</property></accessibility>
                         <property name="action-name">win.new-tab</property>
                         <style><class name="flat"/></style>
                       </object>

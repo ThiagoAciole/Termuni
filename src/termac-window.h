@@ -31,4 +31,6 @@ GVariant *termac_window_session_state (TermacWindow *self, gint *selected);
 /* Number of tabs with a foreground process; used when the app quits. */
 guint termac_window_busy_tabs (TermacWindow *self);
 
+gboolean termac_window_attach_file_list (TermacWindow *self, GdkFileList *list);
+
 G_END_DECLS

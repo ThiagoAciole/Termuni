@@ -86,6 +86,19 @@ test_url_is_found_at_column (void)
 	g_assert_false (termac_url_at_column (line, 25, NULL, NULL));
 }
 
+/* The span also reports the first and last columns, which the link underline uses. */
+static void
+test_url_span_reports_columns (void)
+{
+	const char *line = "see https://example.com/a, ok";
+	guint first = 0, last = 0;
+
+	g_assert_true (termac_url_span_at_column (line, 10, NULL, NULL, &first, &last));
+	g_assert_cmpuint (first, ==, 4);
+	g_assert_cmpuint (last, ==, 4 + strlen ("https://example.com/a"));
+	g_assert_false (termac_url_span_at_column (line, 0, NULL, NULL, &first, &last));
+}
+
 static void
 test_display_path_abbreviates_home (void)
 {
@@ -122,6 +135,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/util/probe/reject", test_probe_rejects_other_data);
 	g_test_add_func ("/util/probe/truncated", test_probe_rejects_truncated_png);
 	g_test_add_func ("/util/url", test_url_is_found_at_column);
+	g_test_add_func ("/util/url-span", test_url_span_reports_columns);
 	g_test_add_func ("/util/display-path", test_display_path_abbreviates_home);
 	return g_test_run ();
 }

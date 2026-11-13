@@ -154,10 +154,12 @@ columns_before (const char *line,
  * Returns: %TRUE if a URL covers the column
  */
 gboolean
-termac_url_at_column (const char *line,
-                      guint       column,
-                      gsize      *start,
-                      gsize      *end)
+termac_url_span_at_column (const char *line,
+                           guint       column,
+                           gsize      *start,
+                           gsize      *end,
+                           guint      *first_column,
+                           guint      *last_column)
 {
 	const char *search = line;
 
@@ -197,11 +199,24 @@ termac_url_at_column (const char *line,
 				*start = (gsize) (search - line);
 			if (end != NULL)
 				*end = (gsize) (stop - line);
+			if (first_column != NULL)
+				*first_column = first;
+			if (last_column != NULL)
+				*last_column = last;
 			return TRUE;
 		}
 		search = stop;
 	}
 	return FALSE;
+}
+
+gboolean
+termac_url_at_column (const char *line,
+                      guint       column,
+                      gsize      *start,
+                      gsize      *end)
+{
+	return termac_url_span_at_column (line, column, start, end, NULL, NULL);
 }
 
 /**

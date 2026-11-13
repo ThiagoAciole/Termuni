@@ -69,6 +69,10 @@ struct _TermacTerminal
 	gboolean job_active;
 	gint64 job_started_us;
 	gint64 interrupt_armed_us;
+	gboolean hover_link;
+	guint hover_row;
+	guint hover_first;
+	guint hover_last;
 	gboolean shell_integration;
 	char *error;
 	char *cwd;
@@ -226,8 +230,13 @@ terminal_send_input (TermacTerminal *self,
                      gsize           len)
 {
 	if (self->terminal != NULL)
+	{
+		/* Typing ends the selection, so a later Ctrl+C reaches the program again. */
+		termac_vt_clear_selection (self->terminal);
 		ghostty_terminal_scroll_viewport (self->terminal,
 		    (GhosttyTerminalScrollViewport) { .tag = GHOSTTY_SCROLL_VIEWPORT_BOTTOM });
+		gtk_widget_queue_draw (GTK_WIDGET (self));
+	}
 	terminal_queue_bytes (self, (const uint8_t *) bytes, len);
 }
 
@@ -788,6 +797,15 @@ terminal_draw (GtkDrawingArea *area,
 		row++;
 	}
 
+	if (self->hover_link && self->hover_row < self->rows)
+	{
+		cairo_set_source_rgb (cr, colors.foreground.r / 255.0, colors.foreground.g / 255.0,
+		                      colors.foreground.b / 255.0);
+		cairo_rectangle (cr, self->hover_first * self->cell_width,
+		                 (self->hover_row + 1) * self->cell_height - 1,
+		                 (self->hover_last - self->hover_first) * self->cell_width, 1);
+		cairo_fill (cr);
+	}
 	if (cursor_visible && cursor_in_viewport && cursor_x < self->cols && cursor_y < self->rows)
 	{
 		GhosttyColorRgb cursor = colors.cursor_has_value ? colors.cursor : colors.foreground;
@@ -872,8 +890,8 @@ terminal_ghostty_key (guint keyval)
 
 /* Ctrl+C copies an active selection; without one, two presses within a second
  * send the interrupt to the running program. */
-static void
-terminal_copy_or_interrupt (TermacTerminal *self)
+void
+termac_terminal_copy_or_interrupt (TermacTerminal *self)
 {
 	gint64 now = g_get_monotonic_time ();
 	char interrupt = 0x03;
@@ -893,9 +911,10 @@ terminal_copy_or_interrupt (TermacTerminal *self)
 	self->interrupt_armed_us = now;
 }
 
-static void
-terminal_select_all (TermacTerminal *self)
+void
+termac_terminal_select_all (TermacTerminal *self)
 {
+	g_return_if_fail (TERMAC_IS_TERMINAL (self));
 	termac_vt_select_all (self->terminal);
 	gtk_widget_queue_draw (GTK_WIDGET (self));
 }
@@ -911,6 +930,37 @@ terminal_shortcut_reserved (TermacTerminal *self,
 	       termac_window_shortcut_is_reserved (TERMAC_WINDOW (root), keyval, state);
 }
 
+/* Encodes a named key with the terminal's current modes and sends it to the
+ * shell. Returns FALSE when the key has no named encoding. */
+static gboolean
+terminal_send_key (TermacTerminal *self, guint keyval, GdkModifierType state)
+{
+	GhosttyKey key = terminal_ghostty_key (keyval);
+	char encoded[128];
+	size_t encoded_len = 0;
+
+	if (key == GHOSTTY_KEY_UNIDENTIFIED || self->key_encoder == NULL || self->key_event == NULL)
+		return FALSE;
+	ghostty_key_encoder_setopt_from_terminal (self->key_encoder, self->terminal);
+	ghostty_key_event_set_action (self->key_event, GHOSTTY_KEY_ACTION_PRESS);
+	ghostty_key_event_set_key (self->key_event, key);
+	ghostty_key_event_set_mods (self->key_event, terminal_ghostty_mods (state));
+	ghostty_key_event_set_utf8 (self->key_event, NULL, 0);
+	if (ghostty_key_encoder_encode (self->key_encoder, self->key_event,
+	                                encoded, sizeof encoded, &encoded_len) == GHOSTTY_SUCCESS &&
+	    encoded_len > 0)
+		terminal_send_input (self, encoded, encoded_len);
+	return TRUE;
+}
+
+/* Moves the cursor to the start of the line, as the Home key does. */
+void
+termac_terminal_line_start (TermacTerminal *self)
+{
+	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	terminal_send_key (self, GDK_KEY_Home, 0);
+}
+
 static gboolean
 terminal_key_pressed (GtkEventControllerKey *controller,
                       guint                  keyval,
@@ -923,9 +973,6 @@ terminal_key_pressed (GtkEventControllerKey *controller,
 	gboolean ctrl = (state & GDK_CONTROL_MASK) != 0;
 	gboolean shift = (state & GDK_SHIFT_MASK) != 0;
 	gboolean alt = (state & GDK_ALT_MASK) != 0;
-	GhosttyKey key;
-	char encoded[128];
-	size_t encoded_len = 0;
 	gunichar ch;
 	char utf8[7] = { 0 };
 	(void) keycode;
@@ -941,31 +988,6 @@ terminal_key_pressed (GtkEventControllerKey *controller,
 	if (terminal_shortcut_reserved (self, keyval, state))
 		return GDK_EVENT_PROPAGATE;
 
-	if (ctrl && shift && (keyval == GDK_KEY_C || keyval == GDK_KEY_c))
-	{
-		termac_terminal_copy (self);
-		return GDK_EVENT_STOP;
-	}
-	if (ctrl && shift && (keyval == GDK_KEY_V || keyval == GDK_KEY_v))
-	{
-		termac_terminal_paste (self);
-		return GDK_EVENT_STOP;
-	}
-	if (ctrl && !shift && !alt && (keyval == GDK_KEY_c || keyval == GDK_KEY_C))
-	{
-		terminal_copy_or_interrupt (self);
-		return GDK_EVENT_STOP;
-	}
-	if (ctrl && !shift && !alt && (keyval == GDK_KEY_v || keyval == GDK_KEY_V))
-	{
-		termac_terminal_paste (self);
-		return GDK_EVENT_STOP;
-	}
-	if (ctrl && !shift && !alt && (keyval == GDK_KEY_a || keyval == GDK_KEY_A))
-	{
-		terminal_select_all (self);
-		return GDK_EVENT_STOP;
-	}
 	if (shift && !ctrl && !alt)
 	{
 		switch (keyval)
@@ -989,27 +1011,8 @@ terminal_key_pressed (GtkEventControllerKey *controller,
 		}
 	}
 
-	/* Ctrl+Left goes to the start of the line, as Home does. */
-	if (ctrl && !shift && !alt && keyval == GDK_KEY_Left)
-	{
-		keyval = GDK_KEY_Home;
-		state &= ~GDK_CONTROL_MASK;
-	}
-
-	key = terminal_ghostty_key (keyval);
-	if (key != GHOSTTY_KEY_UNIDENTIFIED && self->key_encoder != NULL && self->key_event != NULL)
-	{
-		ghostty_key_encoder_setopt_from_terminal (self->key_encoder, self->terminal);
-		ghostty_key_event_set_action (self->key_event, GHOSTTY_KEY_ACTION_PRESS);
-		ghostty_key_event_set_key (self->key_event, key);
-		ghostty_key_event_set_mods (self->key_event, terminal_ghostty_mods (state));
-		ghostty_key_event_set_utf8 (self->key_event, NULL, 0);
-		if (ghostty_key_encoder_encode (self->key_encoder, self->key_event,
-		                                encoded, sizeof encoded, &encoded_len) == GHOSTTY_SUCCESS &&
-		    encoded_len > 0)
-			terminal_send_input (self, encoded, encoded_len);
+	if (terminal_send_key (self, keyval, state))
 		return GDK_EVENT_STOP;
-	}
 
 	if (ctrl)
 	{
@@ -1043,6 +1046,24 @@ terminal_key_pressed (GtkEventControllerKey *controller,
 		return GDK_EVENT_STOP;
 	}
 	return GDK_EVENT_PROPAGATE;
+}
+
+static void
+terminal_realize (GtkWidget *widget)
+{
+	TermacTerminal *self = TERMAC_TERMINAL (widget);
+
+	if (self->im_context != NULL)
+		gtk_im_context_set_client_widget (self->im_context, widget);
+}
+
+static void
+terminal_unrealize (GtkWidget *widget)
+{
+	TermacTerminal *self = TERMAC_TERMINAL (widget);
+
+	if (self->im_context != NULL)
+		gtk_im_context_set_client_widget (self->im_context, NULL);
 }
 
 static void
@@ -1261,6 +1282,60 @@ terminal_click_released (GtkGestureClick *gesture,
 }
 
 static void
+terminal_clear_link_hover (TermacTerminal *self)
+{
+	if (!self->hover_link)
+		return;
+	self->hover_link = FALSE;
+	gtk_widget_set_cursor (GTK_WIDGET (self), NULL);
+	gtk_widget_queue_draw (GTK_WIDGET (self));
+}
+
+/* With Ctrl held, a link under the pointer gets a pointer cursor and an underline. */
+static void
+terminal_update_link_hover (TermacTerminal *self,
+                            double          x,
+                            double          y,
+                            GdkModifierType state)
+{
+	guint column = 0;
+	guint row = 0;
+	guint first = 0;
+	guint last = 0;
+	gsize start = 0;
+	gsize end = 0;
+	g_autofree char *line = NULL;
+
+	if ((state & GDK_CONTROL_MASK) == 0 || self->error != NULL || self->terminal == NULL)
+	{
+		terminal_clear_link_hover (self);
+		return;
+	}
+	terminal_cell_at (self, x, y, &column, &row);
+	if (!termac_vt_viewport_row_text (self->terminal, self->cols, row, &line) ||
+	    !termac_url_span_at_column (line, column, &start, &end, &first, &last))
+	{
+		terminal_clear_link_hover (self);
+		return;
+	}
+	if (!self->hover_link)
+		gtk_widget_set_cursor_from_name (GTK_WIDGET (self), "pointer");
+	self->hover_link = TRUE;
+	self->hover_row = row;
+	self->hover_first = first;
+	self->hover_last = last;
+	gtk_widget_queue_draw (GTK_WIDGET (self));
+}
+
+static void
+terminal_pointer_leave (GtkEventControllerMotion *controller,
+                        gpointer                  user_data)
+{
+	(void) controller;
+	terminal_clear_link_hover (user_data);
+}
+
+static void
 terminal_pointer_motion (GtkEventControllerMotion *controller,
                          double                    x,
                          double                    y,
@@ -1271,6 +1346,7 @@ terminal_pointer_motion (GtkEventControllerMotion *controller,
 
 	self->pointer_x = x;
 	self->pointer_y = y;
+	terminal_update_link_hover (self, x, y, state);
 	if (terminal_mouse_reporting (self, state))
 	{
 		if (self->mouse_button != 0)
@@ -1319,6 +1395,20 @@ terminal_scroll (GtkEventControllerScroll *controller,
 }
 
 /* ---- clipboard, scroll, search, attachments --------------------------- */
+
+guint
+termac_terminal_get_font_size (TermacTerminal *self)
+{
+	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), 0);
+	return self->font_size;
+}
+
+gpointer
+termac_terminal_get_vt_handle (TermacTerminal *self)
+{
+	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), NULL);
+	return self->terminal;
+}
 
 gboolean
 termac_terminal_copy (TermacTerminal *self)
@@ -1633,8 +1723,11 @@ termac_terminal_init (TermacTerminal *self)
 	pango_font_description_free (font);
 
 	self->im_context = gtk_im_multicontext_new ();
-	gtk_im_context_set_client_widget (self->im_context, GTK_WIDGET (self));
+	/* The client widget is set only while realized: keeping it set would make the
+	 * input context and the terminal hold each other, so a closed tab never freed. */
 	g_signal_connect (self->im_context, "commit", G_CALLBACK (terminal_commit_text), self);
+	g_signal_connect (self, "realize", G_CALLBACK (terminal_realize), NULL);
+	g_signal_connect (self, "unrealize", G_CALLBACK (terminal_unrealize), NULL);
 	controller = gtk_event_controller_key_new ();
 	g_signal_connect (controller, "key-pressed", G_CALLBACK (terminal_key_pressed), self);
 	gtk_widget_add_controller (GTK_WIDGET (self), controller);
@@ -1649,6 +1742,7 @@ termac_terminal_init (TermacTerminal *self)
 	gtk_widget_add_controller (GTK_WIDGET (self), GTK_EVENT_CONTROLLER (click_gesture));
 	motion_controller = gtk_event_controller_motion_new ();
 	g_signal_connect (motion_controller, "motion", G_CALLBACK (terminal_pointer_motion), self);
+	g_signal_connect (motion_controller, "leave", G_CALLBACK (terminal_pointer_leave), self);
 	gtk_widget_add_controller (GTK_WIDGET (self), motion_controller);
 	scroll_controller = gtk_event_controller_scroll_new (GTK_EVENT_CONTROLLER_SCROLL_VERTICAL);
 	g_signal_connect (scroll_controller, "scroll", G_CALLBACK (terminal_scroll), self);
