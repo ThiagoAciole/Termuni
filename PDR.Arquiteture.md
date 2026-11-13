@@ -4,14 +4,14 @@ Atualizado em 13/11/2026. O estado dos marcos e suas evidências ficam no quadro
 
 ## Produto
 
-O Termac é um terminal para Linux com interface GNOME, sessões em abas e futura entrada de imagens para agentes de linha de comando. A prova inicial precisa abrir o shell do usuário em uma janela responsiva, preservar texto Unicode, cores e redimensionamento e, depois, sustentar aplicações TUI interativas. A aparência e as interações previstas estão em [DESIGN.md](DESIGN.md).
+O Termac é um terminal para Linux com interface GNOME, sessões em abas e entrada de imagens para agentes de linha de comando. A prova inicial precisa abrir o shell do usuário em uma janela responsiva, preservar texto Unicode, cores e redimensionamento e, depois, sustentar aplicações TUI interativas. A aparência e as interações previstas estão em [DESIGN.md](DESIGN.md).
 
 Os marcos seguintes incluem seleção, copiar e colar, scrollback, visão geral de abas, preferências, anexação de imagens para Claude Code e Codex CLI, persistência de organização e acessibilidade. O plano descreve os critérios de aceite; a presença de uma ação ou tela no código não garante sua conclusão.
 
 ## Decisões de produto
 
 - Perfis de terminal ficam fora do escopo da primeira versão estável.
-- Integração com agentes: prioridade para Claude Code e Codex CLI. A arquitetura deve permitir adicionar outros agentes sem reescrever o fluxo de anexos.
+- Integração com agentes: Claude Code e Codex CLI são o MVP. Preferências → Anexos guarda a escolha explícita; Abrir agente cria uma aba no diretório conhecido da sessão. Os adaptadores concentram binários/formatação/comando e consultas de disponibilidade. PNG, JPEG e Ctrl+V foram validados com os dois CLIs reais no P2 sob Xvfb; demais agentes ficam fora deste aceite.
 - Atalhos: Ctrl+C, Ctrl+V, Ctrl+Shift+C, Ctrl+Shift+V, Ctrl+Seta para a esquerda e Ctrl+A são ações de janela editáveis em Preferências, com os padrões de fábrica preservados e restauração em "Restaurar padrões".
 - Sessão: o formato atual é `session-v3.gvariant` (com geometria da janela). A sessão `session-v2.gvariant` é convertida uma única vez, quando o v3 ainda não existe, preservando as abas e as pastas. Depois disso o v2 não é mais lido.
 - Créditos: `translator-credits` é reservado aos tradutores. A autoria e os créditos de desenvolvimento ficam na janela Sobre.
@@ -27,7 +27,7 @@ Os marcos seguintes incluem seleção, copiar e colar, scrollback, visão geral 
 
 - Flatpak P1: por escolha explícita do usuário, o shell roda no host via `flatpak-spawn --host --watch-bus`; a permissão `org.freedesktop.Flatpak=talk` permite execução fora do sandbox. O processo gráfico mantém apenas Wayland/fallback-X11, DRI e IPC, sem rede nem acesso geral à home. Os comandos no host têm os acessos normais do usuário.
 - O host precisa de `script` do util-linux: ele cria o PTY no host para preservar controle de tarefas, Ctrl+C e resize. O shell é resolvido pelo ambiente do host; não se usa `$SHELL` do runtime. Diretórios são argumentos/variáveis de ambiente, nunca interpolados em código de shell. A integração Bash opcional conserva o arquivo rc e não é aplicada a outros shells.
-- Grupos de processos host não são visíveis no sandbox: o Flatpak confirma o fechamento de toda sessão host viva. A detecção precisa busy/idle exige um protocolo próprio futuro. Sem OSC 7, o diretório salvo fica no inicial da aba; caminhos pessoais restaurados são preservados e validados no host, com fallback para home se removidos.
+- Grupos de processos host não são visíveis no sandbox: o Flatpak confirma o fechamento de toda sessão host viva. A detecção precisa busy/idle exige um protocolo próprio futuro. O Bash host emite OSC 7 pelo rc gerado do aplicativo, sem ligar notificações de comandos. Outros shells precisam emitir OSC 7 para acompanhar cd; sem isso o diretório conhecido permanece o inicial. Caminhos pessoais restaurados são preservados e validados no host, com fallback para home se removidos.
 - Claude Code e Codex executam no host e usam `wl-paste`/`xclip` do host. Não se inclui módulo de clipboard sem consumidor no sandbox. A anexação multimodal real pelo Flatpak continua na checklist manual.
 
 ## Código existente
@@ -36,6 +36,7 @@ Os marcos seguintes incluem seleção, copiar e colar, scrollback, visão geral 
 | --- | --- |
 | [src/main.c](src/main.c) | Inicializa tradução e aplicação com o ID gerado pelo Meson. |
 | [src/termac-application.c](src/termac-application.c) | Ciclo da aplicação, ações globais, preferências, paletas e GSettings. |
+| [src/termac-agent.c](src/termac-agent.c) | Registro de agentes, citação de anexo, comando inicial e consultas assíncronas no contexto real do shell/pasta. |
 | [src/termac-window.c](src/termac-window.c) e [src/termac-window.ui](src/termac-window.ui) | Janela, cabeçalho, menu, abas, overview e ações de janela. |
 | [src/termac-terminal.c](src/termac-terminal.c) | Widget, PTY e shell, I/O GLib, estado Ghostty, renderer Cairo/Pango e entrada/IME. As camadas de sessão e renderer ainda não são módulos separados. |
 | [src/termac.css](src/termac.css) e [src/termac.gresource.xml](src/termac.gresource.xml) | Estilos e recursos incorporados. |

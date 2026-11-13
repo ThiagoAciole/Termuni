@@ -1,6 +1,6 @@
 # P2 Agent Experience Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** The user explicitly picks Claude Code or Codex CLI, each CLI's specifics live in one adapter module, and image attachments are validated against both.
 
@@ -28,6 +28,32 @@
 4. Attaching an image in a tab that runs a plain shell (no agent) still inserts a quoted path. [Task 4]
 5. Launching the agent in a folder that no longer exists, or when the binary is not on `PATH`: a visible message, no empty tab left behind. [Task 5]
 
+## Execution record — 13/11/2026
+
+Implemented on `p2-agent-experience`. See [P2 results](../../../PLANO_IMPLEMENTACAO.md)
+and [real-agent validation](../../checklists/agents-manual.md).
+
+Execution adjustments: local `is_installed` retains the specified process-PATH API;
+the UI additionally checks the actual native/host interactive shell and target cwd,
+asynchronously with cancellation, 5 s timeout and startup-child cleanup. The launch
+runs its explicit command after shell rc initialization (`-ic`) and returns to the
+interactive shell after exit; pasting a newline during startup was not reliable.
+The menu lives in window.c in this codebase. Host Bash now reports cwd with OSC 7,
+without enabling optional command notifications, so new agent tabs use the updated
+folder. Unknown/absent agents retain safe plain-path formatting.
+
+At the user's request to automate T6, the two real authenticated CLIs were exercised
+in isolated Termac/Xvfb windows, with live model replies (not mock tools or inferred
+path recognition). PNG/JPEG/Ctrl+V succeeded in both: K7R4, M2X9 and V8C6 plus the
+correct shapes/colors, with attachment indicators. The test driver and fixtures are
+versioned. Physical Wayland gestures remain additional P1/manual coverage.
+
+Final reviewer found wrong-cwd checks and surviving native startup children; both
+received reproducing RED→GREEN tests and fixes. Full suites: 11/11 green, native
+156.00 s and HiDPI172.74 s. Native/default fast suites and GNOME50 SDK checks passed.
+All 151 translations are complete, zero fuzzy. Commits use actual authorship and
+consolidate related tasks rather than attributing this implementation to Claude.
+
 ## File Structure
 
 - Create `src/termac-agent.c`, `src/termac-agent.h`: adapters and registry.
@@ -53,11 +79,11 @@
   - `const TermacAgent *const *termac_agent_all (gsize *count)`.
   - `char *termac_agent_format_attachment (const TermacAgent *agent, const char *path)` — text to type into the prompt for an image (caller frees); wraps `termac_attachments_quote (path)` plus a trailing space for both agents today.
 
-- [ ] **Step 1: Write the failing tests** in `tests/test-agent.c`: `/agent/find` (`claude`, `codex` found; `"nope"` and NULL give NULL; `termac_agent_default ()->id` is `"claude"`), `/agent/format-plain` (`/tmp/a.png` becomes `'/tmp/a.png' ` or whatever `termac_attachments_quote` returns, plus space), `/agent/format-hostile` (paths `"/tmp/it's here.png"`, `"/tmp/$HOME `x`.png"`, `"/tmp/ação.png"`: assert the formatted text, run through `/bin/sh -c "printf %s <formatted>"`, prints the original path exactly).
-- [ ] **Step 2: Run** `meson test -C build agent`. Expected: FAIL (missing sources).
-- [ ] **Step 3: Implement** the table (two rows: `claude`/"Claude Code"/`claude`, `codex`/"Codex CLI"/`codex`) and the four functions. Add `test('agent', ...)` linking `termac-agent.c`, `termac-attachments.c`, `termac-util.c`.
-- [ ] **Step 4: Run** `meson test -C build agent`. Expected: PASS.
-- [ ] **Step 5: Commit** `feat: add the agent adapter table`.
+- [x] **Step 1: Write the failing tests** in `tests/test-agent.c`: `/agent/find` (`claude`, `codex` found; `"nope"` and NULL give NULL; `termac_agent_default ()->id` is `"claude"`), `/agent/format-plain` (`/tmp/a.png` becomes `'/tmp/a.png' ` or whatever `termac_attachments_quote` returns, plus space), `/agent/format-hostile` (paths `"/tmp/it's here.png"`, `"/tmp/$HOME `x`.png"`, `"/tmp/ação.png"`: assert the formatted text, run through `/bin/sh -c "printf %s <formatted>"`, prints the original path exactly).
+- [x] **Step 2: Run** `meson test -C build agent`. Expected: FAIL (missing sources).
+- [x] **Step 3: Implement** the table (two rows: `claude`/"Claude Code"/`claude`, `codex`/"Codex CLI"/`codex`) and the four functions. Add `test('agent', ...)` linking `termac-agent.c`, `termac-attachments.c`, `termac-util.c`.
+- [x] **Step 4: Run** `meson test -C build agent`. Expected: PASS.
+- [x] **Step 5: Commit** `feat: add the agent adapter table`.
 
 ### Task 2: Detecting installed agents
 
@@ -67,11 +93,11 @@
 **Interfaces:**
 - Produces: `gboolean termac_agent_is_installed (const TermacAgent *agent)` — `g_find_program_in_path (agent->binary) != NULL`, honouring the process `PATH` at call time.
 
-- [ ] **Step 1: Write the failing test** `/agent/installed`: create a temp dir, write an executable `claude` script in it (mode 0755), `g_setenv ("PATH", dir, TRUE)`; assert claude installed, codex not; remove the script, assert claude not installed.
-- [ ] **Step 2: Run** `meson test -C build agent`. Expected: FAIL (function missing).
-- [ ] **Step 3: Implement** and declare it.
-- [ ] **Step 4: Run.** Expected: PASS.
-- [ ] **Step 5: Commit** `feat: detect installed agents`.
+- [x] **Step 1: Write the failing test** `/agent/installed`: create a temp dir, write an executable `claude` script in it (mode 0755), `g_setenv ("PATH", dir, TRUE)`; assert claude installed, codex not; remove the script, assert claude not installed.
+- [x] **Step 2: Run** `meson test -C build agent`. Expected: FAIL (function missing).
+- [x] **Step 3: Implement** and declare it.
+- [x] **Step 4: Run.** Expected: PASS.
+- [x] **Step 5: Commit** `feat: detect installed agents`.
 
 ### Task 3: The choice in settings and Preferences
 
@@ -82,11 +108,11 @@
 - Consumes: `termac_agent_all`, `termac_agent_find`, `termac_agent_default`, `termac_agent_is_installed`.
 - Produces: `const TermacAgent *termac_application_get_agent (TermacApplication *self)` — setting value resolved through `termac_agent_find`, falling back to `termac_agent_default ()`.
 
-- [ ] **Step 1: Write the failing test** `/ui/agent-choice`: open Preferences, find the `AdwComboRow` titled "Agent" on the Attachments page, select Codex CLI, assert `g_settings_get_string (settings, "agent")` is `"codex"` and `termac_application_get_agent (app)->id` is `"codex"`; then `g_settings_set_string (settings, "agent", "bogus")` and assert the getter returns the `claude` entry.
-- [ ] **Step 2: Run** `... -p /ui/agent-choice`. Expected: FAIL (no row, no key).
-- [ ] **Step 3: Implement.** Schema key `agent`, type `s`, default `'claude'`, with summary. Add the combo row to the Attachments page, listing every agent; mark not-installed entries with a subtitle "Not installed" (translatable). Selecting an entry writes the setting. The getter resolves and falls back.
-- [ ] **Step 4: Run** `meson test -C build`. Expected: all OK; run `ninja -C build termac-update-po`, translate the new strings ("Agent", "Not installed", row subtitle), `msgfmt --check --statistics po/pt_BR.po` shows 0 fuzzy.
-- [ ] **Step 5: Commit** `feat: choose the agent in Preferences`.
+- [x] **Step 1: Write the failing test** `/ui/agent-choice`: open Preferences, find the `AdwComboRow` titled "Agent" on the Attachments page, select Codex CLI, assert `g_settings_get_string (settings, "agent")` is `"codex"` and `termac_application_get_agent (app)->id` is `"codex"`; then `g_settings_set_string (settings, "agent", "bogus")` and assert the getter returns the `claude` entry.
+- [x] **Step 2: Run** `... -p /ui/agent-choice`. Expected: FAIL (no row, no key).
+- [x] **Step 3: Implement.** Schema key `agent`, type `s`, default `'claude'`, with summary. Add the combo row to the Attachments page, listing every agent; mark not-installed entries with a subtitle "Not installed" (translatable). Selecting an entry writes the setting. The getter resolves and falls back.
+- [x] **Step 4: Run** `meson test -C build`. Expected: all OK; run `ninja -C build termac-update-po`, translate the new strings ("Agent", "Not installed", row subtitle), `msgfmt --check --statistics po/pt_BR.po` shows 0 fuzzy.
+- [x] **Step 5: Commit** `feat: choose the agent in Preferences`.
 
 ### Task 4: Attachments go through the adapter
 
@@ -97,11 +123,11 @@
 - Consumes: `termac_agent_format_attachment`, `termac_application_get_agent`.
 - Produces: `void termac_terminal_set_agent (TermacTerminal *self, const TermacAgent *agent)` — terminals receive the current agent from the window whenever the setting changes and at creation.
 
-- [ ] **Step 1: Write the failing tests** in `tests/test-ui.c`: extend `test_attachment_sequence` expectations rather than adding a case: with agent `claude` and again with `codex`, drop a PNG and assert the typed text (read the screen with the P0 helper `screen_contains`, or the attachment list) equals `termac_agent_format_attachment` for that agent. Add `/ui/attach-without-agent-binary`: with `PATH` emptied, attaching still inserts the quoted path (Review Focus 4).
-- [ ] **Step 2: Run** `... -p /ui/attachment-sequence`. Expected: FAIL only if the terminal still quotes directly; otherwise PASS and the replacement below keeps it green.
-- [ ] **Step 3: Replace** the two direct `termac_attachments_quote` calls with `termac_agent_format_attachment`, delete the duplicated `g_strconcat (quoted, " ")`, wire `termac_terminal_set_agent` from the window (`notify` of the setting).
-- [ ] **Step 4: Add the guard test.** In `tests/test-agent.c` or a script run by `meson test`: `grep -rEn '"(claude|codex)"' src | grep -v termac-agent.c` must output nothing; wire it as `test('agent-names-contained', find_program('sh'), args: [...])`.
-- [ ] **Step 5: Run** `meson test -C build`. Expected: all OK. Commit `refactor: format attachments through the agent adapter`.
+- [x] **Step 1: Write the failing tests** in `tests/test-ui.c`: extend `test_attachment_sequence` expectations rather than adding a case: with agent `claude` and again with `codex`, drop a PNG and assert the typed text (read the screen with the P0 helper `screen_contains`, or the attachment list) equals `termac_agent_format_attachment` for that agent. Add `/ui/attach-without-agent-binary`: with `PATH` emptied, attaching still inserts the quoted path (Review Focus 4).
+- [x] **Step 2: Run** `... -p /ui/attachment-sequence`. Expected: FAIL only if the terminal still quotes directly; otherwise PASS and the replacement below keeps it green.
+- [x] **Step 3: Replace** the two direct `termac_attachments_quote` calls with `termac_agent_format_attachment`, delete the duplicated `g_strconcat (quoted, " ")`, wire `termac_terminal_set_agent` from the window (`notify` of the setting).
+- [x] **Step 4: Add the guard test.** In `tests/test-agent.c` or a script run by `meson test`: `grep -rEn '"(claude|codex)"' src | grep -v termac-agent.c` must output nothing; wire it as `test('agent-names-contained', find_program('sh'), args: [...])`.
+- [x] **Step 5: Run** `meson test -C build`. Expected: all OK. Commit `refactor: format attachments through the agent adapter`.
 
 ### Task 5: Open the agent in a tab
 
@@ -112,13 +138,13 @@
 - Consumes: `termac_application_get_agent`, `termac_agent_is_installed`, `termac_terminal_insert_text`.
 - Produces: window action `win.launch-agent` and `void termac_window_launch_agent (TermacWindow *self)`.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `/ui/launch-agent`: put an executable `claude` script on `PATH` that prints `AGENT-STARTED` and sleeps; activate `launch-agent`; assert a new tab exists and `wait_for_screen (terminal, "AGENT-STARTED", 5000)` is TRUE.
   - `/ui/launch-agent-missing`: empty `PATH`; activate the action; assert tab count is unchanged and a toast with "not installed" text is shown (check via the toast overlay helper or a `message` signal).
-- [ ] **Step 2: Run both.** Expected: FAIL (action missing).
-- [ ] **Step 3: Implement.** The action opens a tab in the current terminal's cwd, then types `<binary>` plus Enter into the shell (so the user's shell environment applies); it never builds argument lists beyond the binary. If the binary is not installed, show a toast and do nothing. Add the menu entry and the editable shortcut with the same pattern as the others (add it to `editable_shortcuts[]` and to the help overlay `src/shortcuts-dialog.ui`).
-- [ ] **Step 4: Run** `meson test -C build`. Expected: all OK. Update translations (0 fuzzy).
-- [ ] **Step 5: Commit** `feat: open the chosen agent in a new tab`.
+- [x] **Step 2: Run both.** Expected: FAIL (action missing).
+- [x] **Step 3: Implement.** The action opens a tab in the current terminal's cwd, then types `<binary>` plus Enter into the shell (so the user's shell environment applies); it never builds argument lists beyond the binary. If the binary is not installed, show a toast and do nothing. Add the menu entry and the editable shortcut with the same pattern as the others (add it to `editable_shortcuts[]` and to the help overlay `src/shortcuts-dialog.ui`).
+- [x] **Step 4: Run** `meson test -C build`. Expected: all OK. Update translations (0 fuzzy).
+- [x] **Step 5: Commit** `feat: open the chosen agent in a new tab`.
 
 ### Task 6: Real CLI validation (manual, recorded)
 
@@ -126,15 +152,15 @@
 - Create: `docs/checklists/agents-manual.md`
 - Modify: `PLANO_IMPLEMENTACAO.md`
 
-- [ ] **Step 1: Read the CLIs.** Run `claude --help` and `codex --help` and record in the checklist whether either takes an image flag, and its exact name. If one does, add an optional field to `TermacAgent` in a follow-up commit only if the flag is needed for launching with attachments; otherwise leave the table as is.
-- [ ] **Step 2: Write the checklist** (each line has a result column): drag a PNG into each CLI; Ctrl+V with an image on the clipboard in each CLI (needs `wl-clipboard`, see P1 Task 4); a JPEG; an image with a space in its name; large image near the 20 MiB limit shows the error message; Codex shows `[Image #N]`; Claude Code shows the attachment.
-- [ ] **Step 3: A person runs it** against the real CLIs (needs accounts and network). Record dates, versions (`claude --version`, `codex --version`) and results in the plan.
-- [ ] **Step 4: Commit** `docs: agent validation checklist and results`.
+- [x] **Step 1: Read the CLIs.** Run `claude --help` and `codex --help` and record in the checklist whether either takes an image flag, and its exact name. If one does, add an optional field to `TermacAgent` in a follow-up commit only if the flag is needed for launching with attachments; otherwise leave the table as is.
+- [x] **Step 2: Write the checklist** (each line has a result column): drag a PNG into each CLI; Ctrl+V with an image on the clipboard in each CLI (needs `wl-clipboard`, see P1 Task 4); a JPEG; an image with a space in its name; large image near the 20 MiB limit shows the error message; Codex shows `[Image #N]`; Claude Code shows the attachment.
+- [x] **Step 3: A person runs it** against the real CLIs (needs accounts and network). Record dates, versions (`claude --version`, `codex --version`) and results in the plan.
+- [x] **Step 4: Commit** `docs: agent validation checklist and results`.
 
 ### Task 7: Record results
 
-- [ ] **Step 1:** Update `PLANO_IMPLEMENTACAO.md` under "Prioridades — 13/11/2026": adapters done, tests that prove it, manual validation status. Update the stale "Estado atual" row for marco 4 to match.
-- [ ] **Step 2: Commit** `docs: record P2 results`.
+- [x] **Step 1:** Update `PLANO_IMPLEMENTACAO.md` under "Prioridades — 13/11/2026": adapters done, tests that prove it, manual validation status. Update the stale "Estado atual" row for marco 4 to match.
+- [x] **Step 2: Commit** `docs: record P2 results`.
 
 ## Self-Review
 

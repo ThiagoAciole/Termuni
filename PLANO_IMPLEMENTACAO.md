@@ -12,7 +12,7 @@ Este quadro é o ponto de retomada. As seções 1–10 preservam o plano e suas 
 | 1 — shell e PTY | Parcial | Shell e prompt renderizado foram observados em Wayland; o histórico abaixo registra provas anteriores de cores, Unicode e resize. Validar entrada real, TUI, carga, respostas VT, tratamento de falhas e encerramento antes de aceitar o marco. |
 | 2 — interação | Parcial | Há GtkIMContext, tratamento de teclas e encoder Ghostty no código. Falta validar entrada composta, teclas e TUI; seleção, copiar/colar, scrollback e política de fechamento ainda estão pendentes. |
 | 3 — interface | Parcial | Código de abas, overview, menu, ações, tema, tamanho de fonte e paletas existe. A captura mais recente mostrou o prompt praticamente junto ao topo da área; foi adicionado recuo superior de 24 px no desenho. A janela ativa não foi reiniciada para preservar a sessão; falta conferir visualmente o novo binário, além de múltiplas sessões, overview, atalhos e persistência. |
-| 4 — imagens para agentes | Planejado | Não há implementação ou validação de anexação real por agente registrada. |
+| 4 — imagens para agentes | MVP validado; marco parcial | P2: seleção explícita e adaptadores de Claude Code/Codex; PNG, JPEG e Ctrl+V confirmados nos dois CLIs reais sob Xvfb (6/6, códigos/cores/formas identificados sem ferramentas). Ver resultados P2. Outros agentes e gestos físicos Wayland não foram validados. |
 | 5 — produtividade | Planejado | Busca, links, restauração e notificações permanecem no plano. |
 | 6 — consolidação | Parcial | P0 registra estabilidade e recursos; P1 acrescenta auditoria automatizada de nomes/papel acessível, instalação sem build e suíte HiDPI. Conteúdo acessível de texto, Orca, escala fracionária Wayland, aparência dos ícones e medições completas continuam pendentes. |
 
@@ -58,6 +58,30 @@ Ordem de trabalho definida pelo usuário. Cada item só fecha com evidência de 
 Perfis de terminal ficam fora da primeira versão estável (ver PDR, "Decisões de produto").
 
 Os planos de execução estão em `docs/superpowers/plans/2026-11-13-p0-reliability.md`, `...-p1-gnome-integration.md`, `...-p2-agent-experience.md` e `...-p3-polish.md`.
+
+#### P2 — resultados (13/11/2026, branch `p2-agent-experience`)
+
+- **Adaptadores:** `src/termac-agent.c/.h` centralizam IDs, nomes, binários, formatação de anexos, comando inicial e disponibilidade. O registro tem dois agentes e pode crescer por uma linha. A chave GSettings `agent` persiste a escolha em Preferências → Anexos; valor desconhecido usa o padrão sem sobrescrever a configuração. Entradas ausentes continuam selecionáveis e mostram “Não instalado”.
+- **Anexos:** clipboard e importação/drop chamam o adaptador; ambos os agentes e o shell simples recebem caminho citado + espaço. Testes passam caminhos com espaço, apóstrofo, `$`, backtick e acento pelo shell e comparam bytes. O teste da interface captura o texto real recebido pelo PTY para os dois agentes, inclusive com PATH sem CLIs. `agent-names-contained` também impede voltar a citar binários ou formatar diretamente fora do adaptador.
+- **Lançamento:** ação `win.launch-agent`, menu **Abrir agente** e atalho editável Ctrl+Shift+A, incluído na ajuda. Verifica executável e pasta antes de criar a aba. O comando explícito inicia após o rc do shell interativo e retorna a um shell depois de sair do CLI, evitando colagem de newline durante inicialização/bracketed paste. O teste de rc usa caminho com apóstrofo/espaço e confirma exportação antes do comando.
+- **Contexto/robustez:** consultas de disponibilidade são assíncronas, canceláveis e limitadas a 5 s; usam a pasta e o PATH do shell real (host no Flatpak). Revisão independente encontrou checagem na pasta errada e filhos de inicialização sobrevivendo a timeout; ambas foram reproduzidas em testes RED→GREEN. Cada consulta possui sessão própria e limpa os filhos ao concluir, cancelar ou expirar.
+- **Pasta no Flatpak:** Bash host passa a emitir OSC 7 automaticamente, com URI codificada byte a byte e preservação do `.bashrc`/PROMPT_COMMAND. A notificação de comandos continua opt-in. O teste no SDK mudou para pasta com espaço, apóstrofo e acentos e conferiu `termac_terminal_get_cwd`; sem esse ajuste permanecia no diretório inicial. Outros shells dependem de seu próprio OSC 7. A confirmação conservadora de fechamento do P1 permanece.
+- **Verificação local:** `meson test -C build`: **11/11 suítes passaram**, interface normal 156,00 s e HiDPI 172,74 s. A suíte de agentes tem oito casos (incluindo cancelamento, timeout, filhos e PATH relativo); perfil default também passou em settings/agent/boundary. `msgfmt --check --statistics`: **151 traduções, zero fuzzy**. Novo driver real é opt-in e fica ignorado na CI comum.
+- **Flatpak:** build/exportação passaram com GNOME 50. A primeira tentativa em /tmp falhou por cota de disco; apenas os artefatos de teste foram movidos para o workspace ignorado no disco. `/ui/flatpak-agent-context` passou com os dois executáveis reais do host detectados, comando inicial em /tmp, retorno ao shell, CWD Unicode atualizado e nenhuma notificação opt-in disparada. `/ui/flatpak-host-session` e o driver externo também passaram: sleep foi recolhido após fechar a janela. O teste usa um bind temporário exclusivo para tornar o rc/cache de QA visível dos dois lados; não se alteraram permissões do manifesto.
+- **Validação real solicitada pelo usuário:** o Computer Use nativo desta sessão estava desabilitado, e a alternativa `agent-cu` local não abriu/capturou o aplicativo. Por solicitação do usuário para automatizar, usei uma instância do próprio Termac em Xvfb com os CLIs reais e seus acessos existentes. **Claude Code 2.1.325 / Sonnet 5.5** e **Codex CLI 0.167.1 / GPT-6.1-Sol medium** reconheceram PNG, JPEG e clipboard Ctrl+V. Cada um identificou K7R4 (quadrado vermelho/círculo azul), M2X9 (triângulo amarelo/retângulo roxo) e V8C6 (triângulo verde/retângulo laranja), presentes apenas nas imagens. Indicadores de anexo e respostas foram observados na grade VT e no PNG renderizado. Não houve chamada de ferramenta nos diálogos. Erros acima de 20 MiB e de 8000 px foram conferidos visualmente nos dois CLIs. Todas as sessões de teste foram encerradas.
+
+Versões/help foram consultados antes de escolher flags: Codex anuncia `-i/--image` para
+prompt inicial; Claude não anuncia flag de imagem local (`--file` é recurso remoto).
+Nenhuma flag foi necessária para o fluxo interativo de anexo e nenhuma foi adicionada.
+A consulta inicial de Claude era 2.1.323; o próprio CLI atualizou para 2.1.325 durante
+esta execução, cuja versão/help foram reconferidos.
+
+Procedimento reproduzível, matriz completa e limites da evidência em
+[docs/checklists/agents-manual.md](docs/checklists/agents-manual.md).
+**Permanece adicional/manual:** gestos físicos e clipboard no compositor Wayland,
+GNOME Builder, Orca e escalas fracionárias da checklist P1. Não se declara isso
+validado por Xvfb. OpenCode, Hermes, Gemini e eventos de conclusão por agente
+continuam fora do MVP/P2.
 
 #### P1 — resultados (13/11/2026, branch `p1-gnome-integration`)
 
