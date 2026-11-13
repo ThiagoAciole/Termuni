@@ -956,8 +956,8 @@ find_entry_search_changed_cb (GtkSearchEntry *entry,
 	const char *text = gtk_editable_get_text (GTK_EDITABLE (entry));
 	(void) entry;
 	if (terminal != NULL) {
-		termac_terminal_set_highlight (terminal, text);
-		if (text != NULL && *text != '\0') termac_terminal_find (terminal, text, FALSE);
+		termac_terminal_set_highlight (terminal, gtk_search_bar_get_search_mode (self->find_bar) ? text : NULL);
+		if (gtk_search_bar_get_search_mode (self->find_bar) && text != NULL && *text != '\0') termac_terminal_find (terminal, text, FALSE);
 	}
 }
 

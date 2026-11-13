@@ -166,6 +166,7 @@ test_find_scrolls_to_match (void)
 		write_text (terminal, line);
 	}
 	g_assert_false (termac_vt_find (terminal, "", FALSE));
+	g_assert_false (termac_vt_find (terminal, "  ", FALSE));
 	g_assert_false (termac_vt_find (terminal, "absent", FALSE));
 
 	/* "line 7" is screen row 7 because nothing precedes the output. */
@@ -181,10 +182,11 @@ static void
 test_find_matches (void)
 {
  GhosttyTerminal terminal = new_terminal ();
- write_text (terminal, "foo bar Foo\r\nxfoo");
- GArray *matches = termac_vt_find_matches (terminal, COLS, ROWS, "foo");
- g_assert_cmpuint (matches->len, ==, 3);
+ GArray *matches;
  const guint positions[][2] = { {0,0}, {0,8}, {1,1} };
+ write_text (terminal, "foo bar Foo\r\nxfoo");
+ matches = termac_vt_find_matches (terminal, COLS, ROWS, "foo");
+ g_assert_cmpuint (matches->len, ==, 3);
  for (guint i = 0; i < matches->len; i++) {
   TermacVtMatch m = g_array_index (matches, TermacVtMatch, i);
   g_assert_cmpuint (m.row, ==, positions[i][0]);
@@ -198,12 +200,13 @@ test_find_matches (void)
 static void
 test_find_matches_wide (void)
 {
- const char *lines[] = { "日本語 foo", "é foo", "\x1b[?2027h👩‍💻 foo", "\x1b[?2027h❤️ foo" };
- const guint columns[] = { 7, 2, 3, 3 };
+ const char *lines[] = { "日本語 foo", "é foo", "\x1b[?2027h👩‍💻 foo", "\x1b[?2027h❤️ foo", "👩‍💻 foo" };
+ const guint columns[] = { 7, 2, 3, 3, 5 };
  for (guint i = 0; i < G_N_ELEMENTS (lines); i++) {
   GhosttyTerminal terminal = new_terminal ();
+  GArray *matches;
   write_text (terminal, lines[i]);
-  GArray *matches = termac_vt_find_matches (terminal, COLS, ROWS, "foo");
+  matches = termac_vt_find_matches (terminal, COLS, ROWS, "foo");
   g_assert_cmpuint (matches->len, ==, 1);
   g_assert_cmpuint (g_array_index (matches, TermacVtMatch, 0).column, ==, columns[i]);
   g_array_unref (matches);

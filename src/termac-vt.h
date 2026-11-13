@@ -55,6 +55,11 @@ gboolean termac_vt_find (GhosttyTerminal terminal,
                          const char     *needle,
                          gboolean        backwards);
 
+/* As find(), with a stable screen-row anchor for result navigation. */
+gboolean termac_vt_find_target (GhosttyTerminal terminal, const char *needle,
+                                gboolean backwards, const guint64 *after_row,
+                                guint64 *target_row);
+
 typedef struct { guint row; guint column; guint cells; } TermacVtMatch;
 
 /* Viewport matches in terminal cells; caller owns the returned array. */

@@ -78,6 +78,7 @@ save_widget_png (GtkWidget *widget, const char *name)
 
 	if (dir == NULL)
 		return;
+	g_test_message ("Capturing %s", name);
 	path = g_build_filename (dir, name, NULL);
 	width = gtk_widget_get_width (widget);
 	height = gtk_widget_get_height (widget);
@@ -2181,6 +2182,7 @@ test_search_highlight (void)
  TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
  TermacTerminal *terminal;
  GtkWidget *entry, *bar;
+ termac_window_sync_settings (window);
  gtk_window_present (GTK_WINDOW (window));
  pump (1000);
  terminal = selected_terminal (window);
@@ -2203,6 +2205,12 @@ test_search_highlight (void)
  pump (600);
  gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (bar), FALSE);
  pump (100);
+ g_assert_cmpuint (termac_terminal_get_highlight_count (terminal), ==, 0);
+ /* A delayed search-changed signal must not restore a closed highlight. */
+ gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (bar), TRUE);
+ gtk_editable_set_text (GTK_EDITABLE (entry), "marker marker");
+ gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (bar), FALSE);
+ pump (700);
  g_assert_cmpuint (termac_terminal_get_highlight_count (terminal), ==, 0);
  gtk_window_destroy (GTK_WINDOW (window));
  pump (200);
@@ -2310,6 +2318,159 @@ test_show_session_closed_tab (void)
  pump (200);
 }
 
+static void
+test_visual_screens (void)
+{
+ TermacWindow *window;
+ GtkWindow *preferences;
+ GtkWidget *stack, *bar, *overview, *menu;
+ GSettings *settings = termac_application_get_settings (app);
+ const char *pages[] = { "behavior", "appearance", "shortcuts", "attachments" };
+ const char *schemes[] = { "light", "dark", "system" };
+ const char *palettes[] = { "gnome", "dracula", "ubuntu", "nord", "high-contrast" };
+ g_autofree char *old_scheme = NULL, *old_palette = NULL;
+ guint old_font;
+
+ if (g_getenv ("TERMAC_UI_SCREENSHOTS") == NULL) {
+  g_test_skip ("Set TERMAC_UI_SCREENSHOTS to capture the visual review");
+  return;
+ }
+ old_scheme = g_settings_get_string (settings, "color-scheme");
+ old_palette = g_settings_get_string (settings, "palette");
+ old_font = g_settings_get_uint (settings, "font-size");
+ g_settings_set_uint (settings, "font-size", 11);
+ g_settings_set_string (settings, "color-scheme", "dark");
+ g_settings_set_string (settings, "palette", "gnome");
+ g_application_activate (G_APPLICATION (app));
+ pump (500);
+ window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+ termac_window_sync_settings (window);
+ gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
+ gtk_window_present (GTK_WINDOW (window));
+ pump (800);
+ bar = find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_BAR);
+ g_assert_false (adw_tab_bar_get_tabs_revealed (ADW_TAB_BAR (bar)));
+ save_widget_png (GTK_WIDGET (window), "main-one-tab.png");
+ g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
+ pump (500);
+ g_assert_true (adw_tab_bar_get_tabs_revealed (ADW_TAB_BAR (bar)));
+ save_widget_png (GTK_WIDGET (window), "main-two-tabs.png");
+ g_action_group_activate_action (G_ACTION_GROUP (window), "toggle-overview", NULL);
+ pump (500);
+ overview = find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_OVERVIEW);
+ g_assert_true (adw_tab_overview_get_open (ADW_TAB_OVERVIEW (overview)));
+ pump (800);
+ save_widget_png (GTK_WIDGET (window), "tab-overview.png");
+ adw_tab_overview_set_open (ADW_TAB_OVERVIEW (overview), FALSE);
+ pump (300);
+ menu = find_widget_of_type (GTK_WIDGET (window), GTK_TYPE_MENU_BUTTON);
+ for (guint i = 0; i < G_N_ELEMENTS (schemes); i++) {
+  g_autofree char *name = g_strdup_printf ("menu-%s.png", schemes[i]);
+  g_settings_set_string (settings, "color-scheme", schemes[i]);
+  gtk_menu_button_popup (GTK_MENU_BUTTON (menu));
+  pump (400);
+  g_assert_true (gtk_widget_get_mapped (GTK_WIDGET (gtk_menu_button_get_popover (GTK_MENU_BUTTON (menu)))));
+  save_widget_png (GTK_WIDGET (gtk_menu_button_get_popover (GTK_MENU_BUTTON (menu))), name);
+  gtk_menu_button_popdown (GTK_MENU_BUTTON (menu));
+ }
+ g_settings_set_string (settings, "color-scheme", "dark");
+ for (guint i = 0; i < G_N_ELEMENTS (palettes); i++) {
+  g_autofree char *name = g_strdup_printf ("palette-%s.png", palettes[i]);
+  g_settings_set_string (settings, "palette", palettes[i]);
+  pump (200);
+  save_widget_png (GTK_WIDGET (window), name);
+ }
+ g_settings_set_string (settings, "palette", "gnome");
+ g_action_group_activate_action (G_ACTION_GROUP (app), "preferences", NULL);
+ pump (500);
+ preferences = find_preferences_window ();
+ stack = find_widget_of_type (GTK_WIDGET (preferences), ADW_TYPE_VIEW_STACK);
+ for (guint i = 0; i < G_N_ELEMENTS (pages); i++) {
+  g_autofree char *name = g_strdup_printf ("preferences-%s.png", pages[i]);
+  adw_view_stack_set_visible_child_name (ADW_VIEW_STACK (stack), pages[i]);
+  pump (300);
+  save_widget_png (GTK_WIDGET (preferences), name);
+ }
+ adw_view_stack_set_visible_child_name (ADW_VIEW_STACK (stack), "appearance");
+ {
+  GtkButton *all = find_button_labelled (GTK_WIDGET (preferences), "Show all palettes");
+  g_assert_nonnull (all);
+  g_signal_emit_by_name (all, "clicked");
+  pump (300);
+  save_widget_png (GTK_WIDGET (preferences), "preferences-all-palettes.png");
+ }
+ gtk_window_destroy (preferences);
+ gtk_window_present (GTK_WINDOW (window));
+ pump (300);
+ g_action_group_activate_action (G_ACTION_GROUP (app), "about", NULL);
+ pump (400);
+ g_assert_nonnull (adw_application_window_get_visible_dialog (ADW_APPLICATION_WINDOW (window)));
+ save_widget_png (GTK_WIDGET (window), "about.png");
+ adw_dialog_close (adw_application_window_get_visible_dialog (ADW_APPLICATION_WINDOW (window)));
+ pump (300);
+ g_action_group_activate_action (G_ACTION_GROUP (app), "shortcuts", NULL);
+ pump (400);
+ save_widget_png (GTK_WIDGET (window), "shortcuts.png");
+ adw_dialog_close (adw_application_window_get_visible_dialog (ADW_APPLICATION_WINDOW (window)));
+ pump (300);
+ gtk_window_destroy (GTK_WINDOW (window));
+ g_settings_set_string (settings, "color-scheme", old_scheme);
+ g_settings_set_string (settings, "palette", old_palette);
+ g_settings_set_uint (settings, "font-size", old_font);
+ pump (200);
+}
+
+/* Sample the blank top pixel of a matched cell, excluding glyph antialiasing. */
+static guint
+highlight_pixel (TermacTerminal *terminal, guint row)
+{
+ GtkWidget *widget = GTK_WIDGET (terminal);
+ g_autoptr(GdkPaintable) paintable = gtk_widget_paintable_new (widget);
+ GtkSnapshot *snapshot = gtk_snapshot_new ();
+ GskRenderNode *node;
+ g_autoptr(GdkTexture) texture = NULL;
+ g_autofree guchar *pixels = NULL;
+ guint cw, ch;
+ gsize stride, offset;
+ termac_terminal_get_cell_size (terminal, &cw, &ch);
+ gdk_paintable_snapshot (paintable, GDK_SNAPSHOT (snapshot), gtk_widget_get_width (widget), gtk_widget_get_height (widget));
+ node = gtk_snapshot_free_to_node (snapshot);
+ g_assert_nonnull (node);
+ texture = gsk_renderer_render_texture (gtk_native_get_renderer (gtk_widget_get_native (widget)), node, NULL);
+ gsk_render_node_unref (node);
+ stride = gdk_texture_get_width (texture) * 4;
+ pixels = g_malloc (stride * gdk_texture_get_height (texture));
+ gdk_texture_download (texture, pixels, stride);
+ offset = (12 + row * ch + 1) * stride + 8 * 4;
+ return pixels[offset] + pixels[offset + 1] + pixels[offset + 2];
+}
+
+static void
+test_search_current_match (void)
+{
+ TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+ TermacTerminal *terminal;
+ GhosttyTerminal vt;
+ const char *text = "\033[2J\033[Hfoo\r\nfoo\r\n";
+ gtk_window_present (GTK_WINDOW (window));
+ pump (800);
+ terminal = selected_terminal (window);
+ termac_terminal_set_palette (terminal, "high-contrast");
+ vt = termac_terminal_get_vt_handle (terminal);
+ ghostty_terminal_vt_write (vt, (const uint8_t *) text, strlen (text));
+ g_assert_true (termac_terminal_find (terminal, "foo", FALSE));
+ pump (200);
+ g_assert_cmpuint (highlight_pixel (terminal, 1), >, highlight_pixel (terminal, 0));
+ g_assert_true (termac_terminal_find (terminal, "foo", FALSE));
+ pump (200);
+ g_assert_cmpuint (highlight_pixel (terminal, 0), >, highlight_pixel (terminal, 1));
+ g_assert_true (termac_terminal_find (terminal, "foo", TRUE));
+ pump (200);
+ g_assert_cmpuint (highlight_pixel (terminal, 1), >, highlight_pixel (terminal, 0));
+ gtk_window_destroy (GTK_WINDOW (window));
+ pump (200);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -2397,6 +2558,8 @@ main (int argc, char **argv)
  g_test_add_func ("/ui/search-highlight", test_search_highlight);
  g_test_add_func ("/ui/shortcut-conflict", test_shortcut_conflict);
  g_test_add_func ("/ui/show-session-closed-tab", test_show_session_closed_tab);
+ g_test_add_func ("/ui/visual-screens", test_visual_screens);
+ g_test_add_func ("/ui/search-current-match", test_search_current_match);
 	{
 		int status = g_test_run ();
 

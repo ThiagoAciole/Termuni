@@ -49,7 +49,9 @@ struct _TermacTerminal
 	GtkIMContext *im_context;
 	char *preedit;
 	char *highlight;
-	int highlight_current;
+	gboolean highlight_has_current;
+	guint64 highlight_row;
+	guint highlight_column;
 	GByteArray *write_queue;
 	GByteArray *write_backlog;
 	GPtrArray *attachments;
@@ -848,11 +850,14 @@ terminal_draw (GtkDrawingArea *area,
 
 	if (self->highlight != NULL) {
 		g_autoptr(GArray) matches = termac_vt_find_matches (self->terminal, self->cols, self->rows, self->highlight);
+		GhosttyTerminalScrollbar bar = { 0 };
 		g_autoptr(GdkRGBA) accent = adw_style_manager_get_accent_color_rgba (adw_style_manager_get_default ());
+		ghostty_terminal_get (self->terminal, GHOSTTY_TERMINAL_DATA_SCROLLBAR, &bar);
 		for (guint i = 0; i < matches->len; i++) {
 			TermacVtMatch m = g_array_index (matches, TermacVtMatch, i);
 			cairo_set_source_rgba (cr, accent->red, accent->green, accent->blue,
-			                       (int) i == self->highlight_current ? 0.55 : 0.35);
+			                       self->highlight_has_current && m.row + bar.offset == self->highlight_row &&
+			                       m.column == self->highlight_column ? 0.55 : 0.35);
 			cairo_rectangle (cr, m.column * self->cell_width, m.row * self->cell_height,
 			                 m.cells * self->cell_width, self->cell_height);
 			cairo_fill (cr);
@@ -1699,7 +1704,7 @@ termac_terminal_set_highlight (TermacTerminal *self, const char *needle)
 	if (g_strcmp0 (self->highlight, needle) != 0) {
 		g_free (self->highlight);
 		self->highlight = g_strdup (needle);
-		self->highlight_current = -1;
+		self->highlight_has_current = FALSE;
 	}
 	gtk_widget_queue_draw (GTK_WIDGET (self));
 }
@@ -1717,20 +1722,42 @@ gboolean
 termac_terminal_find (TermacTerminal *self, const char *text, gboolean backwards)
 {
 	g_autoptr(GArray) matches = NULL;
+	GhosttyTerminalScrollbar bar = { 0 };
+	guint64 target = 0;
+	int current = -1, next;
 	gboolean found;
-	int next;
 
 	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), FALSE);
 	termac_terminal_set_highlight (self, text);
 	matches = termac_vt_find_matches (self->terminal, self->cols, self->rows, text);
-	next = self->highlight_current + (backwards ? -1 : 1);
-	if (self->highlight_current >= 0 && next >= 0 && next < (int) matches->len) {
-		self->highlight_current = next;
+	ghostty_terminal_get (self->terminal, GHOSTTY_TERMINAL_DATA_SCROLLBAR, &bar);
+	for (guint i = 0; self->highlight_has_current && i < matches->len; i++) {
+		TermacVtMatch m = g_array_index (matches, TermacVtMatch, i);
+		if (m.row + bar.offset == self->highlight_row && m.column == self->highlight_column)
+			current = i;
+	}
+	next = current + (backwards ? -1 : 1);
+	if (current >= 0 && next >= 0 && next < (int) matches->len) {
+		TermacVtMatch m = g_array_index (matches, TermacVtMatch, next);
+		self->highlight_row = m.row + bar.offset;
+		self->highlight_column = m.column;
 		gtk_widget_queue_draw (GTK_WIDGET (self));
 		return TRUE;
 	}
-	found = text != NULL && termac_vt_find (self->terminal, text, backwards);
-	self->highlight_current = backwards ? (int) termac_terminal_get_highlight_count (self) - 1 : 0;
+	found = text != NULL && termac_vt_find_target (self->terminal, text, backwards,
+	    self->highlight_has_current ? &self->highlight_row : NULL, &target);
+	self->highlight_has_current = FALSE;
+	g_clear_pointer (&matches, g_array_unref);
+	matches = termac_vt_find_matches (self->terminal, self->cols, self->rows, text);
+	ghostty_terminal_get (self->terminal, GHOSTTY_TERMINAL_DATA_SCROLLBAR, &bar);
+	for (guint i = 0; found && i < matches->len; i++) {
+		TermacVtMatch m = g_array_index (matches, TermacVtMatch, i);
+		if (m.row + bar.offset != target) continue;
+		self->highlight_has_current = TRUE;
+		self->highlight_row = target;
+		self->highlight_column = m.column;
+		if (!backwards) break;
+	}
 	gtk_widget_queue_draw (GTK_WIDGET (self));
 	return found;
 }

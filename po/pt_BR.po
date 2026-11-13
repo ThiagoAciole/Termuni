@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: termac\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-13 19:47-0300\n"
+"POT-Creation-Date: 2026-11-13 19:58-0300\n"
 "PO-Revision-Date: 2026-11-13 18:06-0300\n"
 "Last-Translator: Termac contributors\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -37,7 +37,7 @@ msgstr "Agente de linha de comando preferido"
 msgid "The agent used to format attachments and open new agent tabs."
 msgstr "O agente usado para formatar anexos e abrir novas abas de agente."
 
-#: data/thiago.aciole.termac.gschema.xml.in:11 src/termac-application.c:1229
+#: data/thiago.aciole.termac.gschema.xml.in:11 src/termac-application.c:1232
 msgid "Color scheme"
 msgstr "Esquema de cores"
 
@@ -61,7 +61,7 @@ msgstr "Paleta do terminal"
 msgid "Color palette used by terminal sessions."
 msgstr "Paleta de cores usada pelas sessões do terminal."
 
-#: data/thiago.aciole.termac.gschema.xml.in:28 src/termac-application.c:1263
+#: data/thiago.aciole.termac.gschema.xml.in:28 src/termac-application.c:1266
 msgid "Scrollback lines"
 msgstr "Linhas de histórico"
 
@@ -85,7 +85,7 @@ msgstr ""
 "Pede confirmação antes de fechar uma aba ou janela cujo shell esteja "
 "executando um programa."
 
-#: data/thiago.aciole.termac.gschema.xml.in:38 src/termac-application.c:1275
+#: data/thiago.aciole.termac.gschema.xml.in:38 src/termac-application.c:1278
 msgid "Notify when tasks finish"
 msgstr "Notificar ao concluir tarefas"
 
@@ -97,7 +97,7 @@ msgstr ""
 "Envia uma notificação do sistema quando um comando ou tarefa longa termina "
 "em uma aba que não está em foco."
 
-#: data/thiago.aciole.termac.gschema.xml.in:43 src/termac-application.c:1271
+#: data/thiago.aciole.termac.gschema.xml.in:43 src/termac-application.c:1274
 msgid "Shell integration"
 msgstr "Integração com o shell"
 
@@ -121,7 +121,7 @@ msgstr ""
 "Associa ações como win.new-tab a atalhos. Ações ausentes usam o atalho "
 "padrão."
 
-#: data/thiago.aciole.termac.gschema.xml.in:53 src/termac-application.c:1256
+#: data/thiago.aciole.termac.gschema.xml.in:53 src/termac-application.c:1259
 msgid "Restore tabs at startup"
 msgstr "Restaurar abas ao iniciar"
 
@@ -206,8 +206,8 @@ msgctxt "shortcut window"
 msgid "Toggle full screen"
 msgstr "Alternar tela cheia"
 
-#: src/shortcuts-dialog.ui:65 src/termac-application.c:1228
-#: src/termac-application.c:1262 src/termac-terminal.c:1968
+#: src/shortcuts-dialog.ui:65 src/termac-application.c:1231
+#: src/termac-application.c:1265 src/termac-terminal.c:1995
 msgid "Terminal"
 msgstr "Terminal"
 
@@ -350,7 +350,7 @@ msgstr "Limpar tudo"
 msgid "Agent"
 msgstr "Agente"
 
-#: src/termac-application.c:820 src/termac-application.c:1329
+#: src/termac-application.c:820 src/termac-application.c:1332
 msgid "Attachments"
 msgstr "Anexos"
 
@@ -387,7 +387,7 @@ msgstr "Fechar aba"
 msgid "Full screen"
 msgstr "Tela cheia"
 
-#: src/termac-application.c:868 src/termac-window.c:1110
+#: src/termac-application.c:868 src/termac-window.c:1111
 msgid "Rename tab"
 msgstr "Renomear aba"
 
@@ -429,7 +429,7 @@ msgid "Open Agent"
 msgstr "Abrir agente"
 
 #: src/termac-application.c:878 src/termac-application.c:1147
-#: src/termac-application.c:1154 src/termac-window.c:367
+#: src/termac-application.c:1157 src/termac-window.c:367
 msgid "Preferences"
 msgstr "Preferências"
 
@@ -486,82 +486,82 @@ msgstr "Claro"
 msgid "Dark"
 msgstr "Escuro"
 
-#: src/termac-application.c:1152
+#: src/termac-application.c:1155
 msgid "Search palettes"
 msgstr "Buscar paletas"
 
-#: src/termac-application.c:1153
+#: src/termac-application.c:1156
 msgid "Close preferences"
 msgstr "Fechar preferências"
 
 #. Appearance: palette grid with expander, then terminal colors and font.
-#: src/termac-application.c:1164 src/termac-application.c:1325
+#: src/termac-application.c:1167 src/termac-application.c:1328
 msgid "Appearance"
 msgstr "Aparência"
 
-#: src/termac-application.c:1165
+#: src/termac-application.c:1168
 msgid "Palette"
 msgstr "Paleta"
 
-#: src/termac-application.c:1234
+#: src/termac-application.c:1237
 msgid "Font size"
 msgstr "Tamanho da fonte"
 
-#: src/termac-application.c:1235
+#: src/termac-application.c:1238
 msgid "Size in points"
 msgstr "Tamanho em pontos"
 
 #. General: startup, terminal, shell integration and safety options.
-#: src/termac-application.c:1244 src/termac-application.c:1323
+#: src/termac-application.c:1247 src/termac-application.c:1326
 msgid "General"
 msgstr "Geral"
 
-#: src/termac-application.c:1255
+#: src/termac-application.c:1258
 msgid "Startup"
 msgstr "Inicialização"
 
-#: src/termac-application.c:1257
+#: src/termac-application.c:1260
 msgid "Reopens the tabs in their folders. Commands are not run again"
 msgstr "Reabre as abas nas pastas delas. Comandos não são executados novamente"
 
-#: src/termac-application.c:1264
+#: src/termac-application.c:1267
 msgid "Lines kept above the screen in each tab"
 msgstr "Linhas mantidas acima da tela em cada aba"
 
-#: src/termac-application.c:1270
+#: src/termac-application.c:1273
 msgid "Integration"
 msgstr "Integração"
 
-#: src/termac-application.c:1272
+#: src/termac-application.c:1275
 msgid "Reports command results. Bash only, for new tabs"
 msgstr "Informa o resultado dos comandos. Somente Bash, em novas abas"
 
-#: src/termac-application.c:1276
+#: src/termac-application.c:1279
 msgid "Only for tabs that are not in focus"
 msgstr "Apenas para abas que não estão em foco"
 
-#: src/termac-application.c:1281
+#: src/termac-application.c:1284
 msgid "Safety"
 msgstr "Segurança"
 
-#: src/termac-application.c:1282
+#: src/termac-application.c:1285
 msgid "Confirm before closing"
 msgstr "Confirmar antes de fechar"
 
-#: src/termac-application.c:1283
+#: src/termac-application.c:1286
 msgid "Ask when a program is still running"
 msgstr "Perguntar quando um programa ainda estiver em execução"
 
 #. Shortcuts: editable window and app actions, then the fixed terminal list.
-#: src/termac-application.c:1290 src/termac-application.c:1327
+#: src/termac-application.c:1293 src/termac-application.c:1330
 msgid "Shortcuts"
 msgstr "Atalhos"
 
-#: src/termac-application.c:1293
+#: src/termac-application.c:1296
 msgid "Restore defaults"
 msgstr "Restaurar padrões"
 
-#: src/termac-application.c:1297
+#: src/termac-application.c:1300
 msgid "Editable shortcuts"
 msgstr "Atalhos editáveis"
 
@@ -590,30 +590,30 @@ msgstr "A imagem tem mais de %d px de largura ou altura"
 msgid "Could not create the attachments folder"
 msgstr "Não foi possível criar a pasta de anexos"
 
-#: src/termac-terminal.c:501 src/termac-terminal.c:514
+#: src/termac-terminal.c:503 src/termac-terminal.c:516
 #, c-format
 msgid "Could not create the terminal: %s"
 msgstr "Não foi possível criar o terminal: %s"
 
-#: src/termac-terminal.c:546
+#: src/termac-terminal.c:548
 #, c-format
 msgid "Could not start the shell %s: %s"
 msgstr "Não foi possível iniciar o shell %s: %s"
 
-#: src/termac-terminal.c:562
+#: src/termac-terminal.c:564
 msgid "Could not configure terminal input."
 msgstr "Não foi possível configurar a entrada do terminal."
 
-#: src/termac-terminal.c:677
+#: src/termac-terminal.c:679
 #, c-format
 msgid "The terminal engine could not be created (%d)."
 msgstr "O motor do terminal não pôde ser criado (%d)."
 
-#: src/termac-terminal.c:729
+#: src/termac-terminal.c:731
 msgid "Press Enter or click to try again."
 msgstr "Pressione Enter ou clique para tentar novamente."
 
-#: src/termac-terminal.c:1628 src/termac-window.c:975
+#: src/termac-terminal.c:1633 src/termac-window.c:976
 msgid "Image attached to the prompt"
 msgstr "Imagem anexada ao prompt"
 
@@ -629,16 +629,18 @@ msgstr "Seguir tema do sistema"
 msgid "About"
 msgstr "Sobre"
 
-#: src/termac-window.c:511
+#: src/termac-window.c:506
 #, c-format
 msgid "Exit status %d"
 msgstr "Código de saída %d"
 
-#: src/termac-window.c:512
+#. Explicit shell completion reports are eligible regardless of duration;
+#. * the process-polling fallback below retains its long-task threshold.
+#: src/termac-window.c:509
 msgid "Command finished"
 msgstr "Comando concluído"
 
-#: src/termac-window.c:513
+#: src/termac-window.c:510
 msgid "Completed successfully"
 msgstr "Concluído com sucesso"
 
@@ -650,73 +652,73 @@ msgstr "Tarefa concluída"
 msgid "A long-running task in a tab has finished."
 msgstr "Uma tarefa longa em uma aba foi concluída."
 
-#: src/termac-window.c:616
+#: src/termac-window.c:617
 msgid "Could not check agent availability. Try again."
 msgstr ""
 "Não foi possível verificar a disponibilidade do agente. Tente novamente."
 
-#: src/termac-window.c:619
+#: src/termac-window.c:620
 #, c-format
 msgid "%s is not installed"
 msgstr "%s não está instalado"
 
-#: src/termac-window.c:623
+#: src/termac-window.c:624
 msgid "The folder no longer exists"
 msgstr "A pasta não existe mais"
 
-#: src/termac-window.c:739
+#: src/termac-window.c:740
 msgid "Close this tab?"
 msgstr "Fechar esta aba?"
 
-#: src/termac-window.c:740
+#: src/termac-window.c:741
 msgid "A program is still running in this tab. Closing the tab stops it."
 msgstr ""
 "Um programa ainda está em execução nesta aba. Fechar a aba o interrompe."
 
-#: src/termac-window.c:741
+#: src/termac-window.c:742
 msgid "Close Tab"
 msgstr "Fechar aba"
 
-#: src/termac-window.c:786
+#: src/termac-window.c:787
 #, c-format
 msgid "%u tab has a program running. Closing the window stops it."
 msgid_plural "%u tabs have programs running. Closing the window stops them."
 msgstr[0] "%u aba tem um programa em execução. Fechar a janela o interrompe."
 msgstr[1] "%u abas têm programas em execução. Fechar a janela os interrompe."
 
-#: src/termac-window.c:789
+#: src/termac-window.c:790
 msgid "Close window?"
 msgstr "Fechar janela?"
 
-#: src/termac-window.c:789
+#: src/termac-window.c:790
 msgid "Close Window"
 msgstr "Fechar janela"
 
-#: src/termac-window.c:895
+#: src/termac-window.c:896
 msgid "No matches"
 msgstr "Nenhum resultado"
 
-#: src/termac-window.c:988
+#: src/termac-window.c:989
 msgid "The image could not be attached"
 msgstr "Não foi possível anexar a imagem"
 
-#: src/termac-window.c:1019
+#: src/termac-window.c:1020
 msgid "PNG and JPEG images"
 msgstr "Imagens PNG e JPEG"
 
-#: src/termac-window.c:1111
+#: src/termac-window.c:1112
 msgid "Leave empty to return to the automatic title."
 msgstr "Deixe vazio para voltar ao título automático."
 
-#: src/termac-window.c:1112 src/termac-window.c:1118
+#: src/termac-window.c:1113 src/termac-window.c:1119
 msgid "Rename"
 msgstr "Renomear"
 
-#: src/termac-window.c:1234
+#: src/termac-window.c:1235
 msgid "Rename Tab"
 msgstr "Renomear aba"
 
-#: src/termac-window.c:1235
+#: src/termac-window.c:1236
 msgid "Move to New Window"
 msgstr "Mover para nova janela"
 

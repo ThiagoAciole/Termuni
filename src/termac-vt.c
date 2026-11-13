@@ -284,22 +284,25 @@ find_rows (GhosttyTerminal  terminal,
 }
 
 gboolean
-termac_vt_find (GhosttyTerminal terminal,
-                const char     *needle,
-                gboolean        backwards)
+termac_vt_find_target (GhosttyTerminal terminal, const char *needle,
+                        gboolean backwards, const guint64 *after_row,
+                        guint64 *target_row)
 {
 	GhosttyTerminalScrollbar bar = { 0 };
 	GArray *rows = NULL;
-	guint64 target = 0;
-	gboolean found = FALSE;
+	guint64 target = 0, origin;
+	gboolean found = FALSE, nonspace = FALSE;
 	guint i;
 	GhosttyTerminalScrollViewport viewport = { 0 };
 
 	g_return_val_if_fail (needle != NULL, FALSE);
-	if (*needle == '\0')
+	for (const char *p = needle; *p; p = g_utf8_next_char (p))
+		nonspace |= !g_unichar_isspace (g_utf8_get_char (p));
+	if (!nonspace)
 		return FALSE;
 	if (ghostty_terminal_get (terminal, GHOSTTY_TERMINAL_DATA_SCROLLBAR, &bar) != GHOSTTY_SUCCESS)
 		return FALSE;
+	origin = after_row != NULL ? *after_row : bar.offset;
 	if (!find_rows (terminal, needle, &rows) || rows->len == 0)
 	{
 		if (rows != NULL)
@@ -310,7 +313,7 @@ termac_vt_find (GhosttyTerminal terminal,
 	if (!backwards)
 	{
 		for (i = 0; i < rows->len && !found; i++)
-			if (g_array_index (rows, guint64, i) > bar.offset)
+			if (g_array_index (rows, guint64, i) > origin)
 			{
 				target = g_array_index (rows, guint64, i);
 				found = TRUE;
@@ -321,7 +324,7 @@ termac_vt_find (GhosttyTerminal terminal,
 	else
 	{
 		for (i = rows->len; i > 0 && !found; i--)
-			if (g_array_index (rows, guint64, i - 1) < bar.offset)
+			if (g_array_index (rows, guint64, i - 1) < origin)
 			{
 				target = g_array_index (rows, guint64, i - 1);
 				found = TRUE;
@@ -335,7 +338,14 @@ termac_vt_find (GhosttyTerminal terminal,
 	viewport.tag = GHOSTTY_SCROLL_VIEWPORT_ROW;
 	viewport.value.row = target > bar.len / 2 ? (size_t) (target - bar.len / 2) : 0;
 	ghostty_terminal_scroll_viewport (terminal, viewport);
+	if (target_row != NULL) *target_row = target;
 	return TRUE;
+}
+
+gboolean
+termac_vt_find (GhosttyTerminal terminal, const char *needle, gboolean backwards)
+{
+	return termac_vt_find_target (terminal, needle, backwards, NULL, NULL);
 }
 
 /* Use the engine's grapheme clusters and widths, including combining marks,
