@@ -12,6 +12,7 @@
 #include <dlfcn.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
+#include <X11/XKBlib.h>
 #include <gdk/x11/gdkx.h>
 #include <adwaita.h>
 
@@ -189,7 +190,13 @@ type_text (const char *text)
 	const char *c;
 
 	for (c = text; *c != '\0'; c++)
-		send_keysym ((KeySym) (guchar) *c, FALSE);
+	{
+		KeySym sym = (KeySym) (guchar) *c;
+		KeyCode code = XKeysymToKeycode (x_display, sym);
+		gboolean shift = code != 0 && XkbKeycodeToKeysym (x_display, code, 0, 0) != sym;
+
+		send_keysym_full (sym, FALSE, shift);
+	}
 }
 
 static void
@@ -203,6 +210,72 @@ focus_terminal (GtkWidget *window, GtkWidget *terminal)
 	XWarpPointer (x_display, None, gdk_x11_surface_get_xid (surface), 0, 0, 0, 0, 120, 120);
 	XFlush (x_display);
 	pump (300);
+}
+
+/* Text of every viewport row, joined with newlines. */
+static char *
+screen_text (TermacTerminal *terminal)
+{
+	GhosttyTerminal vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
+	guint columns = termac_terminal_get_columns (terminal);
+	guint rows = termac_terminal_get_rows (terminal);
+	GString *all = g_string_new (NULL);
+	guint row;
+
+	for (row = 0; row < rows; row++)
+	{
+		char *line = NULL;
+
+		if (termac_vt_viewport_row_text (vt, columns, row, &line) && line != NULL)
+			g_string_append (all, line);
+		g_free (line);
+		g_string_append_c (all, '\n');
+	}
+	return g_string_free (all, FALSE);
+}
+
+static gboolean
+screen_contains (TermacTerminal *terminal, const char *needle)
+{
+	g_autofree char *text = screen_text (terminal);
+
+	return strstr (text, needle) != NULL;
+}
+
+static gboolean
+wait_for_screen (TermacTerminal *terminal, const char *needle, guint timeout_ms)
+{
+	gint64 end = g_get_monotonic_time () + (gint64) timeout_ms * 1000;
+
+	while (g_get_monotonic_time () < end)
+	{
+		if (screen_contains (terminal, needle))
+			return TRUE;
+		pump (100);
+	}
+	return screen_contains (terminal, needle);
+}
+
+static gboolean
+wait_for_alternate_screen (GhosttyTerminal vt, gboolean wanted, guint timeout_ms)
+{
+	gint64 end = g_get_monotonic_time () + (gint64) timeout_ms * 1000;
+
+	while (g_get_monotonic_time () < end)
+	{
+		if (termac_vt_alternate_screen (vt) == wanted)
+			return TRUE;
+		pump (100);
+	}
+	return termac_vt_alternate_screen (vt) == wanted;
+}
+
+static void
+run_in_terminal (TermacWindow *window, TermacTerminal *terminal, const char *command)
+{
+	focus_terminal (GTK_WIDGET (window), GTK_WIDGET (terminal));
+	type_text (command);
+	send_keysym (XK_Return, FALSE);
 }
 
 static void
@@ -645,6 +718,79 @@ test_tui_alternate_screen (void)
 	pump (1000);
 	g_assert_false (termac_vt_alternate_screen (vt));
 	g_assert_false (termac_terminal_has_foreground_job (terminal));
+}
+
+static void collect_terminals (GtkWidget *root, GPtrArray *out);
+
+/* vi is a real full-screen program: edit and save through the PTY, follow a
+ * window resize, and leave nothing running when its tab is closed. */
+static void
+test_vim_session (void)
+{
+	TermacWindow *window = main_window ();
+	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	GhosttyTerminal vt;
+	GSettings *settings = termac_application_get_settings (app);
+	g_autofree char *path = g_build_filename (g_get_tmp_dir (), "termac-vim-test.txt", NULL);
+	g_autofree char *command = NULL;
+	g_autofree char *contents = NULL;
+	guint rows_before;
+	guint rows_after;
+	guint children;
+	g_autofree char *expected = NULL;
+
+	g_assert_nonnull (terminal);
+	vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
+	g_remove (path);
+
+	/* Edit and save. */
+	command = g_strdup_printf ("vi -u NONE -n %s", path);
+	run_in_terminal (window, terminal, command);
+	g_assert_true (wait_for_alternate_screen (vt, TRUE, 4000));
+	type_text ("ihello-vim");
+	send_keysym (XK_Escape, FALSE);
+	type_text (":wq");
+	send_keysym (XK_Return, FALSE);
+	g_assert_true (wait_for_alternate_screen (vt, FALSE, 4000));
+	g_assert_true (g_file_get_contents (path, &contents, NULL, NULL));
+	g_assert_cmpstr (contents, ==, "hello-vim\n");
+
+	/* The PTY follows a window resize while vi runs. */
+	rows_before = termac_terminal_get_rows (terminal);
+	run_in_terminal (window, terminal, command);
+	g_assert_true (wait_for_screen (terminal, "hello-vim", 4000));
+	gtk_window_set_default_size (GTK_WINDOW (window), 900, 420);
+	pump (1200);
+	rows_after = termac_terminal_get_rows (terminal);
+	g_assert_cmpuint (rows_after, !=, rows_before);
+	type_text (":q");
+	send_keysym (XK_Return, FALSE);
+	g_assert_true (wait_for_alternate_screen (vt, FALSE, 4000));
+	run_in_terminal (window, terminal, "stty size");
+	expected = g_strdup_printf ("%u %u", rows_after, termac_terminal_get_columns (terminal));
+	g_assert_true (wait_for_screen (terminal, expected, 3000));
+
+	/* Closing a tab that runs vi leaves no process behind. */
+	g_settings_set_boolean (settings, "confirm-close", FALSE);
+	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
+	pump (1000);
+	children = child_process_count ();
+	terminal = find_terminal (GTK_WIDGET (window));
+	{
+		GPtrArray *all = g_ptr_array_new ();
+
+		collect_terminals (GTK_WIDGET (window), all);
+		terminal = g_ptr_array_index (all, all->len - 1);
+		g_ptr_array_unref (all);
+	}
+	run_in_terminal (window, terminal, command);
+	pump (1500);
+	g_action_group_activate_action (G_ACTION_GROUP (window), "close-tab", NULL);
+	pump (2500);
+	g_assert_cmpuint (tab_count (window), ==, 1);
+	g_assert_cmpuint (child_process_count (), <=, children - 1);
+	g_settings_set_boolean (settings, "confirm-close", TRUE);
+	g_remove (path);
 }
 
 /* Each tab is its own session with its own shell. */
@@ -1230,6 +1376,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/session-saved", test_session_saved);
 	g_test_add_func ("/ui/large-output", test_large_output);
 	g_test_add_func ("/ui/tui-alternate-screen", test_tui_alternate_screen);
+	g_test_add_func ("/ui/vim-session", test_vim_session);
 	g_test_add_func ("/ui/tabs-independent", test_tabs_are_independent);
 	g_test_add_func ("/ui/closed-tab-releases-terminal", test_closed_tab_releases_terminal);
 	g_test_add_func ("/ui/no-orphan-shells", test_no_orphan_shells);

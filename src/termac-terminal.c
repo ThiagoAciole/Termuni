@@ -1403,6 +1403,20 @@ termac_terminal_get_font_size (TermacTerminal *self)
 	return self->font_size;
 }
 
+guint
+termac_terminal_get_columns (TermacTerminal *self)
+{
+	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), 0);
+	return self->cols;
+}
+
+guint
+termac_terminal_get_rows (TermacTerminal *self)
+{
+	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), 0);
+	return self->rows;
+}
+
 gpointer
 termac_terminal_get_vt_handle (TermacTerminal *self)
 {
