@@ -922,6 +922,65 @@ test_paste_integrity (void)
 	g_remove (path);
 }
 
+static TermacTerminal *
+terminal_of_page (TermacWindow *window, int index)
+{
+	AdwTabView *view = ADW_TAB_VIEW (find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_VIEW));
+	AdwTabPage *page = adw_tab_view_get_nth_page (view, index);
+
+	g_assert_nonnull (page);
+	return find_terminal (adw_tab_page_get_child (page));
+}
+
+/* Two tabs are two sessions: environment, folder and typed input do not leak. */
+static void
+test_sessions_are_isolated (void)
+{
+	TermacWindow *window = main_window ();
+	TermacTerminal *first;
+	TermacTerminal *second;
+
+	g_assert_nonnull (window);
+	g_assert_cmpuint (tab_count (window), ==, 1);
+	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
+	pump (1200);
+	g_assert_cmpuint (tab_count (window), ==, 2);
+	first = terminal_of_page (window, 0);
+	second = terminal_of_page (window, 1);
+	g_assert_true (first != second);
+	g_assert_cmpstr (termac_terminal_get_session_id (first), !=, termac_terminal_get_session_id (second));
+
+	run_in_terminal (window, second, "export TERMAC_ISOLATION=two; cd /usr; echo \"[$TERMAC_ISOLATION] $(pwd)\"");
+	g_assert_true (wait_for_screen (second, "[two] /usr", 4000));
+
+	{
+		AdwTabView *view = ADW_TAB_VIEW (find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_VIEW));
+
+		adw_tab_view_set_selected_page (view, adw_tab_view_get_nth_page (view, 0));
+		pump (500);
+	}
+	run_in_terminal (window, first, "echo \"[$TERMAC_ISOLATION] $(pwd)\"");
+	g_assert_true (wait_for_screen (first, "[] ", 4000));
+	g_assert_false (screen_contains (first, "[two]"));
+	g_assert_false (screen_contains (first, "/usr"));
+
+	/* Text typed in the second tab never shows in the first. */
+	{
+		AdwTabView *view = ADW_TAB_VIEW (find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_VIEW));
+
+		adw_tab_view_set_selected_page (view, adw_tab_view_get_nth_page (view, 1));
+		pump (500);
+	}
+	focus_terminal (GTK_WIDGET (window), GTK_WIDGET (second));
+	type_text ("isolated-input");
+	g_assert_true (wait_for_screen (second, "isolated-input", 3000));
+	g_assert_false (screen_contains (first, "isolated-input"));
+	send_keysym (XK_u, TRUE);
+	g_action_group_activate_action (G_ACTION_GROUP (window), "close-tab", NULL);
+	pump (1200);
+	g_assert_cmpuint (tab_count (window), ==, 1);
+}
+
 static void collect_terminals (GtkWidget *root, GPtrArray *out);
 
 /* vi is a real full-screen program: edit and save through the PTY, follow a
@@ -1582,6 +1641,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/mouse-tracking", test_mouse_tracking_report);
 	g_test_add_func ("/ui/input-method", test_dead_key_and_unicode);
 	g_test_add_func ("/ui/paste-integrity", test_paste_integrity);
+	g_test_add_func ("/ui/sessions-isolated", test_sessions_are_isolated);
 	g_test_add_func ("/ui/tabs-independent", test_tabs_are_independent);
 	g_test_add_func ("/ui/closed-tab-releases-terminal", test_closed_tab_releases_terminal);
 	g_test_add_func ("/ui/no-orphan-shells", test_no_orphan_shells);
