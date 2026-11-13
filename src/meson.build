@@ -7,6 +7,7 @@ termac_sources = [
   'termac-vt.c',
   'termac-util.c',
   'termac-attachments.c',
+  'termac-agent.c',
 ]
 
 termac_deps = [

@@ -28,6 +28,7 @@ ui_sources = [
   '../src/termac-vt.c',
   '../src/termac-util.c',
   '../src/termac-attachments.c',
+  '../src/termac-agent.c',
 ]
 ui_sources += gnome.compile_resources('termac-ui-resources',
   '../src/termac.gresource.xml',
@@ -60,3 +61,10 @@ test_settings = executable('test-settings',
   include_directories: include_directories('../src'),
 )
 test('settings', test_settings, depends: schema_build, env: ['GSETTINGS_BACKEND=memory'])
+
+test_agent = executable('test-agent',
+  ['test-agent.c', '../src/termac-agent.c', '../src/termac-attachments.c', '../src/termac-util.c'],
+  dependencies: dependency('gio-2.0'),
+  include_directories: include_directories('../src'),
+)
+test('agent', test_agent)
