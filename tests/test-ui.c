@@ -185,6 +185,26 @@ mouse_move (GtkWidget *window, int x, int y)
 
 
 static void
+mouse_button (guint button, gboolean press)
+{
+	fake_button_event (x_display, button, press, 0);
+	XFlush (x_display);
+	pump (150);
+}
+
+/* Window coordinates of a point inside the terminal widget. */
+static void
+terminal_point_in_window (GtkWidget *window, GtkWidget *terminal, int x, int y, int *out_x, int *out_y)
+{
+	graphene_point_t point = GRAPHENE_POINT_INIT ((float) x, (float) y);
+	graphene_point_t result;
+
+	g_assert_true (gtk_widget_compute_point (terminal, window, &point, &result));
+	*out_x = (int) result.x;
+	*out_y = (int) result.y;
+}
+
+static void
 type_text (const char *text)
 {
 	const char *c;
@@ -718,6 +738,69 @@ test_tui_alternate_screen (void)
 	pump (1000);
 	g_assert_false (termac_vt_alternate_screen (vt));
 	g_assert_false (termac_terminal_has_foreground_job (terminal));
+}
+
+/* A program that turns on mouse tracking receives press and release as SGR
+ * reports; Shift bypasses the report and selects text instead. */
+static void
+test_mouse_tracking_report (void)
+{
+	TermacWindow *window = main_window ();
+	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	GhosttyTerminal vt;
+	g_autofree char *script = g_build_filename (g_get_tmp_dir (), "termac-mouse-test.py", NULL);
+	g_autofree char *command = g_strdup_printf ("python3 %s", script);
+	KeyCode shift_key;
+	int x0;
+	int y0;
+	int x1;
+	int y1;
+	const char *body =
+		"import sys,tty,os,select\n"
+		"sys.stdout.write('\\x1b[2J\\x1b[H')\n"
+		"for i in range(12): sys.stdout.write('SELECTME-' * 6 + '\\r\\n')\n"
+		"tty.setraw(0)\n"
+		"sys.stdout.write('\\x1b[?1000h\\x1b[?1006h'); sys.stdout.flush()\n"
+		"buf = b''\n"
+		"while select.select([0], [], [], 2.0)[0]:\n"
+		"    buf += os.read(0, 64)\n"
+		"    if buf.count(b'\\x1b[<') >= 2: break\n"
+		"sys.stdout.write('\\x1b[?1000l\\x1b[?1006l' + 'GOT:' + repr(buf) + '\\r\\n'); sys.stdout.flush()\n";
+
+	g_assert_nonnull (terminal);
+	vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
+	g_assert_true (g_file_set_contents (script, body, -1, NULL));
+	shift_key = XKeysymToKeycode (x_display, XK_Shift_L);
+
+	/* Plain click: reported to the program. */
+	run_in_terminal (window, terminal, command);
+	g_assert_true (wait_for_screen (terminal, "SELECTME-", 4000));
+	pump (400);
+	g_assert_true (termac_vt_mouse_tracking (vt));
+	terminal_point_in_window (GTK_WIDGET (window), GTK_WIDGET (terminal), 40, 60, &x0, &y0);
+	mouse_move (GTK_WIDGET (window), x0, y0);
+	mouse_button (1, TRUE);
+	mouse_button (1, FALSE);
+	g_assert_true (wait_for_screen (terminal, "GOT:b'\\x1b[<0;", 4000));
+
+	/* Shift+drag: no report, a selection appears. */
+	send_keysym (XK_Return, FALSE);
+	run_in_terminal (window, terminal, command);
+	g_assert_true (wait_for_screen (terminal, "SELECTME-", 4000));
+	pump (400);
+	g_assert_true (termac_vt_mouse_tracking (vt));
+	terminal_point_in_window (GTK_WIDGET (window), GTK_WIDGET (terminal), 30, 40, &x0, &y0);
+	terminal_point_in_window (GTK_WIDGET (window), GTK_WIDGET (terminal), 300, 80, &x1, &y1);
+	mouse_move (GTK_WIDGET (window), x0, y0);
+	fake_key_event (x_display, shift_key, 1, 0);
+	mouse_button (1, TRUE);
+	mouse_move (GTK_WIDGET (window), x1, y1);
+	mouse_button (1, FALSE);
+	fake_key_event (x_display, shift_key, 0, 0);
+	XFlush (x_display);
+	g_assert_true (termac_terminal_copy (terminal));
+	g_assert_true (wait_for_screen (terminal, "GOT:b''", 5000));
+	g_remove (script);
 }
 
 static void collect_terminals (GtkWidget *root, GPtrArray *out);
@@ -1377,6 +1460,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/large-output", test_large_output);
 	g_test_add_func ("/ui/tui-alternate-screen", test_tui_alternate_screen);
 	g_test_add_func ("/ui/vim-session", test_vim_session);
+	g_test_add_func ("/ui/mouse-tracking", test_mouse_tracking_report);
 	g_test_add_func ("/ui/tabs-independent", test_tabs_are_independent);
 	g_test_add_func ("/ui/closed-tab-releases-terminal", test_closed_tab_releases_terminal);
 	g_test_add_func ("/ui/no-orphan-shells", test_no_orphan_shells);
