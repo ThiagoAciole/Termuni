@@ -36,6 +36,8 @@ gpointer termac_terminal_get_vt_handle (TermacTerminal *self);
 guint    termac_terminal_get_font_size (TermacTerminal *self);
 guint    termac_terminal_get_columns (TermacTerminal *self);
 guint    termac_terminal_get_rows (TermacTerminal *self);
+const char *termac_terminal_get_preedit (TermacTerminal *self);
+void     termac_terminal_set_preedit (TermacTerminal *self, const char *text);
 void     termac_terminal_paste (TermacTerminal *self);
 void     termac_terminal_copy_or_interrupt (TermacTerminal *self);
 void     termac_terminal_line_start (TermacTerminal *self);

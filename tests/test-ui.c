@@ -803,6 +803,57 @@ test_mouse_tracking_report (void)
 	g_remove (script);
 }
 
+/* Dead keys go through the input method; the composed text is what reaches the
+ * program. Ctrl+Shift+U hex entry is not covered: it needs a real input-method
+ * engine, which the virtual display does not have. */
+static void
+test_dead_key_and_unicode (void)
+{
+	TermacWindow *window = main_window ();
+	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+
+	g_assert_nonnull (terminal);
+	/* The virtual keyboard has no dead keys: bind two spare keycodes to them. */
+	{
+		KeySym acute = XK_dead_acute;
+		KeySym tilde = XK_dead_tilde;
+
+		if (XKeysymToKeycode (x_display, acute) == 0)
+			XChangeKeyboardMapping (x_display, 250, 1, &acute, 1);
+		if (XKeysymToKeycode (x_display, tilde) == 0)
+			XChangeKeyboardMapping (x_display, 251, 1, &tilde, 1);
+		XFlush (x_display);
+		pump (500);
+		g_assert_true (XKeysymToKeycode (x_display, acute) != 0);
+		g_assert_true (XKeysymToKeycode (x_display, tilde) != 0);
+	}
+	run_in_terminal (window, terminal, "cat");
+	pump (600);
+	/* Text being composed is drawn at the cursor and never sent to the program.
+	 * (The simple input context on the virtual display reports no preedit for
+	 * dead keys, so the display path is driven directly.) */
+	termac_terminal_set_preedit (terminal, "\xc2\xb4");
+	pump (300);
+	g_assert_cmpstr (termac_terminal_get_preedit (terminal), ==, "\xc2\xb4");
+	g_assert_false (screen_contains (terminal, "\xc2\xb4"));
+	save_widget_png (GTK_WIDGET (window), "preedit.png");
+	termac_terminal_set_preedit (terminal, NULL);
+	g_assert_cmpstr (termac_terminal_get_preedit (terminal), ==, "");
+	send_keysym (XK_dead_acute, FALSE);
+	send_keysym (XK_a, FALSE);
+	pump (400);
+	g_assert_cmpstr (termac_terminal_get_preedit (terminal), ==, "");
+	g_assert_true (wait_for_screen (terminal, "\xc3\xa1", 3000));
+	send_keysym (XK_dead_tilde, FALSE);
+	send_keysym (XK_n, FALSE);
+	pump (400);
+	g_assert_true (wait_for_screen (terminal, "\xc3\xb1", 3000));
+	send_keysym (XK_Return, FALSE);
+	send_keysym (XK_d, TRUE);
+	pump (1000);
+	g_assert_false (termac_terminal_has_foreground_job (terminal));
+}
+
 static void collect_terminals (GtkWidget *root, GPtrArray *out);
 
 /* vi is a real full-screen program: edit and save through the PTY, follow a
@@ -1461,6 +1512,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/tui-alternate-screen", test_tui_alternate_screen);
 	g_test_add_func ("/ui/vim-session", test_vim_session);
 	g_test_add_func ("/ui/mouse-tracking", test_mouse_tracking_report);
+	g_test_add_func ("/ui/input-method", test_dead_key_and_unicode);
 	g_test_add_func ("/ui/tabs-independent", test_tabs_are_independent);
 	g_test_add_func ("/ui/closed-tab-releases-terminal", test_closed_tab_releases_terminal);
 	g_test_add_func ("/ui/no-orphan-shells", test_no_orphan_shells);

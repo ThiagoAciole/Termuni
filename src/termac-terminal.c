@@ -44,6 +44,7 @@ struct _TermacTerminal
 	GhosttyRenderStateRowCells cells;
 	TermacVtSelector *selector;
 	GtkIMContext *im_context;
+	char *preedit;
 	GByteArray *write_queue;
 	GPtrArray *attachments;
 	GPid child_pid;
@@ -816,6 +817,39 @@ terminal_draw (GtkDrawingArea *area,
 		                 self->cell_width, self->cell_height);
 		cairo_fill (cr);
 	}
+	if (cursor_in_viewport && cursor_x < self->cols && cursor_y < self->rows)
+	{
+		GdkRectangle location = {
+			TERMAC_TERMINAL_INSET_START + cursor_x * self->cell_width,
+			TERMAC_TERMINAL_INSET_TOP + cursor_y * self->cell_height,
+			self->cell_width, self->cell_height
+		};
+
+		/* Tells the input method where to place its candidate window. */
+		if (self->im_context != NULL)
+			gtk_im_context_set_cursor_location (self->im_context, &location);
+		if (self->preedit != NULL && *self->preedit != '\0')
+		{
+			PangoRectangle ink;
+
+			pango_layout_set_attributes (layout, NULL);
+			pango_layout_set_text (layout, self->preedit, -1);
+			pango_layout_get_pixel_extents (layout, &ink, NULL);
+			cairo_set_source_rgb (cr, colors.background.r / 255.0, colors.background.g / 255.0,
+			                      colors.background.b / 255.0);
+			cairo_rectangle (cr, cursor_x * self->cell_width, cursor_y * self->cell_height,
+			                 MAX (ink.width, self->cell_width), self->cell_height);
+			cairo_fill (cr);
+			cairo_set_source_rgb (cr, colors.foreground.r / 255.0, colors.foreground.g / 255.0,
+			                      colors.foreground.b / 255.0);
+			cairo_move_to (cr, cursor_x * self->cell_width, cursor_y * self->cell_height);
+			pango_cairo_show_layout (cr, layout);
+			cairo_rectangle (cr, cursor_x * self->cell_width,
+			                 (cursor_y + 1) * self->cell_height - 1,
+			                 MAX (ink.width, self->cell_width), 1);
+			cairo_fill (cr);
+		}
+	}
 
 	g_object_unref (layout);
 	pango_font_description_free (font);
@@ -1104,6 +1138,37 @@ terminal_commit_text (GtkIMContext *context,
 	TermacTerminal *self = user_data;
 	(void) context;
 	terminal_send_input (self, text, strlen (text));
+}
+
+/* Sets the text being composed, shown at the cursor until it is committed.
+ * NULL or an empty string clears it. */
+void
+termac_terminal_set_preedit (TermacTerminal *self,
+                             const char     *text)
+{
+	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_clear_pointer (&self->preedit, g_free);
+	if (text != NULL && *text != '\0')
+		self->preedit = g_strdup (text);
+	gtk_widget_queue_draw (GTK_WIDGET (self));
+}
+
+static void
+terminal_preedit_changed (GtkIMContext *context,
+                          gpointer      user_data)
+{
+	TermacTerminal *self = user_data;
+	g_autofree char *text = NULL;
+
+	gtk_im_context_get_preedit_string (context, &text, NULL, NULL);
+	termac_terminal_set_preedit (self, text);
+}
+
+const char *
+termac_terminal_get_preedit (TermacTerminal *self)
+{
+	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), "");
+	return self->preedit != NULL ? self->preedit : "";
 }
 
 /* ---- mouse ------------------------------------------------------------ */
@@ -1646,6 +1711,7 @@ terminal_dispose (GObject *object)
 		gtk_im_context_set_client_widget (self->im_context, NULL);
 		g_clear_object (&self->im_context);
 	}
+	g_clear_pointer (&self->preedit, g_free);
 	if (self->key_event != NULL) ghostty_key_event_free (self->key_event);
 	if (self->key_encoder != NULL) ghostty_key_encoder_free (self->key_encoder);
 	if (self->mouse_event != NULL) ghostty_mouse_event_free (self->mouse_event);
@@ -1740,6 +1806,7 @@ termac_terminal_init (TermacTerminal *self)
 	/* The client widget is set only while realized: keeping it set would make the
 	 * input context and the terminal hold each other, so a closed tab never freed. */
 	g_signal_connect (self->im_context, "commit", G_CALLBACK (terminal_commit_text), self);
+	g_signal_connect (self->im_context, "preedit-changed", G_CALLBACK (terminal_preedit_changed), self);
 	g_signal_connect (self, "realize", G_CALLBACK (terminal_realize), NULL);
 	g_signal_connect (self, "unrealize", G_CALLBACK (terminal_unrealize), NULL);
 	controller = gtk_event_controller_key_new ();
