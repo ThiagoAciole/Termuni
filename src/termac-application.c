@@ -1147,6 +1147,9 @@ termac_application_preferences_action (GSimpleAction *action,
 	gtk_window_set_title (GTK_WINDOW (dialog), _("Preferences"));
 	gtk_window_set_default_size (GTK_WINDOW (dialog), 560, 640);
 
+	/* The explicit close button replaces native title buttons. */
+	adw_header_bar_set_show_start_title_buttons (header, FALSE);
+	adw_header_bar_set_show_end_title_buttons (header, FALSE);
 	/* Header: search toggle, title and close button. */
 	gtk_button_set_icon_name (GTK_BUTTON (search_button), "system-search-symbolic");
 	gtk_accessible_update_property (GTK_ACCESSIBLE (search_button), GTK_ACCESSIBLE_PROPERTY_LABEL, _("Search palettes"), -1);
