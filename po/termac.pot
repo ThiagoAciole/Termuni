@@ -1,0 +1,491 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the termac package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: termac\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-09 23:54-0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: data/thiago.aciole.termac.desktop.in:2
+#: data/thiago.aciole.termac.metainfo.xml.in:7 src/termac-window.ui:6
+msgid "Termac"
+msgstr ""
+
+#: data/thiago.aciole.termac.desktop.in:8
+msgid "GTK;"
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:6 src/termac-application.c:627
+msgid "Color scheme"
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:7
+msgid "Choose the application color scheme."
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:12
+msgid "Terminal font size"
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:13
+msgid "Font size in points."
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:17
+msgid "Terminal palette"
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:18
+msgid "Color palette used by terminal sessions."
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:23 src/termac-application.c:646
+msgid "Scrollback lines"
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:24
+msgid ""
+"Number of lines kept above the visible screen in each tab. Applies "
+"immediately to open tabs."
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:28
+msgid "Confirm closing running programs"
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:29
+msgid ""
+"Ask for confirmation before closing a tab or window whose shell is running a "
+"program."
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:33 src/termac-application.c:657
+msgid "Notify when tasks finish"
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:34
+msgid ""
+"Send a desktop notification when a command or long task finishes in a tab "
+"that is not in focus."
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:38 src/termac-application.c:662
+msgid "Shell integration"
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:39
+msgid ""
+"Report command exit status to Termac. Currently supported for Bash, in new "
+"tabs."
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:43 src/termac-application.c:667
+msgid "Restore tabs at startup"
+msgstr ""
+
+#: data/thiago.aciole.termac.gschema.xml.in:44
+msgid ""
+"Reopen the tabs of the last window, in their folders, when Termac starts. "
+"Commands are never run again."
+msgstr ""
+
+#: data/thiago.aciole.termac.metainfo.xml.in:8
+msgid "Keep the summary shorter, between 10 and 35 characters"
+msgstr ""
+
+#: data/thiago.aciole.termac.metainfo.xml.in:10
+msgid "No description"
+msgstr ""
+
+#: data/thiago.aciole.termac.metainfo.xml.in:14
+msgid "Developer name"
+msgstr ""
+
+#: data/thiago.aciole.termac.metainfo.xml.in:52
+#: data/thiago.aciole.termac.metainfo.xml.in:56
+msgid "A caption"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:6
+msgid "Tabs and windows"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:9
+msgctxt "shortcut window"
+msgid "New tab"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:15
+msgctxt "shortcut window"
+msgid "New window"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:21
+msgctxt "shortcut window"
+msgid "Show open tabs"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:27
+msgctxt "shortcut window"
+msgid "Close tab"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:33
+msgctxt "shortcut window"
+msgid "Rename tab"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:39
+msgctxt "shortcut window"
+msgid "Move tab backward"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:45
+msgctxt "shortcut window"
+msgid "Move tab forward"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:51
+msgctxt "shortcut window"
+msgid "Toggle full screen"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:59 src/termac-application.c:626
+#: src/termac-terminal.c:1608
+msgid "Terminal"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:62
+msgctxt "shortcut window"
+msgid "Copy selection"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:68
+msgctxt "shortcut window"
+msgid "Paste"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:74
+msgctxt "shortcut window"
+msgid "Scroll one page up"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:80
+msgctxt "shortcut window"
+msgid "Scroll one page down"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:86
+msgctxt "shortcut window"
+msgid "Find in terminal"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:92
+msgctxt "shortcut window"
+msgid "Find next and previous"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:100
+msgid "Images for agents"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:103
+msgctxt "shortcut window"
+msgid "Attach image"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:111
+msgid "Application"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:114
+msgctxt "shortcut window"
+msgid "Preferences"
+msgstr ""
+
+#: src/shortcuts-dialog.ui:120
+msgctxt "shortcut window"
+msgid "Quit"
+msgstr ""
+
+#: src/termac-application.c:293
+msgid "translator-credits"
+msgstr ""
+
+#: src/termac-application.c:482
+msgid "No attachments"
+msgstr ""
+
+#: src/termac-application.c:497
+msgid "Copy path"
+msgstr ""
+
+#: src/termac-application.c:498
+msgid "Remove"
+msgstr ""
+
+#: src/termac-application.c:516
+msgid "Clear All"
+msgstr ""
+
+#: src/termac-application.c:518
+msgid "Attachments"
+msgstr ""
+
+#: src/termac-application.c:520
+msgid "Images"
+msgstr ""
+
+#: src/termac-application.c:521
+msgid ""
+"Images attached to prompts are kept in the cache. Removing an image does not "
+"change prompts that already contain its path."
+msgstr ""
+
+#: src/termac-application.c:549
+msgid "System"
+msgstr ""
+
+#: src/termac-application.c:549 src/termac-window.c:287
+msgid "Light"
+msgstr ""
+
+#: src/termac-application.c:549 src/termac-window.c:287
+msgid "Dark"
+msgstr ""
+
+#: src/termac-application.c:573 src/termac-window.c:360
+msgid "Preferences"
+msgstr ""
+
+#: src/termac-application.c:574
+msgid "Appearance"
+msgstr ""
+
+#: src/termac-application.c:575
+msgid "Palette"
+msgstr ""
+
+#: src/termac-application.c:587
+msgid "The quick brown fox jumps over the lazy dog."
+msgstr ""
+
+#: src/termac-application.c:632
+msgid "Font size"
+msgstr ""
+
+#: src/termac-application.c:633
+msgid "Size in points"
+msgstr ""
+
+#: src/termac-application.c:647
+msgid "Lines kept above the screen in each tab"
+msgstr ""
+
+#: src/termac-application.c:652
+msgid "Confirm before closing"
+msgstr ""
+
+#: src/termac-application.c:653
+msgid "Ask when a program is still running"
+msgstr ""
+
+#: src/termac-application.c:658
+msgid "Only for tabs that are not in focus"
+msgstr ""
+
+#: src/termac-application.c:663
+msgid "Reports command results. Bash only, for new tabs"
+msgstr ""
+
+#: src/termac-application.c:668
+msgid "Reopens the tabs in their folders. Commands are not run again"
+msgstr ""
+
+#: src/termac-attachments.c:55
+#, c-format
+msgid "Invalid attachment session"
+msgstr ""
+
+#: src/termac-attachments.c:61 src/termac-attachments.c:117
+#, c-format
+msgid "Images must be up to 20 MiB"
+msgstr ""
+
+#: src/termac-attachments.c:68
+#, c-format
+msgid "Only PNG and JPEG images are accepted"
+msgstr ""
+
+#: src/termac-attachments.c:75
+#, c-format
+msgid "The image is larger than %d px in width or height"
+msgstr ""
+
+#: src/termac-attachments.c:85
+#, c-format
+msgid "Could not create the attachments folder"
+msgstr ""
+
+#: src/termac-terminal.c:439 src/termac-terminal.c:452
+#, c-format
+msgid "Could not create the terminal: %s"
+msgstr ""
+
+#: src/termac-terminal.c:487
+#, c-format
+msgid "Could not start the shell %s: %s"
+msgstr ""
+
+#: src/termac-terminal.c:503
+msgid "Could not configure terminal input."
+msgstr ""
+
+#: src/termac-terminal.c:618
+#, c-format
+msgid "The terminal engine could not be created (%d)."
+msgstr ""
+
+#: src/termac-terminal.c:670
+msgid "Press Enter or click to try again."
+msgstr ""
+
+#: src/termac-terminal.c:1330 src/termac-window.c:876
+msgid "Image attached to the prompt"
+msgstr ""
+
+#: src/termac-window.c:182
+msgid "Cancel"
+msgstr ""
+
+#: src/termac-window.c:287
+msgid "Follow system theme"
+msgstr ""
+
+#: src/termac-window.c:353 src/termac-window.ui:54
+msgid "New tab"
+msgstr ""
+
+#: src/termac-window.c:354
+msgid "New window"
+msgstr ""
+
+#: src/termac-window.c:355 src/termac-window.ui:31 src/termac-window.ui:78
+msgid "Find in terminal"
+msgstr ""
+
+#: src/termac-window.c:356
+msgid "Attach image"
+msgstr ""
+
+#: src/termac-window.c:357 src/termac-window.ui:23
+msgid "Show open tabs"
+msgstr ""
+
+#: src/termac-window.c:358
+msgid "Full screen"
+msgstr ""
+
+#: src/termac-window.c:361
+msgid "Keyboard shortcuts"
+msgstr ""
+
+#: src/termac-window.c:362
+msgid "About"
+msgstr ""
+
+#: src/termac-window.c:503
+#, c-format
+msgid "Exit status %d"
+msgstr ""
+
+#: src/termac-window.c:504
+msgid "Command finished"
+msgstr ""
+
+#: src/termac-window.c:505
+msgid "Completed successfully"
+msgstr ""
+
+#: src/termac-window.c:522
+msgid "Task finished"
+msgstr ""
+
+#: src/termac-window.c:522
+msgid "A long-running task in a tab has finished."
+msgstr ""
+
+#: src/termac-window.c:655
+msgid "Close this tab?"
+msgstr ""
+
+#: src/termac-window.c:656
+msgid "A program is still running in this tab. Closing the tab stops it."
+msgstr ""
+
+#: src/termac-window.c:657
+msgid "Close Tab"
+msgstr ""
+
+#: src/termac-window.c:702
+#, c-format
+msgid "%u tab has a program running. Closing the window stops it."
+msgid_plural "%u tabs have programs running. Closing the window stops them."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/termac-window.c:705
+msgid "Close window?"
+msgstr ""
+
+#: src/termac-window.c:705
+msgid "Close Window"
+msgstr ""
+
+#: src/termac-window.c:809
+msgid "No matches"
+msgstr ""
+
+#: src/termac-window.c:889
+msgid "The image could not be attached"
+msgstr ""
+
+#: src/termac-window.c:920
+msgid "PNG and JPEG images"
+msgstr ""
+
+#: src/termac-window.c:1002
+msgid "Rename tab"
+msgstr ""
+
+#: src/termac-window.c:1003
+msgid "Leave empty to return to the automatic title."
+msgstr ""
+
+#: src/termac-window.c:1004 src/termac-window.c:1010
+msgid "Rename"
+msgstr ""
+
+#: src/termac-window.c:1090
+msgid "Rename Tab"
+msgstr ""
+
+#: src/termac-window.c:1091
+msgid "Move to New Window"
+msgstr ""
+
+#: src/termac-window.ui:48
+msgid "Main menu"
+msgstr ""

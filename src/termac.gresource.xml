@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/thiago/aciole/termac">
+    <file preprocess="xml-stripblanks">termac-window.ui</file>
+    <file preprocess="xml-stripblanks">shortcuts-dialog.ui</file>
+    <file>termac.css</file>
+    <file>tema-claro.svg</file>
+    <file>tema-escuro.svg</file>
+    <file>tema-automatico.svg</file>
+  </gresource>
+</gresources>

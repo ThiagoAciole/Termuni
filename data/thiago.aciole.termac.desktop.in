@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Termac
+Exec=termac
+Icon=@application_icon@
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=GTK;
+StartupNotify=true
+DBusActivatable=true

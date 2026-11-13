@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="termac">
+  <schema id="@application_id@" path="@settings_path@">
+    <key name="color-scheme" type="s">
+      <default>'system'</default>
+      <summary>Color scheme</summary>
+      <description>Choose the application color scheme.</description>
+    </key>
+    <key name="font-size" type="u">
+      <range min="8" max="32"/>
+      <default>11</default>
+      <summary>Terminal font size</summary>
+      <description>Font size in points.</description>
+    </key>
+    <key name="palette" type="s">
+      <default>'gnome'</default>
+      <summary>Terminal palette</summary>
+      <description>Color palette used by terminal sessions.</description>
+    </key>
+    <key name="scrollback-lines" type="u">
+      <range min="0" max="100000"/>
+      <default>10000</default>
+      <summary>Scrollback lines</summary>
+      <description>Number of lines kept above the visible screen in each tab. Applies immediately to open tabs.</description>
+    </key>
+    <key name="confirm-close" type="b">
+      <default>true</default>
+      <summary>Confirm closing running programs</summary>
+      <description>Ask for confirmation before closing a tab or window whose shell is running a program.</description>
+    </key>
+    <key name="notifications" type="b">
+      <default>true</default>
+      <summary>Notify when tasks finish</summary>
+      <description>Send a desktop notification when a command or long task finishes in a tab that is not in focus.</description>
+    </key>
+    <key name="shell-integration" type="b">
+      <default>false</default>
+      <summary>Shell integration</summary>
+      <description>Report command exit status to Termac. Currently supported for Bash, in new tabs.</description>
+    </key>
+    <key name="restore-session" type="b">
+      <default>true</default>
+      <summary>Restore tabs at startup</summary>
+      <description>Reopen the tabs of the last window, in their folders, when Termac starts. Commands are never run again.</description>
+    </key>
+  </schema>
+</schemalist>

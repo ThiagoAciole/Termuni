@@ -1,0 +1,39 @@
+button.palette-card {
+  padding: 0;
+  border-radius: 16px;
+}
+
+button.palette-card .heading {
+  font-size: 14px;
+}
+
+button.palette-card.selected {
+  border: 2px solid #3584e4;
+}
+
+button.palette-campbell { background: #0c0c0c; color: #cccccc; }
+button.palette-dracula { background: #282a36; color: #f8f8f2; }
+button.palette-gnome { background: #1e1e1e; color: #f6f5f4; }
+button.palette-high-contrast { background: #000000; color: #ffffff; }
+button.palette-horizon { background: #1c1e26; color: #d8dee5; }
+button.palette-linux { background: #000000; color: #eeeeee; }
+button.palette-nord { background: #2e3440; color: #d8dee9; }
+button.palette-solarized { background: #002b36; color: #839496; }
+button.palette-tango { background: #2e3436; color: #d3d7cf; }
+button.palette-ubuntu { background: #300a24; color: #eee8df; }
+button.palette-vscode { background: #1e1e1e; color: #d4d4d4; }
+button.palette-xterm { background: #000000; color: #ffffff; }
+
+/* Theme cards in the main menu: a preview with a ring on the selected one. */
+button.theme-card {
+  padding: 0;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: transparent;
+}
+
+button.theme-card:checked {
+  border-color: @accent_color;
+}

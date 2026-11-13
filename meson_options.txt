@@ -1,0 +1,6 @@
+option('profile',
+  type: 'combo',
+  choices: ['default', 'development'],
+  value: 'development',
+  description: 'Application profile used for the app ID and icon'
+)
