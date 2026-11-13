@@ -52,6 +52,7 @@ struct _TermacTerminal
 	GByteArray *write_backlog;
 	GPtrArray *attachments;
 	GPid child_pid;
+	char *proc_cwd;
 	guint io_source;
 	guint write_source;
 	guint child_source;
@@ -1663,7 +1664,23 @@ const char *
 termac_terminal_get_cwd (TermacTerminal *self)
 {
 	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), NULL);
-	return self->cwd;
+	/* The shell's own report (OSC 7) wins; without one, ask the kernel where the
+	 * shell is, so a tab that never reported a folder still restores to it. */
+	if (self->cwd != NULL)
+		return self->cwd;
+	if (self->child_pid > 0 && !self->child_exited)
+	{
+		g_autofree char *link = g_strdup_printf ("/proc/%d/cwd", (int) self->child_pid);
+		char *target = g_file_read_link (link, NULL);
+
+		if (target != NULL)
+		{
+			g_free (self->proc_cwd);
+			self->proc_cwd = target;
+			return self->proc_cwd;
+		}
+	}
+	return NULL;
 }
 
 const char *
@@ -1756,6 +1773,7 @@ terminal_dispose (GObject *object)
 	g_clear_pointer (&self->attachments, g_ptr_array_unref);
 	g_clear_pointer (&self->error, g_free);
 	g_clear_pointer (&self->cwd, g_free);
+	g_clear_pointer (&self->proc_cwd, g_free);
 	g_clear_pointer (&self->initial_cwd, g_free);
 	g_clear_pointer (&self->session_id, g_free);
 	G_OBJECT_CLASS (termac_terminal_parent_class)->dispose (object);

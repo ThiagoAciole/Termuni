@@ -981,6 +981,127 @@ test_sessions_are_isolated (void)
 	g_assert_cmpuint (tab_count (window), ==, 1);
 }
 
+static void
+destroy_all_windows (void)
+{
+	/* Destroying a window removes it from the application's list, so iterate over a copy. */
+	GList *windows = g_list_copy (gtk_application_get_windows (GTK_APPLICATION (app)));
+	GList *iter;
+
+	for (iter = windows; iter != NULL; iter = iter->next)
+		if (TERMAC_IS_WINDOW (iter->data))
+			gtk_window_destroy (GTK_WINDOW (iter->data));
+	g_list_free (windows);
+	pump (300);
+}
+
+static char *
+session_file (void)
+{
+	return g_build_filename (g_get_user_state_dir (), "termac", "session-v3.gvariant", NULL);
+}
+
+static void
+report_cwd (TermacWindow *window, TermacTerminal *terminal, const char *dir)
+{
+	g_autofree char *command = g_strdup_printf ("printf '\\033]7;file://%s\\a'", dir);
+
+	run_in_terminal (window, terminal, command);
+	while (g_strcmp0 (termac_terminal_get_cwd (terminal), dir) != 0)
+	{
+		gint64 start = g_get_monotonic_time ();
+
+		pump (100);
+		if (g_get_monotonic_time () - start > 5000000)
+			break;
+	}
+	g_assert_cmpstr (termac_terminal_get_cwd (terminal), ==, dir);
+}
+
+/* Saves three tabs, reopens the application and gets the same tabs back. */
+static void
+test_session_restore_roundtrip (void)
+{
+	TermacWindow *window = main_window ();
+	AdwTabView *view;
+	g_autofree char *path = session_file ();
+	g_autofree char *saved = NULL;
+	gsize saved_length = 0;
+	g_autoptr (GVariant) before = NULL;
+	g_autoptr (GVariant) after = NULL;
+	gint selected_before = 0;
+	gint selected_after = 0;
+	TermacTerminal *second;
+	TermacTerminal *third;
+
+	g_assert_nonnull (window);
+	g_assert_cmpuint (tab_count (window), ==, 1);
+	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
+	pump (800);
+	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
+	pump (800);
+	g_assert_cmpuint (tab_count (window), ==, 3);
+	view = ADW_TAB_VIEW (find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_VIEW));
+	second = terminal_of_page (window, 1);
+	third = terminal_of_page (window, 2);
+	report_cwd (window, third, "/tmp");
+	adw_tab_view_set_selected_page (view, adw_tab_view_get_nth_page (view, 1));
+	pump (400);
+	report_cwd (window, second, "/usr");
+	g_object_set_data_full (G_OBJECT (second), "manual-title", g_strdup ("Build"), g_free);
+
+	before = g_variant_ref_sink (termac_window_session_state (window, &selected_before));
+	g_assert_cmpint (selected_before, ==, 1);
+	termac_application_save_session_now (app);
+	g_assert_true (g_file_get_contents (path, &saved, &saved_length, NULL));
+
+	destroy_all_windows ();
+	/* Closing the windows saves again; put back the file from before. */
+	g_assert_true (g_file_set_contents (path, saved, (gssize) saved_length, NULL));
+	g_application_activate (G_APPLICATION (app));
+	pump (1500);
+	window = TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
+	g_assert_true (TERMAC_IS_WINDOW (window));
+	g_assert_cmpuint (tab_count (window), ==, 3);
+	after = g_variant_ref_sink (termac_window_session_state (window, &selected_after));
+	g_assert_cmpint (selected_after, ==, selected_before);
+	g_assert_true (g_variant_equal (before, after));
+
+	/* Leave a plain single-tab window for the tests that follow. */
+	destroy_all_windows ();
+	g_unlink (path);
+	g_application_activate (G_APPLICATION (app));
+	pump (800);
+	g_assert_cmpuint (tab_count (TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)))), ==, 1);
+}
+
+/* A damaged session file never prevents startup: one fresh tab appears. */
+static void
+test_session_corrupt_file (void)
+{
+	g_autofree char *path = session_file ();
+	const char *bodies[] = { "garbage", "", "\x01\x02\x03\x04\x05\x06\x07\x08\x09" };
+	guint i;
+
+	for (i = 0; i < G_N_ELEMENTS (bodies); i++)
+	{
+		TermacWindow *window;
+
+		destroy_all_windows ();
+		g_assert_cmpint (g_mkdir_with_parents (g_path_get_dirname (path), 0700), ==, 0);
+		g_assert_true (g_file_set_contents (path, bodies[i], (gssize) (i == 2 ? 9 : strlen (bodies[i])), NULL));
+		g_application_activate (G_APPLICATION (app));
+		pump (800);
+		window = TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
+		g_assert_true (TERMAC_IS_WINDOW (window));
+		g_assert_cmpuint (tab_count (window), ==, 1);
+	}
+	destroy_all_windows ();
+	g_unlink (path);
+	g_application_activate (G_APPLICATION (app));
+	pump (800);
+}
+
 static void collect_terminals (GtkWidget *root, GPtrArray *out);
 
 /* vi is a real full-screen program: edit and save through the PTY, follow a
@@ -1651,6 +1772,8 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/attachment-sequence", test_attachment_sequence);
 	g_test_add_func ("/ui/clipboard-shortcuts-default", test_clipboard_shortcuts_default);
 	g_test_add_func ("/ui/session-v2-migration", test_session_v2_migration);
+	g_test_add_func ("/ui/session-restore-roundtrip", test_session_restore_roundtrip);
+	g_test_add_func ("/ui/session-corrupt-file", test_session_corrupt_file);
 	{
 		int status = g_test_run ();
 
