@@ -878,6 +878,14 @@ static const struct
 	{ "app.preferences", N_("Preferences"), "<control>comma" },
 	{ "app.shortcuts", N_("Keyboard shortcuts"), "<control>question" },
 };
+/* Fixed actions remain reserved even though Preferences does not edit them. */
+static const struct { const char *action; const char *title; const char *accel; } fixed_shortcuts[] = {
+ { "app.quit", N_("Quit"), "<control><shift>q" },
+ { "win.move-tab-backward", N_("Move tab backward"), "<control><shift>Page_Up" },
+ { "win.move-tab-forward", N_("Move tab forward"), "<control><shift>Page_Down" },
+ { "win.find-next", N_("Next match"), "F3" },
+ { "win.find-previous", N_("Previous match"), "<shift>F3" },
+};
 #define EDITABLE_SHORTCUT_COUNT G_N_ELEMENTS (editable_shortcuts)
 
 static char *
@@ -889,6 +897,42 @@ shortcut_override_get (GSettings *settings, const char *action)
 	if (!g_variant_lookup (overrides, action, "&s", &accel))
 		return NULL;
 	return g_strdup (accel);
+}
+
+static const char *
+shortcut_find_conflict (TermacApplication *self, const char *action, const char *accel)
+{
+ guint key;
+ GdkModifierType mods;
+ if (!gtk_accelerator_parse (accel, &key, &mods)) return NULL;
+ for (guint i = 0; i < EDITABLE_SHORTCUT_COUNT; i++) {
+  g_autofree char *override = shortcut_override_get (self->settings, editable_shortcuts[i].action);
+  guint other_key;
+  GdkModifierType other_mods;
+  if (g_str_equal (action, editable_shortcuts[i].action)) continue;
+  if (override == NULL || !gtk_accelerator_parse (override, &other_key, &other_mods))
+   gtk_accelerator_parse (editable_shortcuts[i].accel, &other_key, &other_mods);
+  if (gdk_keyval_to_lower (key) == gdk_keyval_to_lower (other_key) && mods == other_mods)
+   return editable_shortcuts[i].action;
+ }
+ for (guint i = 0; i < G_N_ELEMENTS (fixed_shortcuts); i++) {
+  guint other_key;
+  GdkModifierType other_mods;
+  gtk_accelerator_parse (fixed_shortcuts[i].accel, &other_key, &other_mods);
+  if (gdk_keyval_to_lower (key) == gdk_keyval_to_lower (other_key) && mods == other_mods)
+   return fixed_shortcuts[i].action;
+ }
+ return NULL;
+}
+
+static const char *
+shortcut_title (const char *action)
+{
+ for (guint i = 0; i < EDITABLE_SHORTCUT_COUNT; i++)
+  if (g_str_equal (action, editable_shortcuts[i].action)) return _(editable_shortcuts[i].title);
+ for (guint i = 0; i < G_N_ELEMENTS (fixed_shortcuts); i++)
+  if (g_str_equal (action, fixed_shortcuts[i].action)) return _(fixed_shortcuts[i].title);
+ return action;
 }
 
 static void
@@ -989,6 +1033,15 @@ shortcut_capture_key_cb (GtkEventControllerKey *controller,
 	    !(keyval >= GDK_KEY_F1 && keyval <= GDK_KEY_F12))
 		return GDK_EVENT_STOP;
 	accel = gtk_accelerator_name (keyval, mods);
+	{
+		const char *owner = shortcut_find_conflict (capture->app, action, accel);
+		if (owner != NULL) {
+			g_autofree char *label = gtk_accelerator_get_label (keyval, mods);
+			g_autofree char *message = g_markup_printf_escaped (_("%s is already used by %s"), label, shortcut_title (owner));
+			adw_status_page_set_description (ADW_STATUS_PAGE (adw_dialog_get_child (capture->dialog)), message);
+			return GDK_EVENT_STOP;
+		}
+	}
 	shortcut_override_set (capture->app->settings, action, accel);
 	termac_application_apply_action_shortcuts (capture->app);
 	shortcut_button_refresh (capture->button, capture->app);
@@ -1354,37 +1407,9 @@ termac_application_init (TermacApplication *self)
 	                                 self);
 	/* Ctrl+letter combinations without Shift reach the shell (Ctrl+W, Ctrl+Q,
 	 * Ctrl+G, Ctrl+R...), so application actions use Ctrl+Shift or other keys. */
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self),
-	                                       "app.quit",
-	                                       (const char *[]) { "<control><shift>q", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.new-tab",
-	                                       (const char *[]) { "<control><shift>t", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.new-window",
-	                                       (const char *[]) { "<control><shift>n", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.toggle-overview",
-	                                       (const char *[]) { "<control><shift>o", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.close-tab",
-	                                       (const char *[]) { "<control><shift>w", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.fullscreen",
-	                                       (const char *[]) { "F11", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.rename-tab",
-	                                       (const char *[]) { "<control><shift>r", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.move-tab-backward",
-	                                       (const char *[]) { "<control><shift>Page_Up", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.move-tab-forward",
-	                                       (const char *[]) { "<control><shift>Page_Down", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.find",
-	                                       (const char *[]) { "<control><shift>f", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.find-next",
-	                                       (const char *[]) { "F3", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.find-previous",
-	                                       (const char *[]) { "<shift>F3", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "win.attach-image",
-	                                       (const char *[]) { "<control><shift>i", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "app.preferences",
-	                                       (const char *[]) { "<control>comma", NULL });
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "app.shortcuts",
-	                                       (const char *[]) { "<control>question", NULL });
+	for (guint i = 0; i < G_N_ELEMENTS (fixed_shortcuts); i++)
+		gtk_application_set_accels_for_action (GTK_APPLICATION (self), fixed_shortcuts[i].action,
+		    (const char *[]) { fixed_shortcuts[i].accel, NULL });
 	self->settings = termac_settings_new (APPLICATION_ID, BUILD_SCHEMA_DIR);
 	if (self->settings == NULL)
 	{

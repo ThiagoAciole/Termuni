@@ -2208,6 +2208,75 @@ test_search_highlight (void)
  pump (200);
 }
 
+static void
+capture_shortcut (GtkWindow *preferences, guint key, GdkModifierType mods)
+{
+ AdwDialog *dialog = adw_window_get_visible_dialog (ADW_WINDOW (preferences));
+ GtkWidget *child;
+ g_autoptr(GListModel) controllers = NULL;
+ gboolean handled = FALSE;
+ g_assert_nonnull (dialog);
+ child = adw_dialog_get_child (dialog);
+ controllers = gtk_widget_observe_controllers (child);
+ for (guint i = 0; i < g_list_model_get_n_items (controllers); i++) {
+  g_autoptr(GObject) controller = g_list_model_get_item (controllers, i);
+  if (GTK_IS_EVENT_CONTROLLER_KEY (controller)) {
+   g_signal_emit_by_name (controller, "key-pressed", key, 0, mods, &handled);
+   g_assert_true (handled);
+   return;
+  }
+ }
+ g_assert_not_reached ();
+}
+
+static void
+test_shortcut_conflict (void)
+{
+ GtkWindow *preferences;
+ GtkWidget *stack;
+ GtkButton *button;
+ GSettings *settings = termac_application_get_settings (app);
+ g_autoptr(GVariant) before = NULL;
+ const guint keys[] = { GDK_KEY_w, GDK_KEY_W, GDK_KEY_c, GDK_KEY_F3 };
+ const GdkModifierType mods[] = { GDK_CONTROL_MASK | GDK_SHIFT_MASK,
+  GDK_SHIFT_MASK | GDK_CONTROL_MASK, GDK_CONTROL_MASK, 0 };
+ const char *owners[] = { "Close tab", "Close tab", "Copy selection or cancel command", "Next match" };
+ g_settings_reset (settings, "action-shortcuts");
+ before = g_settings_get_value (settings, "action-shortcuts");
+ g_action_group_activate_action (G_ACTION_GROUP (app), "preferences", NULL);
+ pump (300);
+ preferences = find_preferences_window ();
+ stack = find_widget_of_type (GTK_WIDGET (preferences), ADW_TYPE_VIEW_STACK);
+ adw_view_stack_set_visible_child_name (ADW_VIEW_STACK (stack), "shortcuts");
+ button = find_button_for_action (GTK_WIDGET (preferences), "win.new-tab");
+ for (guint i = 0; i < G_N_ELEMENTS (keys); i++) {
+  AdwDialog *dialog;
+  g_autoptr(GVariant) after = NULL;
+  g_auto(GStrv) accels = NULL;
+  g_signal_emit_by_name (button, "clicked");
+  pump (200);
+  capture_shortcut (preferences, keys[i], mods[i]);
+  pump (100);
+  after = g_settings_get_value (settings, "action-shortcuts");
+  g_assert_true (g_variant_equal (before, after));
+  accels = gtk_application_get_accels_for_action (GTK_APPLICATION (app), "win.new-tab");
+  assert_accel_is (accels[0], "<Control><Shift>t");
+  dialog = adw_window_get_visible_dialog (ADW_WINDOW (preferences));
+  g_assert_nonnull (dialog);
+  g_assert_nonnull (strstr (adw_status_page_get_description (ADW_STATUS_PAGE (adw_dialog_get_child (dialog))), owners[i]));
+  adw_dialog_close (dialog);
+  pump (200);
+ }
+ g_signal_emit_by_name (button, "clicked");
+ pump (200);
+ capture_shortcut (preferences, GDK_KEY_t, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
+ pump (300);
+ g_assert_null (adw_window_get_visible_dialog (ADW_WINDOW (preferences)));
+ g_settings_reset (settings, "action-shortcuts");
+ gtk_window_destroy (preferences);
+ pump (200);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -2293,6 +2362,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/accessibility-labels", test_accessibility_labels);
 	g_test_add_func ("/ui/grid-fits-widget", test_grid_fits_widget);
  g_test_add_func ("/ui/search-highlight", test_search_highlight);
+ g_test_add_func ("/ui/shortcut-conflict", test_shortcut_conflict);
 	{
 		int status = g_test_run ();
 
