@@ -1001,6 +1001,17 @@ session_file (void)
 	return g_build_filename (g_get_user_state_dir (), "termac", "session-v3.gvariant", NULL);
 }
 
+/* Removes both session files, so the next activation opens one fresh tab. */
+static void
+forget_saved_sessions (void)
+{
+	g_autofree char *v3 = session_file ();
+	g_autofree char *v2 = g_build_filename (g_get_user_state_dir (), "termac", "session-v2.gvariant", NULL);
+
+	g_unlink (v3);
+	g_unlink (v2);
+}
+
 static void
 report_cwd (TermacWindow *window, TermacTerminal *terminal, const char *dir)
 {
@@ -1036,7 +1047,7 @@ test_session_restore_roundtrip (void)
 
 	/* Start from one fresh tab whatever an earlier test left behind. */
 	destroy_all_windows ();
-	g_unlink (path);
+	forget_saved_sessions ();
 	g_application_activate (G_APPLICATION (app));
 	pump (800);
 	window = TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
@@ -1075,7 +1086,7 @@ test_session_restore_roundtrip (void)
 
 	/* Leave a plain single-tab window for the tests that follow. */
 	destroy_all_windows ();
-	g_unlink (path);
+	forget_saved_sessions ();
 	g_application_activate (G_APPLICATION (app));
 	pump (800);
 	g_assert_cmpuint (tab_count (TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)))), ==, 1);
@@ -1103,7 +1114,7 @@ test_session_corrupt_file (void)
 		g_assert_cmpuint (tab_count (window), ==, 1);
 	}
 	destroy_all_windows ();
-	g_unlink (path);
+	forget_saved_sessions ();
 	g_application_activate (G_APPLICATION (app));
 	pump (800);
 }
