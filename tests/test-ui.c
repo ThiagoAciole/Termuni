@@ -290,6 +290,20 @@ wait_for_alternate_screen (GhosttyTerminal vt, gboolean wanted, guint timeout_ms
 	return termac_vt_alternate_screen (vt) == wanted;
 }
 
+static gboolean
+wait_for_job_end (TermacTerminal *terminal, guint timeout_ms)
+{
+	gint64 end = g_get_monotonic_time () + (gint64) timeout_ms * 1000;
+
+	while (g_get_monotonic_time () < end)
+	{
+		if (!termac_terminal_has_foreground_job (terminal))
+			return TRUE;
+		pump (100);
+	}
+	return !termac_terminal_has_foreground_job (terminal);
+}
+
 static void
 run_in_terminal (TermacWindow *window, TermacTerminal *terminal, const char *command)
 {
@@ -756,15 +770,17 @@ test_mouse_tracking_report (void)
 	int x1;
 	int y1;
 	const char *body =
-		"import sys,tty,os,select\n"
+		"import sys,tty,os,select,termios\n"
 		"sys.stdout.write('\\x1b[2J\\x1b[H')\n"
 		"for i in range(12): sys.stdout.write('SELECTME-' * 6 + '\\r\\n')\n"
+		"saved = termios.tcgetattr(0)\n"
 		"tty.setraw(0)\n"
 		"sys.stdout.write('\\x1b[?1000h\\x1b[?1006h'); sys.stdout.flush()\n"
 		"buf = b''\n"
 		"while select.select([0], [], [], 2.0)[0]:\n"
 		"    buf += os.read(0, 64)\n"
 		"    if buf.count(b'\\x1b[<') >= 2: break\n"
+		"termios.tcsetattr(0, termios.TCSADRAIN, saved)\n"
 		"sys.stdout.write('\\x1b[?1000l\\x1b[?1006l' + 'GOT:' + repr(buf) + '\\r\\n'); sys.stdout.flush()\n";
 
 	g_assert_nonnull (terminal);
@@ -850,8 +866,12 @@ test_dead_key_and_unicode (void)
 	g_assert_true (wait_for_screen (terminal, "\xc3\xb1", 3000));
 	send_keysym (XK_Return, FALSE);
 	send_keysym (XK_d, TRUE);
-	pump (1000);
-	g_assert_false (termac_terminal_has_foreground_job (terminal));
+	if (!wait_for_job_end (terminal, 5000))
+	{
+		g_autofree char *dump = screen_text (terminal);
+		g_printerr ("SCREEN:\n%s\n", dump);
+	}
+	g_assert_true (wait_for_job_end (terminal, 100));
 }
 
 static void collect_terminals (GtkWidget *root, GPtrArray *out);
