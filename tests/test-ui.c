@@ -7,6 +7,7 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <gtk/gtk.h>
 #include <dlfcn.h>
@@ -176,7 +177,7 @@ mouse_move (GtkWidget *window, int x, int y)
 	int root_x = 0;
 	int root_y = 0;
 
-	XTranslateCoordinates (x_display, xwindow, DefaultRootWindow (x_display), x, y,
+	XTranslateCoordinates (x_display, xwindow, DefaultRootWindow (x_display), x * gtk_widget_get_scale_factor (window), y * gtk_widget_get_scale_factor (window),
 	                       &root_x, &root_y, &child);
 	fake_motion_event (x_display, -1, root_x, root_y, 0);
 	XFlush (x_display);
@@ -227,7 +228,7 @@ focus_terminal (GtkWidget *window, GtkWidget *terminal)
 	gtk_window_present (GTK_WINDOW (window));
 	gtk_widget_grab_focus (terminal);
 	pump (300);
-	XWarpPointer (x_display, None, gdk_x11_surface_get_xid (surface), 0, 0, 0, 0, 120, 120);
+	XWarpPointer (x_display, None, gdk_x11_surface_get_xid (surface), 0, 0, 0, 0, 120 * gtk_widget_get_scale_factor (window), 120 * gtk_widget_get_scale_factor (window));
 	XFlush (x_display);
 	pump (300);
 }
@@ -484,7 +485,7 @@ write_test_png (const char *name)
 	guchar pixels[4 * 16 * 16];
 	g_autoptr (GBytes) bytes = NULL;
 	g_autoptr (GdkTexture) texture = NULL;
-	char *path = g_build_filename (g_get_tmp_dir (), name, NULL);
+	char *path = g_build_filename (g_get_user_state_dir (), name, NULL);
 	guint i;
 
 	for (i = 0; i < G_N_ELEMENTS (pixels); i += 4)
@@ -590,17 +591,21 @@ test_mouse_selection_copy (void)
 	vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
 	selector = termac_vt_selector_new ();
 	g_assert_nonnull (selector);
-	geometry.columns = 80;
-	geometry.cell_width = 8;
+	guint cell_width, cell_height;
+	guint columns = termac_terminal_get_columns (terminal);
+	guint rows = termac_terminal_get_rows (terminal);
+	termac_terminal_get_cell_size (terminal, &cell_width, &cell_height);
+	geometry.columns = columns;
+	geometry.cell_width = cell_width;
 	geometry.padding_left = 8;
-	geometry.screen_height = 600;
+	geometry.screen_height = gtk_widget_get_height (GTK_WIDGET (terminal));
 
 	termac_vt_selector_event (selector, vt, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_PRESS,
-	                          0, 0, 8, 8, 1000, NULL);
+	                          0, 0, 8, 12, 1000, NULL);
 	termac_vt_selector_event (selector, vt, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_DRAG,
-	                          79, 15, 648, 248, 2000, &geometry);
+	                          columns - 1, rows - 1, 8 + (columns - 1) * cell_width, 12 + (rows - 1) * cell_height, 2000, &geometry);
 	termac_vt_selector_event (selector, vt, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_RELEASE,
-	                          79, 15, 648, 248, 3000, &geometry);
+	                          columns - 1, rows - 1, 8 + (columns - 1) * cell_width, 12 + (rows - 1) * cell_height, 3000, &geometry);
 	termac_vt_selector_free (selector);
 
 	focus_terminal (GTK_WIDGET (window), GTK_WIDGET (terminal));
@@ -764,7 +769,7 @@ test_mouse_tracking_report (void)
 	TermacWindow *window = main_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	GhosttyTerminal vt;
-	g_autofree char *script = g_build_filename (g_get_tmp_dir (), "termac-mouse-test.py", NULL);
+	g_autofree char *script = g_build_filename (g_get_user_state_dir (), "termac-mouse-test.py", NULL);
 	g_autofree char *command = g_strdup_printf ("python3 %s", script);
 	KeyCode shift_key;
 	int x0;
@@ -891,7 +896,7 @@ test_paste_integrity (void)
 {
 	TermacWindow *window = main_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
-	g_autofree char *path = g_build_filename (g_get_tmp_dir (), "termac-paste-out.txt", NULL);
+	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termac-paste-out.txt", NULL);
 	g_autofree char *command = g_strdup_printf ("cat > %s", path);
 	g_autofree char *contents = NULL;
 	GString *big = g_string_new (NULL);
@@ -1132,7 +1137,7 @@ test_vim_session (void)
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	GhosttyTerminal vt;
 	GSettings *settings = termac_application_get_settings (app);
-	g_autofree char *path = g_build_filename (g_get_tmp_dir (), "termac-vim-test.txt", NULL);
+	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termac-vim-test.txt", NULL);
 	g_autofree char *command = NULL;
 	g_autofree char *contents = NULL;
 	guint rows_before;
@@ -1730,6 +1735,181 @@ test_session_v2_migration (void)
 	g_assert_cmpuint (tab_count (window), ==, 2);
 }
 
+static void
+collect_widgets_of_type (GtkWidget *root, GType type, GPtrArray *out)
+{
+	if (g_type_is_a (G_OBJECT_TYPE (root), type))
+		g_ptr_array_add (out, root);
+	for (GtkWidget *child = gtk_widget_get_first_child (root); child != NULL;
+	     child = gtk_widget_get_next_sibling (child))
+		collect_widgets_of_type (child, type, out);
+}
+
+static gboolean
+has_label_text (GtkWidget *widget)
+{
+	if (GTK_IS_LABEL (widget) && gtk_widget_get_visible (widget) &&
+	    *gtk_label_get_text (GTK_LABEL (widget)) != '\0')
+		return TRUE;
+	for (GtkWidget *child = gtk_widget_get_first_child (widget); child != NULL;
+	     child = gtk_widget_get_next_sibling (child))
+		if (has_label_text (child))
+			return TRUE;
+	return FALSE;
+}
+
+static void
+audit_button_names (GtkWidget *root)
+{
+	g_autoptr(GPtrArray) buttons = g_ptr_array_new ();
+	collect_widgets_of_type (root, GTK_TYPE_BUTTON, buttons);
+	collect_widgets_of_type (root, GTK_TYPE_MENU_BUTTON, buttons);
+	for (guint i = 0; i < buttons->len; i++)
+	{
+		GtkWidget *widget = g_ptr_array_index (buttons, i);
+		/* GtkMenuButton exposes the name; its private toggle is implementation detail. */
+		if (!gtk_widget_get_visible (widget) || GTK_IS_MENU_BUTTON (gtk_widget_get_parent (widget)))
+			continue;
+		/* Spin button's private +/- controls belong to its accessible spin role. */
+		gboolean private_spin_control = FALSE;
+		for (GtkWidget *parent = gtk_widget_get_parent (widget); parent != NULL; parent = gtk_widget_get_parent (parent))
+			if (GTK_IS_SPIN_BUTTON (parent)) private_spin_control = TRUE;
+		if (private_spin_control) continue;
+		const char *tooltip = gtk_widget_get_tooltip_text (widget);
+		gboolean named = has_label_text (widget) || (tooltip != NULL && *tooltip != '\0');
+		if (!named && gtk_test_accessible_has_property (GTK_ACCESSIBLE (widget), GTK_ACCESSIBLE_PROPERTY_LABEL))
+		{
+			g_autofree char *difference = gtk_test_accessible_check_property (GTK_ACCESSIBLE (widget), GTK_ACCESSIBLE_PROPERTY_LABEL, "");
+			named = difference != NULL;
+		}
+		if (!named)
+		{
+			for (GtkWidget *parent = widget; parent != NULL; parent = gtk_widget_get_parent (parent))
+				g_test_message ("ancestor: %s", G_OBJECT_TYPE_NAME (parent));
+		}
+		if (!named)
+			g_test_message ("Unlabelled %s icon=%s", G_OBJECT_TYPE_NAME (widget),
+			 GTK_IS_BUTTON (widget) ? gtk_button_get_icon_name (GTK_BUTTON (widget)) : gtk_menu_button_get_icon_name (GTK_MENU_BUTTON (widget)));
+		g_assert_true (named);
+	}
+}
+
+static void
+test_accessibility_labels (void)
+{
+	g_application_activate (G_APPLICATION (app));
+	pump (400);
+	TermacWindow *window = main_window ();
+	audit_button_names (GTK_WIDGET (window));
+	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	g_assert_cmpint (gtk_accessible_get_accessible_role (GTK_ACCESSIBLE (terminal)), ==, GTK_ACCESSIBLE_ROLE_TERMINAL);
+	g_action_group_activate_action (G_ACTION_GROUP (app), "preferences", NULL);
+	pump (400);
+	GtkWindow *preferences = find_preferences_window ();
+	g_assert_nonnull (preferences);
+	audit_button_names (GTK_WIDGET (preferences));
+	gtk_window_destroy (preferences);
+}
+
+static void
+assert_grid_fits (TermacTerminal *terminal)
+{
+	guint width, height;
+	termac_terminal_get_cell_size (terminal, &width, &height);
+	g_assert_cmpuint (termac_terminal_get_columns (terminal) * width, <=, gtk_widget_get_width (GTK_WIDGET (terminal)) - 8);
+	g_assert_cmpuint (termac_terminal_get_rows (terminal) * height, <=, gtk_widget_get_height (GTK_WIDGET (terminal)) - 12);
+}
+
+static void
+test_grid_fits_widget (void)
+{
+	g_application_activate (G_APPLICATION (app));
+	pump (500);
+	TermacWindow *window = main_window ();
+	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	g_assert_cmpint (gtk_widget_get_scale_factor (GTK_WIDGET (terminal)), ==, g_getenv ("GDK_SCALE") != NULL ? MAX (atoi (g_getenv ("GDK_SCALE")), 1) : 1);
+	assert_grid_fits (terminal);
+	guint font_before = termac_terminal_get_font_size (terminal);
+	guint columns = termac_terminal_get_columns (terminal);
+	guint rows = termac_terminal_get_rows (terminal);
+	g_autoptr(GPtrArray) buttons = g_ptr_array_new ();
+	collect_buttons_with_data (GTK_WIDGET (window), "zoom-delta", buttons);
+	for (guint i = 0; i < buttons->len; i++)
+		if (GPOINTER_TO_INT (g_object_get_data (g_ptr_array_index (buttons, i), "zoom-delta")) == 1)
+			g_signal_emit_by_name (g_ptr_array_index (buttons, i), "clicked");
+	pump (500);
+	assert_grid_fits (terminal);
+	g_assert_cmpuint (termac_terminal_get_columns (terminal), <, columns);
+	g_assert_cmpuint (termac_terminal_get_rows (terminal), <, rows);
+	g_settings_set_uint (termac_application_get_settings (app), "font-size", font_before);
+}
+
+/* Run explicitly against the SDK-built test executable inside flatpak build.
+ * Its host PIDs cannot be queried from the sandbox: the external QA driver
+ * checks the printed sleep PID after this window is destroyed. */
+static void
+test_flatpak_host_session (void)
+{
+	GtkWidget *window;
+	TermacTerminal *terminal;
+	g_autofree char *text = NULL;
+	char *marker;
+	if (!g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS))
+	{
+		g_test_skip ("requires the Flatpak sandbox and host bridge");
+		return;
+	}
+	window = gtk_application_window_new (GTK_APPLICATION (app));
+	terminal = TERMAC_TERMINAL (termac_terminal_new ("/tmp", FALSE));
+	gtk_window_set_default_size (GTK_WINDOW (window), 800, 650);
+	gtk_window_set_child (GTK_WINDOW (window), GTK_WIDGET (terminal));
+	gtk_window_present (GTK_WINDOW (window));
+	pump (2000);
+	focus_terminal (window, GTK_WIDGET (terminal));
+	termac_terminal_insert_text (terminal, "test ! -e /.flatpak-info && printf 'p1%s:%s:%s\\n' HOST_READY \"$PWD\" \"$SHELL\"\n");
+	send_keysym (XK_Return, FALSE);
+	pump (600);
+	text = screen_text (terminal);
+	for (guint tries = 0; tries < 30 && strstr (text, "p1HOST_READY:/tmp") == NULL; tries++)
+	{
+		pump (100);
+		g_clear_pointer (&text, g_free);
+		text = screen_text (terminal);
+	}
+	if (strstr (text, "p1HOST_READY:/tmp") == NULL) g_test_message ("host terminal: %s", text);
+	g_assert_nonnull (strstr (text, "p1HOST_READY:/tmp"));
+	if (g_getenv ("TERMAC_TEST_HOST_SHELL") != NULL)
+	{
+		g_autofree char *expected = g_strdup_printf ("p1HOST_READY:/tmp:%s", g_getenv ("TERMAC_TEST_HOST_SHELL"));
+		g_assert_nonnull (strstr (text, expected));
+	}
+	g_assert_null (strstr (text, "no job control"));
+	g_clear_pointer (&text, g_free);
+	termac_terminal_insert_text (terminal, "sleep 30\n");
+	send_keysym (XK_Return, FALSE);
+	pump (400);
+	termac_terminal_copy_or_interrupt (terminal);
+	termac_terminal_copy_or_interrupt (terminal);
+	pump (300);
+	termac_terminal_insert_text (terminal, "printf 'p1%s\\n' INTERRUPTED\n");
+	send_keysym (XK_Return, FALSE);
+	pump (500);
+	text = screen_text (terminal);
+	g_assert_nonnull (strstr (text, "p1INTERRUPTED"));
+	g_clear_pointer (&text, g_free);
+	termac_terminal_insert_text (terminal, "sleep 37 & printf 'P1PID=%s\\n' \"$!\"; wait\n");
+	send_keysym (XK_Return, FALSE);
+	pump (500);
+	text = screen_text (terminal);
+	marker = strstr (text, "P1PID=");
+	while (marker != NULL && !g_ascii_isdigit (marker[6]))
+		marker = strstr (marker + 6, "P1PID=");
+	g_assert_nonnull (marker);
+	g_test_message ("host-sleep-pid=%" G_GUINT64_FORMAT, g_ascii_strtoull (marker + 6, NULL, 10));
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (500);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -1793,6 +1973,9 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/session-v2-migration", test_session_v2_migration);
 	g_test_add_func ("/ui/session-restore-roundtrip", test_session_restore_roundtrip);
 	g_test_add_func ("/ui/session-corrupt-file", test_session_corrupt_file);
+	g_test_add_func ("/ui/flatpak-host-session", test_flatpak_host_session);
+	g_test_add_func ("/ui/accessibility-labels", test_accessibility_labels);
+	g_test_add_func ("/ui/grid-fits-widget", test_grid_fits_widget);
 	{
 		int status = g_test_run ();
 

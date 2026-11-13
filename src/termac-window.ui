@@ -76,11 +76,24 @@
                     <property name="margin-bottom">8</property>
                     <property name="margin-start">8</property>
                     <property name="margin-end">8</property>
-                    <property name="show-close-button">true</property>
+                    <property name="show-close-button">false</property>
                     <child>
+                      <object class="GtkBox">
+                        <property name="spacing">8</property>
+                        <child>
                       <object class="GtkSearchEntry" id="find_entry">
                         <property name="placeholder-text" translatable="yes">Find in terminal</property>
                         <property name="hexpand">true</property>
+                      </object>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="find_close_button">
+                            <property name="icon-name">window-close-symbolic</property>
+                            <property name="tooltip-text" translatable="yes">Close search</property>
+                            <accessibility><property name="label" translatable="yes">Close search</property></accessibility>
+                            <style><class name="flat"/></style>
+                          </object>
+                        </child>
                       </object>
                     </child>
                   </object>

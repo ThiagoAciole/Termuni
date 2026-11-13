@@ -25,6 +25,7 @@ struct _TermacWindow
 	GtkMenuButton *menu_button;
 	GtkSearchBar *find_bar;
 	GtkSearchEntry *find_entry;
+	GtkButton *find_close_button;
 	GtkToggleButton *theme_buttons[3];
 	GtkLabel *zoom_label;
 	gboolean close_confirmed;
@@ -834,6 +835,12 @@ termac_window_find_action (GSimpleAction *action,
 /* The bar takes no space while closed, so the tab content starts right
  * below the tab strip. */
 static void
+find_close_clicked_cb (GtkButton *button, TermacWindow *self)
+{
+	gtk_search_bar_set_search_mode (self->find_bar, FALSE);
+}
+
+static void
 find_bar_mode_changed_cb (GObject    *object,
                           GParamSpec *pspec,
                           gpointer    user_data)
@@ -1098,6 +1105,7 @@ termac_window_class_init (TermacWindowClass *klass)
 	gtk_widget_class_bind_template_child (widget_class, TermacWindow, menu_button);
 	gtk_widget_class_bind_template_child (widget_class, TermacWindow, find_bar);
 	gtk_widget_class_bind_template_child (widget_class, TermacWindow, find_entry);
+	gtk_widget_class_bind_template_child (widget_class, TermacWindow, find_close_button);
 }
 
 static void
@@ -1122,6 +1130,7 @@ termac_window_init (TermacWindow *self)
 	                  G_CALLBACK (tab_count_changed_cb), self);
 	g_signal_connect (self->tab_view, "setup-menu",
 	                  G_CALLBACK (termac_window_setup_menu_cb), self);
+	g_signal_connect (self->find_close_button, "clicked", G_CALLBACK (find_close_clicked_cb), self);
 	g_signal_connect (self->find_bar, "notify::search-mode-enabled",
 	                  G_CALLBACK (find_bar_mode_changed_cb), NULL);
 	g_signal_connect (self->find_entry, "search-changed",
@@ -1259,8 +1268,7 @@ termac_window_restore_tabs (TermacWindow *self,
 	{
 		g_autofree char *directory = NULL;
 		AdwTabPage *page;
-		if (g_file_test (cwd, G_FILE_TEST_IS_DIR))
-			directory = g_strdup (cwd);
+		directory = termac_session_directory (cwd, g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS));
 		page = termac_window_create_tab (self, directory, manual);
 		if (count == selected)
 			adw_tab_view_set_selected_page (self->tab_view, page);

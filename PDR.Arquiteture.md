@@ -25,6 +25,11 @@ Os marcos seguintes incluem seleção, copiar e colar, scrollback, visão geral 
 - `development` usa `thiago.aciole.Termac.Devel`, schema e ícone próprios; `default` usa `thiago.aciole.Termac`. Recursos GtkBuilder mantêm o caminho `/thiago/aciole/termac`.
 - A cópia de referência `/home/thiago/Downloads/termac.old` deriva do Ptyxis e usa `VteTerminal` e CMake. Serve como referência de estrutura e interface, com detalhes em [DESIGN.md](DESIGN.md); a sessão, entrada, renderização e recursos VTE precisam de adaptação para libghostty-vt. A cópia examinada não contém histórico Git.
 
+- Flatpak P1: por escolha explícita do usuário, o shell roda no host via `flatpak-spawn --host --watch-bus`; a permissão `org.freedesktop.Flatpak=talk` permite execução fora do sandbox. O processo gráfico mantém apenas Wayland/fallback-X11, DRI e IPC, sem rede nem acesso geral à home. Os comandos no host têm os acessos normais do usuário.
+- O host precisa de `script` do util-linux: ele cria o PTY no host para preservar controle de tarefas, Ctrl+C e resize. O shell é resolvido pelo ambiente do host; não se usa `$SHELL` do runtime. Diretórios são argumentos/variáveis de ambiente, nunca interpolados em código de shell. A integração Bash opcional conserva o arquivo rc e não é aplicada a outros shells.
+- Grupos de processos host não são visíveis no sandbox: o Flatpak confirma o fechamento de toda sessão host viva. A detecção precisa busy/idle exige um protocolo próprio futuro. Sem OSC 7, o diretório salvo fica no inicial da aba; caminhos pessoais restaurados são preservados e validados no host, com fallback para home se removidos.
+- Claude Code e Codex executam no host e usam `wl-paste`/`xclip` do host. Não se inclui módulo de clipboard sem consumidor no sandbox. A anexação multimodal real pelo Flatpak continua na checklist manual.
+
 ## Código existente
 
 | Local | Responsabilidade atual |
@@ -56,8 +61,8 @@ O Zig usado na sessão de 09/11/2026 foi `/tmp/termac-tools/zig-0.16.0/zig`; `/t
 
 ## Riscos e pontos de atenção
 
-- O schema em execução é carregado por `BUILD_SCHEMA_DIR`, um caminho absoluto do diretório de build. Uma instalação executada sem essa árvore precisa ser corrigida e validada antes de ser considerada distribuível.
-- O manifesto aponta para um repositório Git local em `file:///home/thiago/Projects/termac`. Em 09/11/2026 não havia commit inicial e os arquivos estavam não rastreados; verificar como o Builder obtém a árvore de trabalho antes de afirmar que o Flatpak reproduz as alterações locais.
+- O schema é procurado primeiro na fonte instalada do GLib; `BUILD_SCHEMA_DIR` é apenas fallback de desenvolvimento. Ausência de schema mantém defaults e desabilita Preferências, sem chamadas GSettings com NULL. O smoke de instalação sem build passou no P1.
+- O manifesto usa fonte `dir` da árvore atual, GNOME 50 e Zig 0.16.0 fixado. Compilação/exportação CLI foram verificadas no P1; execução pela interface do Builder continua manual.
 - O encerramento atual usa `waitpid(..., 0)` no `dispose`, o que pode bloquear a interface se o processo filho não terminar. A fila de escrita tem limite de 1 MiB e rejeita dados excedentes; avaliar a política de pressão e erros.
 - `TERM` é definido como `xterm-256color`; as capacidades anunciadas precisam ser confrontadas com o comportamento realmente implementado.
 - Entrada composta, teclas, TUI, seleção, colagem, scrollback, Unicode complexo e desempenho exigem verificações específicas. A API e o desenho por célula não provam compatibilidade completa.

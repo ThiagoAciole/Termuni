@@ -2,19 +2,19 @@
 
 Atualizado em 09/11/2026 para C, GTK 4, libadwaita e libghostty-vt.
 
-## Estado atual — 09/11/2026
+## Estado atual — 13/11/2026
 
 Este quadro é o ponto de retomada. As seções 1–10 preservam o plano e suas condições no momento em que foi escrito; a seção 11 registra observações históricas. Quando divergirem deste quadro ou do código atual, confira a evidência mais recente antes de agir. O detalhamento técnico está em [PDR.Arquiteture.md](PDR.Arquiteture.md) e as referências visuais em [DESIGN.md](DESIGN.md).
 
 | Marco | Situação | Evidência e trabalho pendente |
 | --- | --- | --- |
-| 0 — dependência e build | Parcial | O wrap fixa Ghostty em `f64f4aca2c29b554d111b36c3d946a9bddd159ff`; Zig `0.16.0` é exigido. Por decisão do usuário, o manifesto do Builder usa GNOME 50 para ampliar compatibilidade. O staging vazio `x86_64-main` foi inicializado com o app ID e as refs corretas; `flatpak build ... /usr/bin/true` confirmou que o erro de staging desapareceu. A compilação e a execução do Termac pela IDE ainda não foram confirmadas. |
+| 0 — dependência e build | Parcial | Ghostty e Zig continuam fixados. P1: schema instalado com fallback de desenvolvimento; build/exportação/instalação Flatpak CLI com GNOME 50 e árvore atual verificados. Ícones instalados têm canvas quadrado sem alterar fontes. Execução pela interface do Builder continua não verificada; ver resultados P1 abaixo. |
 | 1 — shell e PTY | Parcial | Shell e prompt renderizado foram observados em Wayland; o histórico abaixo registra provas anteriores de cores, Unicode e resize. Validar entrada real, TUI, carga, respostas VT, tratamento de falhas e encerramento antes de aceitar o marco. |
 | 2 — interação | Parcial | Há GtkIMContext, tratamento de teclas e encoder Ghostty no código. Falta validar entrada composta, teclas e TUI; seleção, copiar/colar, scrollback e política de fechamento ainda estão pendentes. |
 | 3 — interface | Parcial | Código de abas, overview, menu, ações, tema, tamanho de fonte e paletas existe. A captura mais recente mostrou o prompt praticamente junto ao topo da área; foi adicionado recuo superior de 24 px no desenho. A janela ativa não foi reiniciada para preservar a sessão; falta conferir visualmente o novo binário, além de múltiplas sessões, overview, atalhos e persistência. |
 | 4 — imagens para agentes | Planejado | Não há implementação ou validação de anexação real por agente registrada. |
 | 5 — produtividade | Planejado | Busca, links, restauração e notificações permanecem no plano. |
-| 6 — consolidação | Planejado | Acessibilidade, desempenho, estabilidade, instalação e comparação visual completa permanecem pendentes. |
+| 6 — consolidação | Parcial | P0 registra estabilidade e recursos; P1 acrescenta auditoria automatizada de nomes/papel acessível, instalação sem build e suíte HiDPI. Conteúdo acessível de texto, Orca, escala fracionária Wayland, aparência dos ícones e medições completas continuam pendentes. |
 
 - As skills locais `gtk`, `libghostty-vt`, `developing-gtk-apps` e `designing-gnome-ui` foram instaladas em `.agents/skills/` e seus `SKILL.md` foram lidos. A revisão estática confirmou GTK 4/libadwaita e diálogos assíncronos; o requisito do Meson agora pede libadwaita 1.8, necessário para `AdwShortcutsDialog`. `meson compile -C build` reconfigurou com libadwaita 1.10.0 e concluiu sem erros; o Ninja não recompilou alvos já atualizados. Não rodei testes; inspeção visual e acessibilidade continuam pendentes.
 - As variantes `mhagrelius-dotfiles` de `developing-gtk-apps` e `designing-gnome-ui` também foram instaladas e abertas. Li as referências GTK de padrões, GObject e empacotamento e as referências GNOME de HIG e abas; seus exemplos Python servem como padrões, não como código para transpor literalmente ao app C. Esta instalação não alterou a interface nem acrescentou configuração.
@@ -58,6 +58,32 @@ Ordem de trabalho definida pelo usuário. Cada item só fecha com evidência de 
 Perfis de terminal ficam fora da primeira versão estável (ver PDR, "Decisões de produto").
 
 Os planos de execução estão em `docs/superpowers/plans/2026-11-13-p0-reliability.md`, `...-p1-gnome-integration.md`, `...-p2-agent-experience.md` e `...-p3-polish.md`.
+
+#### P1 — resultados (13/11/2026, branch `p1-gnome-integration`)
+
+Implementação e testes automatizados concluídos; o aceite visual/manual continua aberto em
+[docs/checklists/gnome-manual.md](docs/checklists/gnome-manual.md). Não se declara Builder validado por um build CLI.
+
+- **Settings:** `termac_settings_new` procura primeiro o schema instalado e só depois o build. Três casos isolados em subprocessos cobrem fonte instalada, fallback e ausência. Sem schema o terminal mantém defaults, atalhos padrão e Preferências desabilitadas. `meson install -C build --destdir /tmp/termac-p1-root`, `glib-compile-schemas` e execução do binário instalado por oito segundos com `build/` renomeado passaram sem aviso de schema. Como `dbus-run-session` não existe no host, o smoke isolou o barramento com endereço indisponível: houve o aviso GTK esperado de barramento, sem falha do schema.
+- **Flatpak:** instalado `flatpak-builder` 1.4.12 no host. O comando inicial exato do plano falhou em `error: No remote refs found for ‘flathub’`: o SDK 50 está instalado em system, sem remoto user. Usando esse SDK, o manifesto original falhou também em `fatal: ambiguous argument 'master'`. A fonte agora é `dir`, com exclusões de build e ferramentas locais. Corrigido `strip-components=0` no tarball Zig para combinar com o comando existente de instalação. Build, exportação e instalação CLI passaram com alterações ainda sem commit. A instalação foi iniciada com `GDK_BACKEND=wayland` por oito segundos, com GSettings em memória: permaneceu ativa até o timeout (124), log vazio. O Flatpak redefiniu XDG_STATE_HOME para sua pasta privada Devel; o estado do teste ficou nessa pasta. O timeout encerrou o launcher, e o processo gráfico de teste foi encerrado explicitamente depois, sem reiniciar sessão preexistente.
+- **Shell:** decisão explícita do usuário pelo host. O runtime informou `/bin/sh`; o host `/bin/bash`. A escolha do shell agora ocorre no host. Um teste revelou que executar Bash diretamente sobre o PTY do sandbox perde controle de tarefas; `script` do util-linux cria o PTY host e preserva interrupção/resize. O teste SDK `/ui/flatpak-host-session` confirmou comando executado fora do sandbox, `pwd=/tmp`, shell correto, retorno após dois Ctrl+C e fechamento. `tools/test-flatpak-host.py` conferiu no host que o PID de sleep foi recolhido após fechar o widget. Pastas restauradas invisíveis no sandbox são preservadas e verificadas no host, com fallback para home se removidas.
+- **Permissões:** somente Wayland, fallback-X11, DRI, IPC e D-Bus `org.freedesktop.Flatpak=talk`. A rede foi removida do processo gráfico; o acesso host permite intencionalmente comandos com as permissões normais do usuário. Não há `filesystem=home/host`. Limitação explícita: todo shell host vivo é considerado ocupado para confirmar fechamento; busy/idle exato entre namespaces exigiria outro protocolo. Sem OSC 7, persiste o diretório inicial da aba.
+- **Clipboard:** `wl-paste` e `xclip` ausentes no runtime; encontrados no host junto a Claude Code e Codex pelo Bash interativo. Não foi adicionado módulo wl-clipboard porque os CLIs rodam no host. Colagem real de imagem em Claude Code pelo Flatpak ainda não foi verificada.
+- **Ícone e metadata:** a primeira exportação rejeitou SVG 250×220 (`Expected a square icon but got: 250x220`). `tools/prepare-icon.py` gera canvas quadrado com margem transparente nos dois perfis; fontes originais intactas. Desktop e SVG Devel foram exportados em `~/.local/share/flatpak/exports/share`. Adicionados Comment, StartupWMClass por ID e categoria TerminalEmulator. Removidos URLs, capturas e release fictícios de example.org. A validação pedante passa com exceção explícita **apenas** para `url-homepage-missing=info`: o projeto ainda não tem homepage pública. Sem essa exceção, permanece um warning de homepage; IDs maiúsculos e releases ausentes são hints preservados/documentados.
+- **Acessibilidade:** `/ui/accessibility-labels` começou falhando e passou após nomear busca/fechamento de Preferências e trocar o fechamento interno sem nome da busca por controle próprio rotulado. Confere botões públicos, menus e papel `TERMINAL`; ignora controles invisíveis e botões privados de widgets compostos. `msgfmt --check --statistics po/pt_BR.po`: 135 mensagens traduzidas, zero fuzzy. Isso não comprova leitura do conteúdo por Orca.
+- **Escala/testes:** `ui-hidpi` executa o mesmo binário com `GDK_SCALE=2`, `GDK_DPI_SCALE=1.25` e timeout 240. A grade cabe antes/depois do zoom e a escala esperada é conferida. Ajustados testes de seleção/ponteiro para métricas/escala reais e arquivos temporários isolados por suíte: a execução paralela revelou que ambos os testes vi escreviam o mesmo arquivo em /tmp. Não foi encontrado defeito de dupla escala no renderer. Build `default` novo e teste settings passaram; o teste agora depende explicitamente da compilação do schema.
+- **Verificação final:** `meson test -C build`: **9/9 suítes passaram**, normal 140,80 s e HiDPI 156,34 s; testes settings no perfil default novo também passaram. Revisão independente encontrou e orientou as correções de shell/PTY/restauração acima. Os testes e a instalação nativa não substituem o aceite visual.
+
+Matriz conferida: host GTK **4.24.1** / libadwaita **1.10.0**; SDK GNOME 50 GTK **4.22.5** / libadwaita **1.9.4**. O mínimo Meson continua libadwaita **1.8**; nenhuma API exclusiva de GNOME 51 foi introduzida.
+
+Viabilidade de texto acessível (spike sem implementação):
+1. `gtkaccessibletext.h` existe no GTK instalado; GtkAccessibleText está disponível desde GTK 4.14.
+2. `termac_vt_viewport_row_text` fornece linhas que podem alimentar conteúdo/offsets de texto.
+3. A interface exige conteúdo, limites, caret, seleção e notificações `gtk_accessible_text_update_*`; não basta mudar o papel.
+4. Estimativa preliminar: incremento próprio de 3–5 dias, incluindo testes com Orca e edição/seleção sob scrollback.
+5. Riscos: offsets Unicode vs células largas, alterações rápidas de viewport, tela alternativa, scrollback e anúncios excessivos; viável, permanece fora deste P1.
+
+**Não verificado:** GNOME Builder pela IDE, fala do Orca, nitidez/seleção Wayland a 125/150/200%, aparência de dock/alternador/Sobre nos dois perfis e recebimento real de imagens pelos agentes. Nenhum desses itens foi marcado como concluído.
 
 #### P0 — resultados (13/11/2026, branch `p0-reliability`)
 

@@ -37,7 +37,8 @@ appstream_file = i18n.merge_file(
 
 appstreamcli = find_program('appstreamcli', required: false, disabler: true)
 test('Validate appstream file', appstreamcli,
-     args: ['validate', '--no-net', '--explain', appstream_file])
+     # This local development project has no published homepage yet.
+     args: ['validate', '--no-net', '--explain', '--override=url-homepage-missing=info', appstream_file])
 
 schema_conf = configuration_data()
 schema_conf.set('application_id', application_id)

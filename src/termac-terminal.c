@@ -80,6 +80,7 @@ struct _TermacTerminal
 	guint hover_first;
 	guint hover_last;
 	gboolean shell_integration;
+	gboolean host_shell;
 	char *error;
 	char *cwd;
 	char *initial_cwd;
@@ -367,6 +368,10 @@ terminal_has_job (TermacTerminal *self)
 
 	if (self->pty_fd < 0 || self->child_pid <= 0 || self->child_exited)
 		return FALSE;
+	/* Host process groups are outside this PID namespace. Treat a live
+	 * host session as busy rather than silently discarding running work. */
+	if (self->host_shell)
+		return TRUE;
 	group = tcgetpgrp (self->pty_fd);
 	return group > 0 && group != self->child_pid;
 }
@@ -447,10 +452,13 @@ terminal_spawn (TermacTerminal *self)
 	const char *shell_name;
 	const char *home_dir = g_get_home_dir ();
 	g_autofree char *rcfile = NULL;
+	g_auto(GStrv) shell_argv = NULL;
+	gboolean host_shell = g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS);
 	int error_pipe[2];
 	int flags;
 	pid_t pid;
 
+	self->host_shell = host_shell;
 	size.ws_col = self->cols;
 	size.ws_row = self->rows;
 	size.ws_xpixel = (unsigned short) (self->cols * self->cell_width);
@@ -464,8 +472,11 @@ terminal_spawn (TermacTerminal *self)
 	}
 	shell_name = strrchr (shell, '/');
 	shell_name = shell_name != NULL ? shell_name + 1 : shell;
-	if (self->shell_integration && g_strcmp0 (shell_name, "bash") == 0)
+	if (self->shell_integration && (host_shell || g_strcmp0 (shell_name, "bash") == 0))
 		rcfile = terminal_write_bash_integration ();
+
+	shell_argv = termac_shell_argv (shell,
+		self->initial_cwd != NULL ? self->initial_cwd : home_dir, rcfile, host_shell);
 
 	if (pipe (error_pipe) != 0)
 	{
@@ -495,10 +506,7 @@ terminal_spawn (TermacTerminal *self)
 		else if (home_dir != NULL)
 			chdir (home_dir);
 		setenv ("TERM", "xterm-256color", 1);
-		if (rcfile != NULL)
-			execl (shell, shell_name, "--rcfile", rcfile, "-i", (char *) NULL);
-		else
-			execl (shell, shell_name, "-i", (char *) NULL);
+		execvp (shell_argv[0], shell_argv);
 		saved = errno;
 		{
 			ssize_t ignored = write (error_pipe[1], &saved, sizeof saved);
@@ -1504,6 +1512,14 @@ termac_terminal_get_rows (TermacTerminal *self)
 	return self->rows;
 }
 
+void
+termac_terminal_get_cell_size (TermacTerminal *self, guint *width, guint *height)
+{
+	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	if (width != NULL) *width = self->cell_width;
+	if (height != NULL) *height = self->cell_height;
+}
+
 gpointer
 termac_terminal_get_vt_handle (TermacTerminal *self)
 {
@@ -1668,6 +1684,10 @@ termac_terminal_get_cwd (TermacTerminal *self)
 	 * shell is, so a tab that never reported a folder still restores to it. */
 	if (self->cwd != NULL)
 		return self->cwd;
+	/* /proc below describes flatpak-spawn, not the remote shell. OSC 7
+	 * remains authoritative; otherwise retain the session's initial folder. */
+	if (self->host_shell)
+		return self->initial_cwd != NULL ? self->initial_cwd : g_get_home_dir ();
 	if (self->child_pid > 0 && !self->child_exited)
 	{
 		g_autofree char *link = g_strdup_printf ("/proc/%d/cwd", (int) self->child_pid);

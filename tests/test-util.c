@@ -125,10 +125,32 @@ test_path_from_pwd_strips_file_uri (void)
 	g_assert_cmpstr (spaced, ==, "/tmp/a b");
 }
 
+static void
+test_session_directory (void)
+{
+	g_autofree char *host = termac_session_directory ("/inaccessible-host-folder", TRUE);
+	g_autofree char *native = termac_session_directory ("/inaccessible-host-folder", FALSE);
+	g_assert_cmpstr (host, ==, "/inaccessible-host-folder");
+	g_assert_null (native);
+}
+
+static void
+test_shell_argv (void)
+{
+	g_auto(GStrv) host = termac_shell_argv ("/usr/bin/bash", "/tmp/a b; echo injected", "/tmp/rc file", TRUE);
+	const char *expected[] = { "flatpak-spawn", "--host", "--watch-bus", "--directory=/", "--env=TERMAC_HOST_CWD=/tmp/a b; echo injected", "--env=TERM=xterm-256color", "--env=TERMAC_HOST_RCFILE=/tmp/rc file", "script", "-qefc", "cd -- \"$TERMAC_HOST_CWD\" 2>/dev/null || cd \"$HOME\" || exit; shell=${SHELL:-/bin/sh}; if [ \"${shell##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$shell\" --rcfile \"$TERMAC_HOST_RCFILE\" -i; else exec \"$shell\" -i; fi", "/dev/null", NULL };
+	g_assert_true (g_strv_equal ((const char * const *) host, expected));
+	g_auto(GStrv) local = termac_shell_argv ("/bin/sh", "/tmp", NULL, FALSE);
+	const char *native[] = { "/bin/sh", "-i", NULL };
+	g_assert_true (g_strv_equal ((const char * const *) local, native));
+}
+
 int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
+	g_test_add_func ("/util/session-directory", test_session_directory);
+	g_test_add_func ("/util/shell-argv", test_shell_argv);
 	g_test_add_func ("/util/pwd", test_path_from_pwd_strips_file_uri);
 	g_test_add_func ("/util/probe/png", test_probe_png_reads_dimensions);
 	g_test_add_func ("/util/probe/jpeg", test_probe_jpeg_reads_dimensions);

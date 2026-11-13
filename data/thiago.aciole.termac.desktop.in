@@ -1,10 +1,12 @@
 [Desktop Entry]
 Name=Termac
+Comment=Use the command line in tabs
 Exec=termac
 Icon=@application_icon@
 Terminal=false
 Type=Application
-Categories=Utility;
-Keywords=GTK;
+Categories=System;TerminalEmulator;
+Keywords=shell;prompt;command;terminal;
 StartupNotify=true
+StartupWMClass=@application_id@
 DBusActivatable=true

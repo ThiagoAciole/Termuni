@@ -1,6 +1,7 @@
 termac_sources = [
   'main.c',
   'termac-application.c',
+  'termac-settings.c',
   'termac-window.c',
   'termac-terminal.c',
   'termac-vt.c',

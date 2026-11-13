@@ -22,6 +22,7 @@ test('attachments', test_attachments)
 ui_sources = [
   'test-ui.c',
   '../src/termac-application.c',
+  '../src/termac-settings.c',
   '../src/termac-window.c',
   '../src/termac-terminal.c',
   '../src/termac-vt.c',
@@ -47,7 +48,15 @@ test_ui = executable('test-ui', ui_sources,
 )
 xvfb_run = find_program('xvfb-run', required: false)
 if xvfb_run.found()
-  test('ui', xvfb_run, args: ['-a', test_ui], timeout: 180, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
+  test('ui-hidpi', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 240, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11', 'GDK_SCALE=2', 'GDK_DPI_SCALE=1.25'])
+  test('ui', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 180, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
 else
-  test('ui', test_ui, timeout: 180, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
+  test('ui', test_ui, depends: schema_build, timeout: 180, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
 endif
+
+test_settings = executable('test-settings',
+  ['test-settings.c', '../src/termac-settings.c'],
+  dependencies: dependency('gio-2.0'),
+  include_directories: include_directories('../src'),
+)
+test('settings', test_settings, depends: schema_build, env: ['GSETTINGS_BACKEND=memory'])

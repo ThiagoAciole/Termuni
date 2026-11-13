@@ -23,6 +23,7 @@
 #include <glib/gstdio.h>
 
 #include "termac-application.h"
+#include "termac-settings.h"
 #include "termac-attachments.h"
 #include "termac-window.h"
 #include "termac-terminal.h"
@@ -803,11 +804,9 @@ termac_application_apply_action_shortcuts (TermacApplication *self)
 {
 	guint i;
 
-	if (self->settings == NULL)
-		return;
 	for (i = 0; i < EDITABLE_SHORTCUT_COUNT; i++)
 	{
-		g_autofree char *override = shortcut_override_get (self->settings, editable_shortcuts[i].action);
+		g_autofree char *override = self->settings != NULL ? shortcut_override_get (self->settings, editable_shortcuts[i].action) : NULL;
 		const char *accels[] = { editable_shortcuts[i].accel, NULL };
 		guint key = 0;
 		GdkModifierType mods = 0;
@@ -985,6 +984,8 @@ termac_application_preferences_action (GSimpleAction *action,
 
 	/* Header: search toggle, title and close button. */
 	gtk_button_set_icon_name (GTK_BUTTON (search_button), "system-search-symbolic");
+	gtk_accessible_update_property (GTK_ACCESSIBLE (search_button), GTK_ACCESSIBLE_PROPERTY_LABEL, _("Search palettes"), -1);
+	gtk_accessible_update_property (GTK_ACCESSIBLE (close_button), GTK_ACCESSIBLE_PROPERTY_LABEL, _("Close preferences"), -1);
 	adw_header_bar_set_title_widget (header, adw_window_title_new (_("Preferences"), NULL));
 	adw_header_bar_pack_start (header, GTK_WIDGET (search_button));
 	adw_header_bar_pack_end (header, GTK_WIDGET (close_button));
@@ -1176,7 +1177,7 @@ termac_application_preferences_action (GSimpleAction *action,
 static void
 termac_application_apply_settings (TermacApplication *self)
 {
-	g_autofree char *scheme = g_settings_get_string (self->settings, "color-scheme");
+	g_autofree char *scheme = self->settings != NULL ? g_settings_get_string (self->settings, "color-scheme") : g_strdup ("system");
 	AdwColorScheme color_scheme = ADW_COLOR_SCHEME_DEFAULT;
 	GList *windows, *iter;
 	if (g_strcmp0 (scheme, "light") == 0)
@@ -1234,9 +1235,7 @@ static const GActionEntry app_actions[] = {
 static void
 termac_application_init (TermacApplication *self)
 {
-	GError *error = NULL;
-	GSettingsSchemaSource *source;
-	GSettingsSchema *schema;
+
 	g_action_map_add_action_entries (G_ACTION_MAP (self),
 	                                 app_actions,
 	                                 G_N_ELEMENTS (app_actions),
@@ -1274,18 +1273,13 @@ termac_application_init (TermacApplication *self)
 	                                       (const char *[]) { "<control>comma", NULL });
 	gtk_application_set_accels_for_action (GTK_APPLICATION (self), "app.shortcuts",
 	                                       (const char *[]) { "<control>question", NULL });
-	source = g_settings_schema_source_new_from_directory (BUILD_SCHEMA_DIR,
-		g_settings_schema_source_get_default (), TRUE, &error);
-	if (source == NULL)
+	self->settings = termac_settings_new (APPLICATION_ID, BUILD_SCHEMA_DIR);
+	if (self->settings == NULL)
 	{
-		g_warning ("Could not load development settings schema: %s", error->message);
-		g_clear_error (&error);
+		g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (G_ACTION_MAP (self), "preferences")), FALSE);
+		termac_application_apply_action_shortcuts (self);
 		return;
 	}
-	schema = g_settings_schema_source_lookup (source, APPLICATION_ID, FALSE);
-	self->settings = g_settings_new_full (schema, NULL, NULL);
-	g_settings_schema_unref (schema);
-	g_settings_schema_source_unref (source);
 	g_signal_connect (self->settings, "changed::color-scheme",
 	                  G_CALLBACK (settings_changed_cb), self);
 	g_signal_connect (self->settings, "changed::font-size",
