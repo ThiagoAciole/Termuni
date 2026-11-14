@@ -1,0 +1,80 @@
+name: Build and test
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    container: registry.fedoraproject.org/fedora:44
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [development, default]
+    steps:
+      - name: Install build and test dependencies
+        run: >-
+          dnf install -y git gcc meson ninja-build pkgconf-pkg-config gtk4-devel
+          libadwaita-devel pango-devel libX11-devel libXtst gettext gettext-devel
+          desktop-file-utils appstream python3 python3-gobject at-spi2-core
+          dbus-daemon xorg-x11-server-Xvfb xorg-x11-xauth mesa-dri-drivers
+          mesa-libEGL dejavu-sans-mono-fonts google-noto-emoji-color-fonts
+          vim-minimal less btop tar xz
+      - uses: actions/checkout@v4
+      - name: Install the manifest-pinned Zig toolchain
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib, urllib.request
+          source = json.loads(pathlib.Path('thiago.aciole.termac.json').read_text())['modules'][0]['sources'][0]
+          archive = urllib.request.urlopen(source['url']).read()
+          assert hashlib.sha256(archive).hexdigest() == source['sha256']
+          pathlib.Path('/tmp/zig.tar.xz').write_bytes(archive)
+          PY
+          tar -xf /tmp/zig.tar.xz -C /opt
+          echo /opt/zig-x86_64-linux-0.16.0 >> "$GITHUB_PATH"
+      - name: Build, test and stage installation
+        run: bash tools/ci-check.sh '${{ matrix.profile }}'
+      - name: Test the AT-SPI bridge on a private bus
+        run: /usr/bin/python3 tests/check-accessible-atspi.py --binary build-ci-${{ matrix.profile }}/tests/test-ui
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-${{ matrix.profile }}-logs
+          path: |
+            build-ci-*/meson-logs/
+            build-ci-*/ci-install/usr/share/
+  flatpak:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [development, default]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare the requested profile
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          manifest = json.loads(pathlib.Path('thiago.aciole.termac.json').read_text())
+          if '${{ matrix.profile }}' == 'default':
+              manifest['id'] = 'thiago.aciole.Termac'
+              manifest['modules'][-1]['config-opts'][-1] = '-Dprofile=default'
+          pathlib.Path('termac-ci.json').write_text(json.dumps(manifest, indent=2))
+          PY
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: termac-ci.json
+          bundle: termac-${{ matrix.profile }}.flatpak
+          artifact-name: termac-${{ matrix.profile }}
+          cache-key: flatpak-${{ matrix.profile }}
+          # Native jobs exercise UI/HiDPI. Host-bridge acceptance uses a real host.
+          run-tests: false
+          keep-build-dirs: true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: flatpak-${{ matrix.profile }}-logs
+          path: .flatpak-builder/build/termac-*/_flatpak_build/meson-logs/

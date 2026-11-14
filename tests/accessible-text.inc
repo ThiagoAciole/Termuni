@@ -173,3 +173,51 @@ test_accessible_text (void)
 	g_assert_nonnull (strstr (all, "history-000"));
 	gtk_window_destroy (GTK_WINDOW (window)); pump (100);
 }
+
+/* Opt-in fixture for tests/check-accessible-atspi.py. The external reader uses
+ * a private X server and buses; files only synchronize deterministic changes. */
+static void
+test_accessible_text_atspi_fixture (void)
+{
+	const char *directory = g_getenv ("TERMAC_ATSPI_FIXTURE");
+	TermacWindow *window;
+	TermacTerminal *terminal;
+	GhosttyTerminal vt;
+	g_autofree char *ready = NULL, *change = NULL, *changed = NULL, *quit = NULL;
+	gboolean did_change = FALSE;
+	gint64 deadline;
+	if (!directory) { g_test_skip ("private AT-SPI runner only"); return; }
+	ready = g_build_filename (directory, "ready", NULL);
+	change = g_build_filename (directory, "change", NULL);
+	changed = g_build_filename (directory, "changed", NULL);
+	quit = g_build_filename (directory, "quit", NULL);
+	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	gtk_window_present (GTK_WINDOW (window)); pump (700);
+	terminal = selected_terminal (window);
+	vt = termac_terminal_get_vt_handle (terminal);
+	const char *fixture = "\033[?2027h\033[2J\033[HATSPITERM 日本 é 👩‍💻\033[1;10H";
+	ghostty_terminal_vt_write (vt, (const uint8_t *) fixture, strlen (fixture));
+	GhosttySelection selection = GHOSTTY_INIT_SIZED (GhosttySelection);
+	GhosttyPoint point = { .tag = GHOSTTY_POINT_TAG_VIEWPORT };
+	ghostty_terminal_grid_ref (vt, point, &selection.start);
+	point.value.coordinate.x = 8;
+	ghostty_terminal_grid_ref (vt, point, &selection.end);
+	ghostty_terminal_set (vt, GHOSTTY_TERMINAL_OPT_SELECTION, &selection);
+	gtk_widget_grab_focus (GTK_WIDGET (terminal));
+	gtk_widget_queue_draw (GTK_WIDGET (terminal)); pump (300);
+	g_file_set_contents (ready, "ready", -1, NULL);
+	deadline = g_get_monotonic_time () + 45 * G_USEC_PER_SEC;
+	while (!g_file_test (quit, G_FILE_TEST_EXISTS) && g_get_monotonic_time () < deadline) {
+		if (!did_change && g_file_test (change, G_FILE_TEST_EXISTS)) {
+			const char *update = "\033[1;1HUPDATED!!\033[1;13H";
+			ghostty_terminal_vt_write (vt, (const uint8_t *) update, strlen (update));
+			termac_vt_clear_selection (vt);
+			gtk_widget_queue_draw (GTK_WIDGET (terminal)); pump (200);
+			g_file_set_contents (changed, "changed", -1, NULL);
+			did_change = TRUE;
+		}
+		pump (20);
+	}
+	gtk_window_destroy (GTK_WINDOW (window)); pump (100);
+	g_assert_true (did_change);
+}

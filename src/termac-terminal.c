@@ -38,6 +38,7 @@
 typedef struct {
 	TermacTerminal *terminal; /* weak; detached before widget disposal */
 	GPid pid;
+	int pty_fd;
 	pid_t foreground;
 	guint kill_source;
 	GApplication *application; /* held only while stopping */
@@ -398,6 +399,7 @@ terminal_child_watch_free (gpointer data)
 {
 	TerminalChildWatch *watch = data;
 	if (watch->kill_source != 0) g_source_remove (watch->kill_source);
+	if (watch->pty_fd >= 0) close (watch->pty_fd);
 	if (watch->application != NULL)
 	{
 		g_application_release (watch->application);
@@ -441,6 +443,7 @@ terminal_watch_child (TermacTerminal *self)
 	TerminalChildWatch *watch = g_new0 (TerminalChildWatch, 1);
 	watch->terminal = self;
 	watch->pid = self->child_pid;
+	watch->pty_fd = -1;
 	self->child_watch = watch;
 	self->child_source = g_child_watch_add_full (G_PRIORITY_DEFAULT, self->child_pid,
 	    terminal_child_exited, watch, terminal_child_watch_free);
@@ -678,7 +681,11 @@ terminal_stop_child (TermacTerminal *self)
 	if (self->child_watch == NULL) terminal_watch_child (self);
 	watch = self->child_watch;
 	watch->terminal = NULL;
-	watch->foreground = self->pty_fd >= 0 ? tcgetpgrp (self->pty_fd) : -1;
+	watch->foreground = !self->host_shell && self->pty_fd >= 0 ? tcgetpgrp (self->pty_fd) : -1;
+	/* Keep the master alive while flatpak-spawn forwards HUP over D-Bus.
+	 * Closing it during widget disposal can race the remote shell's cleanup. */
+	watch->pty_fd = self->pty_fd;
+	self->pty_fd = -1;
 	application = g_application_get_default ();
 	if (application != NULL && g_application_get_is_registered (application))
 	{

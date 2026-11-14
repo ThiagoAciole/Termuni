@@ -63,7 +63,10 @@
                         "build",
                         "build-flatpak",
                         "build-valgrind",
-                        "build-default"
+                        "build-default",
+                        "build-flatpak-default",
+                        "build-ci-development",
+                        "build-ci-default"
                     ]
                 }
             ],

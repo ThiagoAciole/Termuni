@@ -38,7 +38,7 @@ ui_sources += gnome.compile_resources('termac-ui-resources',
 )
 test_ui = executable('test-ui', ui_sources,
   dependencies: [
-    dependency('gtk4'),
+    dependency('gtk4', version: '>= 4.22'),
     dependency('libadwaita-1', version: '>= 1.8'),
     dependency('pangocairo'),
     ghostty_vt_dep,
@@ -50,10 +50,11 @@ test_ui = executable('test-ui', ui_sources,
 )
 xvfb_run = find_program('xvfb-run', required: false)
 if xvfb_run.found()
-  test('ui-hidpi', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 300, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11', 'GDK_SCALE=2', 'GDK_DPI_SCALE=1.25'])
-  test('ui', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 240, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
+  # The integrated suite has 58 cases, including fresh-process restarts.
+  test('ui-hidpi', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 360, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11', 'GDK_SCALE=2', 'GDK_DPI_SCALE=1.25'])
+  test('ui', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 360, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
 else
-  test('ui', test_ui, depends: schema_build, timeout: 240, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
+  test('ui', test_ui, depends: schema_build, timeout: 360, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
 endif
 
 test_settings = executable('test-settings',

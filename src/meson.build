@@ -12,7 +12,7 @@ termac_sources = [
 ]
 
 termac_deps = [
-  dependency('gtk4'),
+  dependency('gtk4', version: '>= 4.22'),
   dependency('libadwaita-1', version: '>= 1.8'),
   dependency('pangocairo'),
   ghostty_vt_dep,

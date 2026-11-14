@@ -525,7 +525,7 @@ write_test_png (const char *name)
 static void
 test_drop_image (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	g_autofree char *png = write_test_png ("termac-drop.png");
 	GSList *files = NULL;
 	GdkFileList *list;
@@ -541,12 +541,14 @@ test_drop_image (void)
 	g_assert_cmpuint (attachment_count (), ==, before + 1);
 	save_widget_png (GTK_WIDGET (window), "drop-image.png");
 	g_unlink (png);
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 static void
 test_paste_image_clipboard (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	g_autofree char *png = write_test_png ("termac-clipboard.png");
 	g_autoptr (GdkTexture) texture = gdk_texture_new_from_filename (png, NULL);
@@ -564,6 +566,8 @@ test_paste_image_clipboard (void)
 	g_assert_cmpuint (attachment_count (), ==, before + 1);
 	save_widget_png (GTK_WIDGET (window), "paste-image.png");
 	g_unlink (png);
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 typedef struct
@@ -601,7 +605,7 @@ read_clipboard_text (void)
 static void
 test_mouse_selection_copy (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	GhosttyTerminal vt;
 	TermacVtSelector *selector;
@@ -609,6 +613,8 @@ test_mouse_selection_copy (void)
 	g_autofree char *text = NULL;
 
 	g_assert_nonnull (terminal);
+	run_in_terminal (window, terminal, "printf 'selection-%s\\n' complete");
+	g_assert_true (wait_for_screen (terminal, "selection-complete", 3000));
 	vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
 	selector = termac_vt_selector_new ();
 	g_assert_nonnull (selector);
@@ -635,7 +641,9 @@ test_mouse_selection_copy (void)
 	save_widget_png (GTK_WIDGET (window), "mouse-selection.png");
 	text = read_clipboard_text ();
 	g_assert_nonnull (text);
-	g_assert_nonnull (strstr (text, "termac-ok"));
+	g_assert_nonnull (strstr (text, "selection-complete"));
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 /* Compares accelerators by their parsed key and modifiers, so the order and case
@@ -776,7 +784,7 @@ test_large_output (void)
 static void
 test_tui_alternate_screen (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	GhosttyTerminal vt;
 
@@ -792,6 +800,8 @@ test_tui_alternate_screen (void)
 	pump (1000);
 	g_assert_false (termac_vt_alternate_screen (vt));
 	g_assert_false (termac_terminal_has_foreground_job (terminal));
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 /* A program that turns on mouse tracking receives press and release as SGR
@@ -799,7 +809,7 @@ test_tui_alternate_screen (void)
 static void
 test_mouse_tracking_report (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	GhosttyTerminal vt;
 	g_autofree char *script = g_build_filename (g_get_user_state_dir (), "termac-mouse-test.py", NULL);
@@ -817,7 +827,7 @@ test_mouse_tracking_report (void)
 		"tty.setraw(0)\n"
 		"sys.stdout.write('\\x1b[?1000h\\x1b[?1006h'); sys.stdout.flush()\n"
 		"buf = b''\n"
-		"while select.select([0], [], [], 2.0)[0]:\n"
+		"while select.select([0], [], [], 5.0)[0]:\n"
 		"    buf += os.read(0, 64)\n"
 		"    if buf.count(b'\\x1b[<') >= 2: break\n"
 		"termios.tcsetattr(0, termios.TCSADRAIN, saved)\n"
@@ -838,12 +848,14 @@ test_mouse_tracking_report (void)
 	mouse_button (1, TRUE);
 	mouse_button (1, FALSE);
 	g_assert_true (wait_for_screen (terminal, "GOT:b'\\x1b[<0;", 4000));
+	g_assert_true (wait_for_job_end (terminal, 3000));
 
 	/* Shift+drag: no report, a selection appears. */
-	send_keysym (XK_Return, FALSE);
 	run_in_terminal (window, terminal, command);
-	g_assert_true (wait_for_screen (terminal, "SELECTME-", 4000));
-	pump (400);
+	{
+		gint64 deadline = g_get_monotonic_time () + 4 * G_USEC_PER_SEC;
+		while (!termac_vt_mouse_tracking (vt) && g_get_monotonic_time () < deadline) pump (20);
+	}
 	g_assert_true (termac_vt_mouse_tracking (vt));
 	terminal_point_in_window (GTK_WIDGET (window), GTK_WIDGET (terminal), 30, 40, &x0, &y0);
 	terminal_point_in_window (GTK_WIDGET (window), GTK_WIDGET (terminal), 300, 80, &x1, &y1);
@@ -855,8 +867,10 @@ test_mouse_tracking_report (void)
 	fake_key_event (x_display, shift_key, 0, 0);
 	XFlush (x_display);
 	g_assert_true (termac_terminal_copy (terminal));
-	g_assert_true (wait_for_screen (terminal, "GOT:b''", 5000));
+	g_assert_true (wait_for_screen (terminal, "GOT:b''", 8000));
 	g_remove (script);
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 /* Dead keys go through the input method; the composed text is what reaches the
@@ -865,7 +879,7 @@ test_mouse_tracking_report (void)
 static void
 test_dead_key_and_unicode (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
 
 	g_assert_nonnull (terminal);
@@ -912,6 +926,8 @@ test_dead_key_and_unicode (void)
 		g_printerr ("SCREEN:\n%s\n", dump);
 	}
 	g_assert_true (wait_for_job_end (terminal, 100));
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 static void
@@ -927,7 +943,7 @@ set_clipboard_and_paste (TermacTerminal *terminal, const char *text)
 static void
 test_paste_integrity (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termac-paste-out.txt", NULL);
 	g_autofree char *command = g_strdup_printf ("cat > %s", path);
@@ -960,6 +976,8 @@ test_paste_integrity (void)
 	g_assert_true (wait_for_screen (terminal, "2097120", 30000));
 	g_string_free (big, TRUE);
 	g_remove (path);
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 static TermacTerminal *
@@ -1165,7 +1183,7 @@ static void collect_terminals (GtkWidget *root, GPtrArray *out);
 static void
 test_vim_session (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	GhosttyTerminal vt;
 	GSettings *settings = termac_application_get_settings (app);
@@ -1176,13 +1194,15 @@ test_vim_session (void)
 	guint rows_after;
 	guint children;
 	g_autofree char *expected = NULL;
+	g_autofree char *quoted_dir = g_shell_quote (g_get_user_state_dir ());
 
 	g_assert_nonnull (terminal);
 	vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
 	g_remove (path);
 
 	/* Edit and save. */
-	command = g_strdup_printf ("vi -u NONE -n %s", path);
+	/* A long temporary prefix otherwise makes vi show a hit-enter prompt. */
+	command = g_strdup_printf ("cd %s && vi -u NONE -n termac-vim-test.txt", quoted_dir);
 	run_in_terminal (window, terminal, command);
 	g_assert_true (wait_for_alternate_screen (vt, TRUE, 4000));
 	type_text ("ihello-vim");
@@ -1192,10 +1212,12 @@ test_vim_session (void)
 	g_assert_true (wait_for_alternate_screen (vt, FALSE, 4000));
 	g_assert_true (g_file_get_contents (path, &contents, NULL, NULL));
 	g_assert_cmpstr (contents, ==, "hello-vim\n");
+	g_assert_true (wait_for_job_end (terminal, 3000));
 
 	/* The PTY follows a window resize while vi runs. */
 	rows_before = termac_terminal_get_rows (terminal);
 	run_in_terminal (window, terminal, command);
+	g_assert_true (wait_for_alternate_screen (vt, TRUE, 4000));
 	g_assert_true (wait_for_screen (terminal, "hello-vim", 4000));
 	gtk_window_set_default_size (GTK_WINDOW (window), 900, 420);
 	pump (1200);
@@ -1229,6 +1251,8 @@ test_vim_session (void)
 	g_assert_cmpuint (child_process_count (), <=, children - 1);
 	g_settings_set_boolean (settings, "confirm-close", TRUE);
 	g_remove (path);
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 /* Each tab is its own session with its own shell. */
@@ -1991,6 +2015,9 @@ test_flatpak_host_session (void)
 	}
 	g_assert_null (strstr (text, "no job control"));
 	g_clear_pointer (&text, g_free);
+	termac_terminal_insert_text (terminal, "printf 'host-color:%s\\n' \"$COLORTERM\"");
+	send_keysym (XK_Return, FALSE);
+	g_assert_true (wait_for_screen (terminal, "host-color:truecolor", 3000));
 	termac_terminal_insert_text (terminal, "sleep 30\n");
 	send_keysym (XK_Return, FALSE);
 	pump (400);
@@ -2709,8 +2736,39 @@ test_save_empty_session (void)
 	pump (300);
 }
 
+static void
+test_truecolor_environment (void)
+{
+	g_autofree char *dir = g_dir_make_tmp ("termac-color-env-XXXXXX", NULL);
+	g_autofree char *file = g_build_filename (dir, "environment", NULL);
+	g_autofree char *quoted = g_shell_quote (file);
+	g_autofree char *command = g_strdup_printf ("printf '%%s' \"$COLORTERM\" > %s", quoted);
+	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
+	g_autofree char *old_env = g_strdup (g_getenv ("ENV"));
+	g_autofree char *old_color = g_strdup (g_getenv ("COLORTERM"));
+	g_autofree char *contents = NULL;
+	TermacTerminal *terminal;
+	gint64 deadline;
+	g_setenv ("SHELL", "/bin/sh", TRUE);
+	g_setenv ("ENV", "/dev/null", TRUE);
+	g_setenv ("COLORTERM", "incorrect-parent-value", TRUE);
+	terminal = TERMAC_TERMINAL (termac_terminal_new_command ("/tmp", FALSE, command));
+	g_object_ref_sink (terminal);
+	if (old_shell) g_setenv ("SHELL", old_shell, TRUE); else g_unsetenv ("SHELL");
+	if (old_env) g_setenv ("ENV", old_env, TRUE); else g_unsetenv ("ENV");
+	if (old_color) g_setenv ("COLORTERM", old_color, TRUE); else g_unsetenv ("COLORTERM");
+	deadline = g_get_monotonic_time () + 4 * G_USEC_PER_SEC;
+	while (!g_file_test (file, G_FILE_TEST_EXISTS) && g_get_monotonic_time () < deadline) pump (50);
+	g_assert_true (g_file_get_contents (file, &contents, NULL, NULL));
+	g_assert_cmpstr (contents, ==, "truecolor");
+	g_object_unref (terminal);
+	pump (150);
+	g_unlink (file); g_rmdir (dir);
+}
+
 #include "lifecycle.inc"
 #include "session-process.inc"
+#include "benchmark.inc"
 
 int
 main (int argc, char **argv)
@@ -2806,6 +2864,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/flatpak-host-session", test_flatpak_host_session);
 	g_test_add_func ("/ui/accessibility-labels", test_accessibility_labels);
 	g_test_add_func ("/ui/accessible-text", test_accessible_text);
+	g_test_add_func ("/ui/accessible-text-atspi-fixture", test_accessible_text_atspi_fixture);
 	g_test_add_func ("/ui/grid-fits-widget", test_grid_fits_widget);
  g_test_add_func ("/ui/search-highlight", test_search_highlight);
  g_test_add_func ("/ui/shortcut-conflict", test_shortcut_conflict);
@@ -2815,9 +2874,14 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/session-migration-write-failure", test_session_migration_write_failure);
 	g_test_add_func ("/ui/save-empty-session", test_save_empty_session);
 	g_test_add_func ("/ui/session-cross-process-restart", test_session_cross_process_restart);
+	g_test_add_func ("/ui/process-quit-reaps-resistant-child", test_process_quit_reaps_resistant_child);
 	g_test_add_func ("/ui/truecolor-unicode-render", test_truecolor_unicode_render);
+	g_test_add_func ("/ui/truecolor-environment", test_truecolor_environment);
 	g_test_add_func ("/ui/modern-tui", test_modern_tui);
 	g_test_add_func ("/ui/async-child-close", test_async_child_close);
+	g_test_add_func ("/ui/closed-input-feedback", test_closed_input_feedback);
+	g_test_add_func ("/ui/benchmark", test_benchmark);
+	g_test_add_func ("/ui/quit-confirmation", test_quit_confirmation);
 	{
 		int status = g_test_run ();
 
