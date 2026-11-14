@@ -41,3 +41,5 @@ O plano vigente e o roadmap orientam a próxima tarefa. Relatórios provam o que
 - [Histórico e backups preservados](history/README.md).
 
 Novas evidências datadas vão em `reports/`, procedimentos de aceite em `checklists/` e planos de implementação em `superpowers/plans/`. Atualize o roadmap em vez de criar outra lista concorrente de pendências.
+
+- [Consolidação de estabilidade: implementação, CI, AT-SPI, Flatpak e medições](reports/2026-11-13-stable-consolidation.md).

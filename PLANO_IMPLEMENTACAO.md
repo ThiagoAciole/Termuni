@@ -9,24 +9,24 @@ Atualizado em 13/11/2026. Este é o quadro vigente; a lista priorizada de melhor
 | Marco | Situação | Evidência e trabalho restante |
 | --- | --- | --- |
 | 0 — dependência e build | Implementado; Builder pendente | C/Meson, Ghostty fixado e Zig 0.16.0. Builds development/default, schema instalado e Flatpak CLI registrados. Falta executar e observar pela interface do GNOME Builder. |
-| 1 — shell e PTY | Implementado; robustez parcial | P0 cobre vi, resize, retorno ao shell, colagem de 2 MiB e encerramento sem órfãos; P1 cobre PTY do host no Flatpak. Faltam corrigir cenários antigos de carga e medir encerramento/desempenho (M01/M03/M06). |
-| 2 — interação | Implementado; aceite Wayland parcial | Seleção/cópia/colagem, mouse SGR, teclas mortas e preedit têm cobertura. Faltam ibus/fcitx/CJK e Ctrl+Shift+U reais, escala fracionária e corrigir hit testing de links Unicode (M02). |
+| 1 — shell e PTY | Implementado; robustez parcial | P0 cobre vi, resize, retorno ao shell, colagem de 2 MiB e encerramento sem órfãos; P1 cobre PTY do host no Flatpak. Carga/interrupção isoladas e encerramento assíncrono com regressões passaram; baseline de 1/5/10 abas registrado; aceite físico Wayland pendente. |
+| 2 — interação | Implementado; aceite Wayland parcial | Seleção/cópia/colagem, mouse SGR, teclas mortas e preedit têm cobertura. Faltam ibus/fcitx/CJK e Ctrl+Shift+U reais, escala fracionária; links Unicode e OSC 8 foram corrigidos a partir das células do motor. |
 | 3 — interface | Implementado; aprovação real pendente | Uma/duas abas, overview, paletas, Preferências, Sobre, atalhos e busca inspecionados em Xvfb no P3. Fontes, bordas, ícones e aparência no compositor real permanecem na checklist. |
-| 4 — imagens para agentes | Implementado (MVP); em validação no Flatpak | Claude Code e Codex: PNG/JPEG/Ctrl+V reconhecidos nos CLIs reais sob Xvfb, 6/6. Adaptadores e seleção explícita implementados. Repetir recebimento multimodal pelo Flatpak; outros agentes estão fora do MVP. |
-| 5 — produtividade | Parcial; núcleo implementado | Busca com realce/navegação, editor com conflitos, links HTTP(S), restauração v3, atenção e política de notificações existem. Falta entrega/clique da notificação no GNOME; OSC 8 com rótulo, busy/idle host e eventos por agente são melhorias separadas; o Marco 5 inteiro não é bloqueador de lançamento. |
-| 6 — consolidação | Parcial | Valgrind corrigiu referência de ícone por aba; suíte normal/HiDPI e nomes/papel acessíveis existem. Texto acessível (M04) implementado com offsets Unicode, caret, seleção e notificações; regressão em Xvfb passou. Faltam aceite Orca/AT-SPI, benchmark, CI e aceite desktop/distribuição. |
+| 4 — imagens para agentes | Implementado (MVP); nativo/Flatpak verificados | Claude Code e Codex: PNG/JPEG/Ctrl+V reconhecidos nos CLIs reais sob Xvfb, 6/6. Adaptadores e seleção explícita implementados. Recebimento multimodal repetido no Flatpak/Xvfb: mais 6/6. Gestos físicos Wayland pendentes; outros agentes fora do MVP. |
+| 5 — produtividade | Parcial; núcleo implementado | Busca com realce/navegação, editor com conflitos, links HTTP(S), restauração v3, atenção e política de notificações existem. Falta entrega/clique da notificação no GNOME; OSC 8 com rótulo implementado; busy/idle host e eventos por agente são melhorias separadas; o Marco 5 inteiro não é bloqueador de lançamento. |
+| 6 — consolidação | Parcial | Valgrind corrigiu referência de ícone por aba; suíte normal/HiDPI e nomes/papel acessíveis existem. Texto acessível (M04) implementado com offsets Unicode, caret, seleção e notificações; regressão em Xvfb passou. Transporte AT-SPI real verificado em buses privados; CI e ferramenta de benchmark implementados. Faltam aceite Orca/Wayland e desktop/distribuição. |
 
 As referências atuais de produto e arquitetura são [PDR.Arquiteture.md](PDR.Arquiteture.md) e [DESIGN.md](DESIGN.md). Os recuos atuais são **12 unidades acima / 8 à esquerda**. Perfis de terminal, outros agentes e gráficos inline não são requisitos da primeira versão estável.
 
-## Próximo incremento recomendado
+## Consolidação e próximos aceites
 
-1. **M01 — evidência confiável do emulador:** isolar os cenários de interface e provar que os comandos de carga realmente executaram.
-2. **M03/M15 — encerramento e persistência:** eliminar bloqueio ao parar shells e definir durabilidade da primeira gravação; a sessão vazia foi corrigida e a migração v2→v3 ganhou regressões de idempotência/falha.
-3. **V01/V05/V07 e M04 — aceite da distribuição, reinício e acessibilidade:** Builder/Flatpak reais, restauração entre processos e leitura do conteúdo no Orca.
+M01/M02/M03/M09/M10/M12/M14/M15 têm implementação e regressões. Sessões agora usam writer ordenado em background com gravação consistente/durável; saída confirma programas ativos e aguarda coleta dos filhos sem bloquear a UI. O teste de reinício usa executáveis em processos distintos e preserva a origem v2.
 
-M02 (links Unicode) continua uma correção concreta aberta. Melhorias adicionais do Marco 5 não devem preceder confiabilidade, persistência e distribuição. Os [critérios de estabilidade](docs/checklists/stability.md) distinguem **implementado**, **em validação**, **pendente** e **fora do escopo**; a checklist completa, não o número de marcos implementados, define o aceite.
+Acessibilidade expõe texto/caret/seleção Unicode e seus eventos foram lidos por AT-SPI em D-Bus privado. CI cobre ambos os perfis e possui equivalente local; a execução remota ainda depende de publicar o repositório. O benchmark opt-in mediu 1/5/10 abas em 9 amostras, sem envolver sessões pessoais.
 
-TUI/Unicode/True Color: vi/less têm cobertura anterior; nesta revisão btop 1.4.7, preservação de CJK/emoji e RGB exato foram exercitados em Xvfb. A matriz e seus limites ficam na mesma checklist. Isso não certifica todas as TUIs nem escala/IME do compositor real.
+Restam principalmente os aceites **V01–V04/V06**: interação pela IDE Builder, Wayland/IME, aparência/escala fracionária, notificações GNOME, uso do Orca e instalação/atualização no desktop. Os [critérios de estabilidade](docs/checklists/stability.md) distinguem implementação de aceite; não declarar a versão estável apenas porque o build passou.
+
+TUI/Unicode/True Color: anúncio COLORTERM no shell/bridge e regressões de células Unicode entregues; vi/less têm cobertura anterior; nesta revisão btop 1.4.7, preservação de CJK/emoji e RGB exato foram exercitados em Xvfb. A matriz e seus limites ficam na mesma checklist. Isso não certifica todas as TUIs nem escala/IME do compositor real.
 
 ## Prioridades — 13/11/2026
 
@@ -35,13 +35,14 @@ Os planos originais continuam como contratos dos incrementos executados, não co
 | Incremento | Código/evidência entregue | Aceite adicional | Plano |
 | --- | --- | --- | --- |
 | P0 — confiabilidade | PTY/vi, entrada, mouse, paste, isolamento, restauração e Valgrind | Revisar cenários antigos e validar IME/Wayland | [P0](docs/superpowers/plans/2026-11-13-p0-reliability.md) |
-| P1 — integração GNOME | Schema/instalação, Flatpak/host, ícones, nomes acessíveis e HiDPI | Builder, Orca, ícones/escala no desktop, imagem real Flatpak | [P1](docs/superpowers/plans/2026-11-13-p1-gnome-integration.md) |
-| P2 — agentes | Seleção/adaptadores e 6/6 anexos reais em Claude Code/Codex | Gestos Wayland e repetição pelo Flatpak | [P2](docs/superpowers/plans/2026-11-13-p2-agent-experience.md) |
+| P1 — integração GNOME | Schema/instalação, Flatpak/host, ícones, nomes acessíveis e HiDPI | Builder, Orca e ícones/escala no desktop (imagem real Flatpak passou) | [P1](docs/superpowers/plans/2026-11-13-p1-gnome-integration.md) |
+| P2 — agentes | Seleção/adaptadores e 6/6 anexos reais em Claude Code/Codex | Gestos Wayland (repetição funcional pelo Flatpak passou) | [P2](docs/superpowers/plans/2026-11-13-p2-agent-experience.md) |
 | P3 — acabamento | Realce, conflitos, política de notificações e comparação visual | Aprovação visual e notificação GNOME | [P3](docs/superpowers/plans/2026-11-13-p3-polish.md) |
 
 ## Evidências e limites
 
-- [Revisão arquitetural e critérios de estabilidade](docs/reports/2026-11-13-stability-review.md): recomendações confrontadas com código, sessão vazia corrigida, migração/falha de gravação e TUI/Unicode/True Color verificados. Suíte atual **11/11**, UI normal 173,88 s e HiDPI 188,51 s (49 casos UI, quatro auxiliares opt-in pulados); default rápido 3/3 e build passaram.
+- [Consolidação de estabilidade](docs/reports/2026-11-13-stable-consolidation.md): **13/13** nos dois perfis, 58 casos UI (seis auxiliares opt-in), AT-SPI real, sessão entre processos, bridge/coleta host, **6/6 imagens reais no Flatpak**, Valgrind 3/15 e nove amostras de benchmark. Código/aceite físico permanecem separados.
+- [Revisão arquitetural e critérios de estabilidade](docs/reports/2026-11-13-stability-review.md): recomendações confrontadas com código, sessão vazia corrigida, migração/falha de gravação e TUI/Unicode/True Color verificados. Suíte da revisão anterior **11/11**, UI normal 173,88 s e HiDPI 188,51 s (49 casos UI, quatro auxiliares opt-in pulados); default rápido 3/3 e build passaram.
 - [Relatório consolidado P0–P3](docs/reports/2026-11-13-p0-p3.md): execuções até `5a14a91`. Suíte completa histórica do P3: **11/11**, UI normal 164,74 s e HiDPI 177,67 s; 45 casos UI, quatro auxiliares opt-in pulados. Builds development/default e 157 traduções, zero fuzzy.
 - [Revisão visual](docs/checklists/visual-review.md): 32 capturas abertas, 19 principais; limitações dos cenários auxiliares herdados estão explícitas. Suíte verde não comprova que esses cenários de carga executaram o comando pretendido.
 - [Aceite GNOME/Builder](docs/checklists/gnome-manual.md) e [agentes](docs/checklists/agents-manual.md): não interpretar Xvfb ou build CLI como comprovação de interação no compositor/IDE.

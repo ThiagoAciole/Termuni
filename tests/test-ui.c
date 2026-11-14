@@ -1259,13 +1259,16 @@ test_vim_session (void)
 static void
 test_tabs_are_independent (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	TermacTerminal *first = find_terminal (GTK_WIDGET (window));
 	const char *first_id;
-	guint before = child_process_count ();
+	guint before;
 	guint count;
 
 	g_assert_nonnull (first);
+	/* Drain reapers from preceding tests before taking a global PID baseline. */
+	pump (1200);
+	before = child_process_count ();
 	first_id = termac_terminal_get_session_id (first);
 	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
 	pump (1200);
@@ -1276,6 +1279,8 @@ test_tabs_are_independent (void)
 	pump (800);
 	g_assert_cmpuint (tab_count (window), ==, 1);
 	g_assert_nonnull (first_id);
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (1200);
 }
 
 /* A closed tab must release its terminal, which stops the shell it owns. */

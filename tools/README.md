@@ -16,3 +16,11 @@ Executar a partir da raiz. Build, perfis e suíte padrão estão em [docs/develo
 `tests/real-agent-driver.inc` pertence ao binário de testes; as imagens sintéticas estão em `tests/fixtures/agents/`. Nenhuma chamada a modelos deve ser iniciada pela auditoria, build ou suíte comum.
 
 Artefatos de build, `repo/`, `.flatpak-builder/` e `.superpowers/` ficam ignorados. Eles podem conter caches ou evidências; não são lixo a apagar automaticamente. Backups antigos movidos estão em [docs/history/](../docs/history/README.md).
+
+## Verificações de consolidação
+
+- `bash tools/ci-check.sh development` / `default`: build, testes, traduções e instalação isolada; equivalente ao job nativo em `.github/workflows/ci.yml`.
+- `python3 tools/benchmark.py --samples 3 --lines 3000`: matriz de 1/5/10 abas em Xvfb/Cairo, resultados em `build/benchmark.json`. `--binary` seleciona outro perfil; memória cobre somente o frontend, não os shells.
+- `/usr/bin/python3 tests/check-accessible-atspi.py`: texto/caret/seleção/eventos através de AT-SPI em buses privados. Requisitos e limites em [desenvolvimento](../docs/development.md#consolidação-e-ci).
+
+Os dois últimos testes são opt-in e não controlam janelas pessoais. O benchmark encerra seu próprio grupo de processos caso atinja o timeout.

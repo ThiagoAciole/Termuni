@@ -17,7 +17,7 @@ test_benchmark (void)
 	TermacWindow *window;
 	TermacTerminal *terminals[10];
 	AdwTabView *view;
-	guint n;
+	guint n, lines;
 	gint64 start, startup_us, mapped_us, output_us, search_us, resize_us;
 	double cpu, focused_cpu, background_cpu;
 	GtkWindow *background;
@@ -25,7 +25,9 @@ test_benchmark (void)
 	g_autoptr(GString) expected = g_string_new (NULL);
 	if (!count) { g_test_skip ("opt-in: tools/benchmark.py"); return; }
 	n = (guint) g_ascii_strtoull (count, NULL, 10);
+	lines = g_getenv ("TERMAC_BENCHMARK_LINES") ? (guint) g_ascii_strtoull (g_getenv ("TERMAC_BENCHMARK_LINES"), NULL, 10) : 3000;
 	g_assert_true (n == 1 || n == 5 || n == 10);
+	g_assert_true (lines >= 1000 && lines <= 30000);
 	start = g_get_monotonic_time ();
 	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
 	gtk_window_present (GTK_WINDOW (window));
@@ -48,13 +50,13 @@ test_benchmark (void)
 		}
 	}
 	startup_us = g_get_monotonic_time () - start;
-	for (guint i = 1; i <= 10000; i++) g_string_append_printf (expected, "%u\n", i);
+	for (guint i = 1; i <= lines; i++) g_string_append_printf (expected, "%u\n", i);
 	start = g_get_monotonic_time ();
 	for (guint i = 0; i < n; i++) {
 		g_autofree char *path = g_strdup_printf ("%s/bench-%u", g_get_user_state_dir (), i);
 		g_autofree char *quoted = g_shell_quote (path);
 		g_autofree char *command = g_strdup_printf (
-		    "set -o pipefail; seq 1 10000 | tee %s; printf 'bench-%%s:%%s\\n' complete $?", quoted);
+		    "set -o pipefail; seq 1 %u | tee %s; printf 'bench-%%s:%%s\\n' complete $?", lines, quoted);
 		adw_tab_view_set_selected_page (view, adw_tab_view_get_nth_page (view, i));
 		run_in_terminal (window, terminals[i], command);
 		pump (100);
@@ -69,8 +71,11 @@ test_benchmark (void)
 	}
 	output_us = g_get_monotonic_time () - start;
 	start = g_get_monotonic_time ();
-	for (guint i = 0; i < 20; i++)
-		g_assert_true (termac_terminal_find (terminals[n - 1], "9999", i % 2));
+	{
+		g_autofree char *needle = g_strdup_printf ("%u", lines - 1);
+		for (guint i = 0; i < 20; i++)
+			g_assert_true (termac_terminal_find (terminals[n - 1], needle, i % 2));
+	}
 	search_us = g_get_monotonic_time () - start;
 	start = g_get_monotonic_time ();
 	for (guint i = 0; i < 10; i++) {
@@ -85,9 +90,9 @@ test_benchmark (void)
 	getrusage (RUSAGE_SELF, &usage);
 	g_print ("TERMAC_BENCHMARK {\"tabs\":%u,\"mapped_ms\":%.3f,\"shell_ready_with_driver_ms\":%.3f,\"output_ms\":%.3f,"
 	    "\"search_20_ms\":%.3f,\"resize_10_ms\":%.3f,\"rss_kib\":%zu,\"peak_rss_kib\":%ld,"
-	    "\"focused_idle_cpu_ms\":%.3f,\"background_idle_cpu_ms\":%.3f,\"lines_per_tab\":10000}\n",
+	    "\"focused_idle_cpu_ms\":%.3f,\"background_idle_cpu_ms\":%.3f,\"lines_per_tab\":%u}\n",
 	    n, mapped_us / 1000.0, startup_us / 1000.0, output_us / 1000.0, search_us / 1000.0, resize_us / 1000.0,
-	    resident_memory_kb (), usage.ru_maxrss, focused_cpu, background_cpu);
+	    resident_memory_kb (), usage.ru_maxrss, focused_cpu, background_cpu, lines);
 	gtk_window_destroy (background);
 	gtk_window_destroy (GTK_WINDOW (window));
 	pump (1200);

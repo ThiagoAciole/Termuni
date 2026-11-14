@@ -1,0 +1,149 @@
+{
+  "date": "2026-11-13",
+  "profiles": {
+    "development": {
+      "tests": [
+        {
+          "name": "termac:Validate desktop file",
+          "result": "OK",
+          "seconds": 0.04
+        },
+        {
+          "name": "termac:Validate appstream file",
+          "result": "OK",
+          "seconds": 0.03
+        },
+        {
+          "name": "termac:Validate schema file",
+          "result": "OK",
+          "seconds": 0.03
+        },
+        {
+          "name": "termac:util",
+          "result": "OK",
+          "seconds": 0.02
+        },
+        {
+          "name": "termac:attachments",
+          "result": "OK",
+          "seconds": 0.02
+        },
+        {
+          "name": "termac:settings",
+          "result": "OK",
+          "seconds": 0.03
+        },
+        {
+          "name": "termac:session-store",
+          "result": "OK",
+          "seconds": 0.02
+        },
+        {
+          "name": "termac:vt",
+          "result": "OK",
+          "seconds": 0.07
+        },
+        {
+          "name": "termac:agent-names-contained",
+          "result": "OK",
+          "seconds": 0.05
+        },
+        {
+          "name": "termac:agent",
+          "result": "OK",
+          "seconds": 10.06
+        },
+        {
+          "name": "termac:dev-tool-isolation",
+          "result": "OK",
+          "seconds": 11.48
+        },
+        {
+          "name": "termac:ui",
+          "result": "OK",
+          "seconds": 230.81
+        },
+        {
+          "name": "termac:ui-hidpi",
+          "result": "OK",
+          "seconds": 247.27
+        }
+      ],
+      "ui_cases": 58,
+      "ui_opt_in_skips": 6,
+      "test_binary_sha256": "4493f3463cf6cee8da124c83d0b23dba436be9de56c7af5880797890c26e1a46"
+    },
+    "default": {
+      "tests": [
+        {
+          "name": "termac:Validate desktop file",
+          "result": "OK",
+          "seconds": 0.03
+        },
+        {
+          "name": "termac:Validate appstream file",
+          "result": "OK",
+          "seconds": 0.03
+        },
+        {
+          "name": "termac:Validate schema file",
+          "result": "OK",
+          "seconds": 0.03
+        },
+        {
+          "name": "termac:util",
+          "result": "OK",
+          "seconds": 0.02
+        },
+        {
+          "name": "termac:attachments",
+          "result": "OK",
+          "seconds": 0.01
+        },
+        {
+          "name": "termac:settings",
+          "result": "OK",
+          "seconds": 0.03
+        },
+        {
+          "name": "termac:session-store",
+          "result": "OK",
+          "seconds": 0.02
+        },
+        {
+          "name": "termac:vt",
+          "result": "OK",
+          "seconds": 0.06
+        },
+        {
+          "name": "termac:agent-names-contained",
+          "result": "OK",
+          "seconds": 0.04
+        },
+        {
+          "name": "termac:agent",
+          "result": "OK",
+          "seconds": 10.07
+        },
+        {
+          "name": "termac:dev-tool-isolation",
+          "result": "OK",
+          "seconds": 10.87
+        },
+        {
+          "name": "termac:ui",
+          "result": "OK",
+          "seconds": 241.38
+        },
+        {
+          "name": "termac:ui-hidpi",
+          "result": "OK",
+          "seconds": 251.83
+        }
+      ],
+      "ui_cases": 58,
+      "ui_opt_in_skips": 6,
+      "test_binary_sha256": "13d79f3d772cf384ffa6227bf47760170818c6e3722a1374cbb5e8a02a95c2ba"
+    }
+  }
+}

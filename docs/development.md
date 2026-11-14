@@ -19,7 +19,7 @@ Execute comandos na raiz que contém `meson.build` e `AGENTS.md`. Antes de edita
 ## Toolchain e perfis
 
 - Zig **0.16.0** é verificado pelo Meson. [O wrap](../subprojects/ghostty.wrap) fixa Ghostty em `f64f4aca2c29b554d111b36c3d946a9bddd159ff`.
-- Dependências declaradas em `meson.build`/`src/meson.build`: C, GTK 4, libadwaita ≥ 1.8, GLib/GIO, PangoCairo e util do sistema. Testes UI também usam X11/XTest via Xvfb.
+- Dependências declaradas em `meson.build`/`src/meson.build`: C, GTK ≥ 4.22, libadwaita ≥ 1.8, GLib/GIO, PangoCairo e util do sistema. Testes UI também usam X11/XTest via Xvfb.
 - `development`: `thiago.aciole.Termac.Devel`; `default`: `thiago.aciole.Termac`. Ambos têm schema/ícone próprios; o caminho de GResources continua `/thiago/aciole/termac`.
 
 ```sh
@@ -78,3 +78,25 @@ msgfmt --check --statistics -o /tmp/termac-pt_BR.mo po/pt_BR.po
 Depois de preencher traduções novas, confirme zero fuzzy/pendentes. Mudanças de documentação não exigem refazer toda a suíte gráfica: confira links/caminhos, preservação de arquivos movidos e build quando referências de build mudarem. Para mudanças funcionais, execute os testes correspondentes e a suíte necessária.
 
 Atualize [PLANO_IMPLEMENTACAO.md](../PLANO_IMPLEMENTACAO.md) e o item do [roadmap](ROADMAP.md); resultados longos e datados vão em `docs/reports/`. Preserve o histórico e distinga implementado, testado automaticamente e confirmado no desktop real.
+
+## Consolidação e CI
+
+`bash tools/ci-check.sh development` e `bash tools/ci-check.sh default` executam o mesmo caminho do job nativo: build, suítes normal/HiDPI, traduções e instalação em DESTDIR dentro do próprio build. `TERMAC_CI_BUILD=build` permite usar uma configuração existente. A instalação de teste não modifica `/usr`.
+
+`.github/workflows/ci.yml` tem jobs nativos Fedora 44 (GTK 4.22+) e Flatpak GNOME 50, para ambos os perfis. Zig usa URL/hash do manifesto; Ghostty continua no wrap fixado. Artifacts contêm logs e os Flatpaks. O workflow não publica releases nem exige autenticação nos agentes. A execução remota depende de o repositório estar hospedado no GitHub.
+
+A ponte acessível tem teste real com buses D-Bus privados, sem conexão ao bus do desktop:
+
+```sh
+/usr/bin/python3 tests/check-accessible-atspi.py --binary build/tests/test-ui
+```
+
+Requer Python GI/Atspi, Xvfb, `at-spi2-registryd` e `dbus-daemon`; `--dbus-daemon CAMINHO` permite selecionar uma instalação de teste. Isso verifica texto/caret/seleção/eventos, sem substituir o aceite do Orca.
+
+O benchmark é opt-in e cria apenas sessões próprias:
+
+```sh
+python3 tools/benchmark.py --samples 3 --lines 3000 --output build/benchmark.json
+```
+
+São 1/5/10 abas, arquivos de saída completos conferidos, busca, resize, CPU ociosa e RSS do frontend. O JSON descreve o ambiente e os tempos do driver. Cairo/Xvfb não mede aceleração GPU ou latência física Wayland. Não execute a matriz junto de builds pesados se quiser comparar desempenho.

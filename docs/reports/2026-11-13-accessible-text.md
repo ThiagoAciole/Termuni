@@ -22,3 +22,7 @@ O teste passou em escala normal e HiDPI (`GDK_SCALE=2 GDK_DPI_SCALE=1.25`). A re
 Este teste exercita os callbacks e notificações reais de `GtkAccessibleText`; não comprova transporte AT-SPI, fala no Orca, Wayland, GNOME Builder ou SDK Flatpak. Não havia `pyatspi` nem `dbus-run-session` disponíveis no ambiente usado. O aceite manual V06 permanece pendente. A compilação Meson completa e repetição no SDK ficam com a integração desta alteração.
 
 Contrato de notificação conferido na [documentação primária GTK](https://docs.gtk.org/gtk4/method.AccessibleText.update_contents.html).
+
+## Integração posterior
+
+O teste `tests/check-accessible-atspi.py` passou com a biblioteca AT-SPI real em D-Bus/Xvfb privados: texto `ATSPITERM 日本 é 👩‍💻`, caret 9→11, seleção [0,9]→vazia e eventos delete/insert/caret/selection. O cliente consulta a interface Atspi.Text, atravessando o bridge GTK. Isso supera a limitação de transporte mencionada na execução inicial; fala/interação com Orca e Wayland continuam pendentes. GTK mínimo foi declarado como 4.22, coerente com os setters da interface e o SDK GNOME 50.

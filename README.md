@@ -14,7 +14,7 @@ O MVP inclui busca com realce, seleção/copiar/colar, overview de abas, paletas
 
 ## Build local
 
-Pré-requisitos: compilador C, Meson/Ninja, pkg-config, GTK 4, libadwaita **≥ 1.8**, GLib/GIO, PangoCairo e **Zig 0.16.0** no PATH. A revisão de Ghostty fica fixada em [subprojects/ghostty.wrap](subprojects/ghostty.wrap); o primeiro build baixa o código e pacotes Zig e precisa de rede.
+Pré-requisitos: compilador C, Meson/Ninja, pkg-config, GTK **≥ 4.22**, libadwaita **≥ 1.8**, GLib/GIO, PangoCairo e **Zig 0.16.0** no PATH. A revisão de Ghostty fica fixada em [subprojects/ghostty.wrap](subprojects/ghostty.wrap); o primeiro build baixa o código e pacotes Zig e precisa de rede.
 
 Primeira configuração:
 
