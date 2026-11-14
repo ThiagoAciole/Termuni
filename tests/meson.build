@@ -50,7 +50,7 @@ test_ui = executable('test-ui', ui_sources,
 )
 xvfb_run = find_program('xvfb-run', required: false)
 if xvfb_run.found()
-  # The integrated suite has 58 cases, including fresh-process restarts.
+  # The integrated suite includes fresh-process restarts and dialog lifecycle.
   test('ui-hidpi', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 360, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11', 'GDK_SCALE=2', 'GDK_DPI_SCALE=1.25'])
   test('ui', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 360, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
 else

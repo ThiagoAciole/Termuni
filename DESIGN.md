@@ -1,6 +1,6 @@
 # Termac — referência visual e comportamento
 
-Atualizado em 09/11/2026. As referências originais estão em `/home/thiago/Documentos/termac/screenshoot/` e os ícones fornecidos em `/home/thiago/Documentos/termac/icons/`. O estado e as verificações de cada marco ficam em [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md).
+Atualizado em 13/11/2026. As referências originais estão em `/home/thiago/Documentos/termac/screenshoot/` e os ícones fornecidos em `/home/thiago/Documentos/termac/icons/`. O estado e as verificações de cada marco ficam em [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md).
 
 ## Telas de referência
 
@@ -18,6 +18,7 @@ As imagens adicionais fornecidas na conversa detalham a grade de paletas, o menu
 - Com uma única sessão, ocultar a faixa de abas inteira; com duas ou mais, mostrá-la abaixo do cabeçalho. O botão de nova aba continua acessível no cabeçalho.
 - Manter título da sessão e caminho no centro; mostrar controles de nova aba, visão geral, menu e controles da janela seguindo as referências.
 - Manter espaço entre o conteúdo do terminal e o cabeçalho e afastar o prompt da borda esquerda. Desde o ajuste de 09/11/2026 o desenho aplica 12 unidades de recuo superior e 8 à esquerda, sem margem extra entre a faixa de abas e o terminal, e a barra de busca fica embaixo, como no Ptyxis. Conferir visualmente em diferentes escalas.
+- Confirmações, renomear aba, Sobre, Atalhos e captura de atalhos abrem em janelas nativas separadas, sem sobreposição preta dentro do terminal. Manter vínculo com a janela de origem e Cancelar como fechamento seguro das confirmações.
 - Usar a janela nativa do GNOME e respeitar tema sistema, claro e escuro. As paletas alteram as cores do terminal independentemente da estrutura do cabeçalho.
 - Cada aba representa uma sessão independente; o overview deve mostrar as mesmas abas, permitindo selecionar, fechar e criar. Validar miniaturas e pesquisa antes de considerar o fluxo pronto.
 - Preferências devem seguir a organização da referência e apresentar somente opções com comportamento implementado. Atualmente existem controles de tema, tamanho e 12 paletas.

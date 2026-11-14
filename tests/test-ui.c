@@ -468,9 +468,38 @@ find_preferences_window (void)
 	GtkWindow *found = NULL;
 
 	for (iter = toplevels; iter != NULL; iter = iter->next)
-		if (GTK_IS_WINDOW (iter->data) && !TERMAC_IS_WINDOW (iter->data))
+		if (GTK_IS_WINDOW (iter->data) &&
+		    g_strcmp0 (gtk_window_get_title (GTK_WINDOW (iter->data)), "Preferences") == 0)
 			found = GTK_WINDOW (iter->data);
 	g_list_free (toplevels);
+	return found;
+}
+
+static AdwDialog *
+find_window_dialog (GtkWindow *parent, GType type)
+{
+	GList *windows = gtk_window_list_toplevels ();
+	AdwDialog *found = NULL;
+	if (ADW_IS_APPLICATION_WINDOW (parent))
+		g_assert_null (adw_application_window_get_visible_dialog (ADW_APPLICATION_WINDOW (parent)));
+	else if (ADW_IS_WINDOW (parent))
+		g_assert_null (adw_window_get_visible_dialog (ADW_WINDOW (parent)));
+	for (GList *iter = windows; iter; iter = iter->next)
+	{
+		GtkWindow *window = iter->data;
+		if (gtk_window_get_transient_for (window) == parent)
+		{
+			GtkWidget *dialog = find_widget_of_type (GTK_WIDGET (window), type);
+			if (dialog != NULL)
+			{
+				g_assert_true (gtk_window_get_modal (window));
+				g_assert_true (gtk_widget_get_root (dialog) != GTK_ROOT (parent));
+				found = ADW_DIALOG (dialog);
+				break;
+			}
+		}
+	}
+	g_list_free (windows);
 	return found;
 }
 
@@ -687,7 +716,7 @@ test_shortcut_editor (void)
 	g_assert_nonnull (button);
 	g_signal_emit_by_name (button, "clicked");
 	pump (800);
-	mouse_move (GTK_WIDGET (preferences), 200, 200);
+	mouse_move (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (find_window_dialog (preferences, ADW_TYPE_DIALOG)))), 200, 200);
 	send_keysym_full (XK_y, TRUE, TRUE);
 	pump (800);
 
@@ -1724,7 +1753,7 @@ test_terminal_shortcut_rebind (void)
 	g_assert_nonnull (button);
 	click_button (GTK_WIDGET (button));
 	pump (800);
-	mouse_move (GTK_WIDGET (preferences), 200, 200);
+	mouse_move (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (find_window_dialog (preferences, ADW_TYPE_DIALOG)))), 200, 200);
 	send_keysym_full (XK_y, TRUE, TRUE);
 	pump (800);
 	accels = gtk_application_get_accels_for_action (GTK_APPLICATION (app), "win.terminal-copy");
@@ -2316,7 +2345,7 @@ test_search_highlight (void)
 static void
 capture_shortcut (GtkWindow *preferences, guint key, GdkModifierType mods)
 {
- AdwDialog *dialog = adw_window_get_visible_dialog (ADW_WINDOW (preferences));
+ AdwDialog *dialog = find_window_dialog (preferences, ADW_TYPE_DIALOG);
  GtkWidget *child;
  g_autoptr(GListModel) controllers = NULL;
  gboolean handled = FALSE;
@@ -2366,7 +2395,7 @@ test_shortcut_conflict (void)
   g_assert_true (g_variant_equal (before, after));
   accels = gtk_application_get_accels_for_action (GTK_APPLICATION (app), "win.new-tab");
   assert_accel_is (accels[0], "<Control><Shift>t");
-  dialog = adw_window_get_visible_dialog (ADW_WINDOW (preferences));
+  dialog = find_window_dialog (preferences, ADW_TYPE_DIALOG);
   g_assert_nonnull (dialog);
   g_assert_nonnull (strstr (adw_status_page_get_description (ADW_STATUS_PAGE (adw_dialog_get_child (dialog))), owners[i]));
   adw_dialog_close (dialog);
@@ -2376,7 +2405,7 @@ test_shortcut_conflict (void)
  pump (200);
  capture_shortcut (preferences, GDK_KEY_t, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
  pump (300);
- g_assert_null (adw_window_get_visible_dialog (ADW_WINDOW (preferences)));
+ g_assert_null (find_window_dialog (preferences, ADW_TYPE_DIALOG));
  g_settings_reset (settings, "action-shortcuts");
  gtk_window_destroy (preferences);
  pump (200);
@@ -2501,14 +2530,14 @@ test_visual_screens (void)
  pump (300);
  g_action_group_activate_action (G_ACTION_GROUP (app), "about", NULL);
  pump (400);
- g_assert_nonnull (adw_application_window_get_visible_dialog (ADW_APPLICATION_WINDOW (window)));
- save_widget_png (GTK_WIDGET (window), "about.png");
- adw_dialog_close (adw_application_window_get_visible_dialog (ADW_APPLICATION_WINDOW (window)));
+ g_assert_nonnull (find_window_dialog (GTK_WINDOW (window), ADW_TYPE_DIALOG));
+ save_widget_png (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (find_window_dialog (GTK_WINDOW (window), ADW_TYPE_ABOUT_DIALOG)))), "about.png");
+ adw_dialog_close (find_window_dialog (GTK_WINDOW (window), ADW_TYPE_DIALOG));
  pump (300);
  g_action_group_activate_action (G_ACTION_GROUP (app), "shortcuts", NULL);
  pump (400);
- save_widget_png (GTK_WIDGET (window), "shortcuts.png");
- adw_dialog_close (adw_application_window_get_visible_dialog (ADW_APPLICATION_WINDOW (window)));
+ save_widget_png (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (find_window_dialog (GTK_WINDOW (window), ADW_TYPE_SHORTCUTS_DIALOG)))), "shortcuts.png");
+ adw_dialog_close (find_window_dialog (GTK_WINDOW (window), ADW_TYPE_DIALOG));
  pump (300);
  gtk_window_destroy (GTK_WINDOW (window));
  g_settings_set_string (settings, "color-scheme", old_scheme);
@@ -2886,6 +2915,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/async-child-close", test_async_child_close);
 	g_test_add_func ("/ui/closed-input-feedback", test_closed_input_feedback);
 	g_test_add_func ("/ui/benchmark", test_benchmark);
+	g_test_add_func ("/ui/dialog-windows", test_dialog_windows);
 	g_test_add_func ("/ui/quit-confirmation", test_quit_confirmation);
 	{
 		int status = g_test_run ();

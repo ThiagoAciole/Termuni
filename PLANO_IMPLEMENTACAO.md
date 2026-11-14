@@ -41,6 +41,7 @@ Os planos originais continuam como contratos dos incrementos executados, não co
 
 ## Evidências e limites
 
+- [Janelas auxiliares sem sobreposição](docs/reports/2026-11-13-dialog-windows.md): confirmações, renomear, Sobre, Atalhos e captura de atalhos agora usam janelas nativas separadas. Cancelar/X preservam a sessão; fechar a origem encerra as auxiliares. Regra visual registrada no DESIGN.md.
 - [Aceite adicional: pacote e Orca](docs/reports/2026-11-13-desktop-acceptance.md): bundle default instalado/atualizado em instalação isolada, fonte 17 preservada; Orca 51 leu/gerou o texto Unicode esperado. Runner AT-SPI força Xvfb privado mesmo com DISPLAY herdado. Controle da IDE/Wayland não ficou operacional; CI aguarda destino Git.
 - [Consolidação de estabilidade](docs/reports/2026-11-13-stable-consolidation.md): **13/13** nos dois perfis, 58 casos UI (seis auxiliares opt-in), AT-SPI real, sessão entre processos, bridge/coleta host, **6/6 imagens reais no Flatpak**, Valgrind 3/15 e nove amostras de benchmark. Código/aceite físico permanecem separados.
 - [Revisão arquitetural e critérios de estabilidade](docs/reports/2026-11-13-stability-review.md): recomendações confrontadas com código, sessão vazia corrigida, migração/falha de gravação e TUI/Unicode/True Color verificados. Suíte da revisão anterior **11/11**, UI normal 173,88 s e HiDPI 188,51 s (49 casos UI, quatro auxiliares opt-in pulados); default rápido 3/3 e build passaram.

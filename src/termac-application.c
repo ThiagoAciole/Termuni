@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 
 #include "termac-application.h"
+#include "termac-dialog.h"
 #include "termac-session-store.h"
 #include "termac-settings.h"
 #include "termac-attachments.h"
@@ -46,6 +47,7 @@ G_DEFINE_FINAL_TYPE (TermacApplication, termac_application, ADW_TYPE_APPLICATION
 
 static void termac_application_finalize (GObject *object);
 static void termac_application_apply_settings (TermacApplication *self);
+static GtkWindow *application_dialog_parent (TermacApplication *self);
 static void style_dark_changed_cb (AdwStyleManager *manager, GParamSpec *pspec, gpointer user_data);
 
 #define TERMAC_SESSION_FILE "session-v3.gvariant"
@@ -394,12 +396,14 @@ termac_application_about_action (GSimpleAction *action,
 	static const char *developers[] = {"Thiago Aciole", NULL};
 	TermacApplication *self = user_data;
 	GtkWindow *window = NULL;
+	AdwDialog *dialog;
 
 	g_assert (TERMAC_IS_APPLICATION (self));
 
-	window = gtk_application_get_active_window (GTK_APPLICATION (self));
+	window = application_dialog_parent (self);
 
-	adw_show_about_dialog (GTK_WIDGET (window),
+	dialog = adw_about_dialog_new ();
+	g_object_set (dialog,
 	                       "application-name", "Termac",
 	                       "application-icon", APPLICATION_ICON,
 	                       "developer-name", "Thiago Aciole",
@@ -408,6 +412,7 @@ termac_application_about_action (GSimpleAction *action,
 	                       "developers", developers,
 	                       "copyright", "© 2026 Thiago Aciole",
 	                       NULL);
+	termac_dialog_present_window (dialog, window);
 }
 
 static void
@@ -421,7 +426,18 @@ application_finish_quit (TermacApplication *self)
 	for (GList *iter = gtk_application_get_windows (GTK_APPLICATION (self)); iter != NULL; iter = iter->next)
 		g_ptr_array_add (windows, g_object_ref (iter->data));
 	for (guint i = 0; i < windows->len; i++)
-		gtk_window_destroy (GTK_WINDOW (g_ptr_array_index (windows, i)));
+	{
+		GtkWindow *window = g_ptr_array_index (windows, i);
+		GtkWidget *child = gtk_window_get_child (window);
+		if (ADW_IS_DIALOG (child))
+		{
+			/* Finish async choices and release builders before their roots go. */
+			adw_dialog_set_can_close (ADW_DIALOG (child), TRUE);
+			adw_dialog_close (ADW_DIALOG (child));
+		}
+		else
+			gtk_window_destroy (window);
+	}
 	/* Child reapers hold the application until escalation/reaping finishes.
 	 * Let the usage count end the main loop; forced quit would bypass holds. */
 }
@@ -461,13 +477,14 @@ termac_application_quit_action (GSimpleAction *action, GVariant *parameter, gpoi
 		    "%u tab has a program running. Quitting Termac stops it.",
 		    "%u tabs have programs running. Quitting Termac stops them.", busy), busy);
 		AdwDialog *dialog = adw_alert_dialog_new (_("Quit Termac?"), body);
+		adw_dialog_set_title (dialog, _("Quit Termac?"));
 		adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
 		    "cancel", _("Cancel"), "quit", _("Quit"), NULL);
 		adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "quit", ADW_RESPONSE_DESTRUCTIVE);
 		adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "cancel");
 		adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 		self->quit_dialog_pending = TRUE;
-		adw_alert_dialog_choose (ADW_ALERT_DIALOG (dialog), GTK_WIDGET (parent), NULL,
+		termac_alert_choose_window (ADW_ALERT_DIALOG (dialog), parent,
 		    application_quit_response, g_object_ref (self));
 	}
 }
@@ -1156,7 +1173,7 @@ shortcut_edit_clicked_cb (GtkButton *button, gpointer user_data)
 	gtk_widget_add_controller (GTK_WIDGET (page), keys);
 	adw_dialog_set_child (dialog, GTK_WIDGET (page));
 	g_object_set_data_full (G_OBJECT (dialog), "shortcut-capture", capture, g_free);
-	adw_dialog_present (dialog, parent);
+	termac_dialog_present_window (dialog, GTK_WINDOW (parent));
 	gtk_widget_grab_focus (GTK_WIDGET (page));
 }
 
@@ -1455,7 +1472,7 @@ termac_application_shortcuts_action (GSimpleAction *action,
 	(void) parameter;
 	/* The builder owns the dialog: keep it alive until the dialog is closed. */
 	g_signal_connect_swapped (dialog, "closed", G_CALLBACK (g_object_unref), builder);
-	adw_dialog_present (dialog, GTK_WIDGET (parent));
+	termac_dialog_present_window (dialog, parent);
 }
 
 static void

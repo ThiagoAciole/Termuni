@@ -9,6 +9,7 @@
 #include "termac-terminal.h"
 #include "termac-util.h"
 #include "termac-window.h"
+#include "termac-dialog.h"
 
 #define TERMAC_NOTIFY_LONG_TASK_MS 5000
 
@@ -185,6 +186,7 @@ window_confirm_dialog (const char *heading,
                        const char *action_label)
 {
 	AdwDialog *dialog = adw_alert_dialog_new (heading, body);
+	adw_dialog_set_title (dialog, heading);
 
 	adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
 	                                "cancel", _("Cancel"),
@@ -741,7 +743,7 @@ termac_window_close_page_cb (AdwTabView *view,
 		                                           _("A program is still running in this tab. Closing the tab stops it."),
 		                                           _("Close Tab"));
 		g_object_set_data_full (G_OBJECT (dialog), "termac-page", g_object_ref (page), g_object_unref);
-		adw_alert_dialog_choose (ADW_ALERT_DIALOG (dialog), GTK_WIDGET (self), NULL,
+		termac_alert_choose_window (ADW_ALERT_DIALOG (dialog), GTK_WINDOW (self),
 		                         close_page_response, g_object_ref (self));
 	}
 	return GDK_EVENT_STOP;
@@ -788,7 +790,7 @@ termac_window_close_request_cb (GtkWindow *window,
 	                                  "%u tabs have programs running. Closing the window stops them.", busy),
 	                        busy);
 	dialog = window_confirm_dialog (_("Close window?"), body, _("Close Window"));
-	adw_alert_dialog_choose (ADW_ALERT_DIALOG (dialog), GTK_WIDGET (self), NULL,
+	termac_alert_choose_window (ADW_ALERT_DIALOG (dialog), GTK_WINDOW (self),
 	                         close_window_response, g_object_ref (self));
 	return GDK_EVENT_STOP;
 }
@@ -1075,7 +1077,7 @@ rename_response_cb (GObject      *source,
 	TermacTerminal *terminal = window_terminal_for_page (page);
 	const char *text;
 
-	if (g_strcmp0 (adw_alert_dialog_choose_finish (ADW_ALERT_DIALOG (source), result), "rename") == 0)
+	if (g_strcmp0 (adw_alert_dialog_choose_finish (ADW_ALERT_DIALOG (source), result), "close") == 0)
 	{
 		text = gtk_editable_get_text (GTK_EDITABLE (entry));
 		if (text == NULL || *text == '\0')
@@ -1117,9 +1119,10 @@ termac_window_rename_tab (GSimpleAction *action,
 	gtk_entry_set_activates_default (GTK_ENTRY (entry), TRUE);
 	adw_alert_dialog_set_extra_child (ADW_ALERT_DIALOG (dialog), entry);
 	adw_alert_dialog_set_response_label (ADW_ALERT_DIALOG (dialog), "close", _("Rename"));
+	adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "close");
 	g_object_set_data_full (G_OBJECT (dialog), "termac-page", g_object_ref (page), g_object_unref);
 	g_object_set_data (G_OBJECT (dialog), "termac-entry", entry);
-	adw_alert_dialog_choose (ADW_ALERT_DIALOG (dialog), GTK_WIDGET (self), NULL,
+	termac_alert_choose_window (ADW_ALERT_DIALOG (dialog), GTK_WINDOW (self),
 	                         rename_response_cb, g_object_ref (self));
 }
 
