@@ -61,7 +61,7 @@ são verificadas no host; pasta removida volta para `$HOME`.
 
 O runtime não contém `wl-paste`/`xclip`; a opção escolhida executa Claude Code no host,
 onde ambos foram encontrados. Portanto não se empacota wl-clipboard no sandbox.
-Recebimento multimodal real continua manual; localizar o executável não comprova anexo.
+Recebimento multimodal funcional foi repetido no Flatpak/Xvfb, 6/6, conforme a checklist de agentes. Gestos físicos do compositor permanecem separados; localizar o executável não comprova anexo.
 
 ## Ícones — aparência não verificada
 
@@ -77,7 +77,7 @@ O projeto ainda não tem homepage pública nem histórico de releases publicado;
 o teste AppStream reduz **apenas** `url-homepage-missing` a informação. A validação
 pedante sem essa exceção continua apontando a homepage ausente. IDs são preservados.
 
-## Orca — não verificado
+## Orca — geração verificada; interação e áudio pendentes
 
 | Passo | Resultado / ambiente / data |
 | --- | --- |
@@ -87,7 +87,7 @@ pedante sem essa exceção continua apontando a homepage ausente. IDs são prese
 | Preferências anuncia páginas, linhas, fontes e paletas | |
 | Digitação e saída do terminal são anunciadas adequadamente | |
 
-O teste de nomes cobre controles públicos e o papel terminal. Botões privados de
+Orca 51 leu o texto e gerou a frase Unicode em teste privado: ver [aceite adicional](../reports/2026-11-13-desktop-acceptance.md). Isso não comprova fala/navegação contínua no desktop. O teste de nomes cobre controles públicos e o papel terminal. Botões privados de
 GtkMenuButton e GtkSpinButton pertencem ao controle composto e são excluídos;
 controles invisíveis são ignorados. Não demonstra leitura do conteúdo do terminal.
 
@@ -101,3 +101,7 @@ A suíte Xvfb com GDK_SCALE=2 e GDK_DPI_SCALE=1.25 não simula escala fracionár
 | 125% | | | | |
 | 150% | | | | |
 | 200% | | | | |
+
+## Pacote instalado e atualização isolada
+
+O bundle default foi instalado em FLATPAK_USER_DIR de teste e atualizado para outro commit de exportação, preservando a fonte 17 com backend keyfile privado. [Evidência e limites](../reports/2026-11-13-desktop-acceptance.md). O payload da aplicação é o mesmo; lançador/dock e restauração em atualização entre versões ainda não foram aceitos no desktop.

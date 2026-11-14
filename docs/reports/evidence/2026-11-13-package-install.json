@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-13",
+  "app_id": "thiago.aciole.Termac",
+  "installation": "isolated FLATPAK_USER_DIR; no personal installation modified",
+  "artifact": "build/termac-0.1.0-x86_64.flatpak",
+  "artifact_bytes": 5545624,
+  "artifact_sha256": "734924b5f00b224825863a95043eff44cf4bce28a10520c9111776f6ce2f8f81",
+  "commit_installed": "d79160f056e35453ed2d7b31726cc7064a94e5e5610eecc4702d031d4ff9ff46",
+  "commit_after_update": "26bcad95e440124f72379606b407ee5eeb02aac045cd2c9d5bc77f6daf4e6647",
+  "font_before_update": 17,
+  "font_after_update": 17,
+  "settings_backend": "keyfile in private config directory",
+  "scope": "Real install/update transaction with same application payload; no public release or desktop launcher acceptance"
+}

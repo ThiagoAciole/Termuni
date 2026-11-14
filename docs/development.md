@@ -100,3 +100,5 @@ python3 tools/benchmark.py --samples 3 --lines 3000 --output build/benchmark.jso
 ```
 
 São 1/5/10 abas, arquivos de saída completos conferidos, busca, resize, CPU ociosa e RSS do frontend. O JSON descreve o ambiente e os tempos do driver. Cairo/Xvfb não mede aceleração GPU ou latência física Wayland. Não execute a matriz junto de builds pesados se quiser comparar desempenho.
+
+Para verificar também a leitura e geração de texto pelo Orca instalado (testado com 51.0), acrescentar `--orca` a `tests/check-accessible-atspi.py`. Não reproduz áudio. O runner sempre cria Xvfb próprio, mesmo com DISPLAY herdado.

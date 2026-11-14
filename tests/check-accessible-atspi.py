@@ -20,7 +20,7 @@ def wait(predicate, seconds=8):
     raise AssertionError("Timed out waiting for private AT-SPI fixture")
 
 
-def probe(root):
+def probe(root, with_orca=False):
     import gi
     gi.require_version('Atspi', '2.0')
     from gi.repository import Atspi, GLib
@@ -53,6 +53,15 @@ def probe(root):
     assert Atspi.Text.get_n_selections(text) == 1
     selection = Atspi.Text.get_selection(text, 0)
     assert (selection.start_offset, selection.end_offset) == (0, 9)
+    orca_speech = None
+    if with_orca:
+        from orca.ax_text import AXText
+        from orca import script_manager, speech_presenter
+        assert AXText.get_all_text(terminal).startswith(expected)
+        assert AXText.get_caret_offset(terminal) == 9
+        script = script_manager.get_manager().get_script(terminal.get_application(), terminal)
+        orca_speech = speech_presenter.get_presenter().generate_speech_string(script, terminal)
+        assert 'ATSPITERM' in orca_speech, orca_speech
     events = []
     def changed(event, *unused):
         events.append(event.type)
@@ -78,7 +87,8 @@ def probe(root):
     (root / 'quit').touch()
     print(json.dumps({'text': expected, 'caret_before': 9, 'caret_after': 11,
                       'selection_before': [0, 9], 'selection_after': [],
-                      'events': events}, ensure_ascii=False))
+                      'events': events, 'display': os.environ.get('DISPLAY'),
+                      'orca_generated_speech': orca_speech}, ensure_ascii=False))
 
 
 def main():
@@ -86,13 +96,17 @@ def main():
     parser.add_argument('--binary', type=Path, default=Path('build/tests/test-ui'))
     parser.add_argument('--dbus-daemon', default=shutil.which('dbus-daemon'))
     parser.add_argument('--probe', type=Path)
+    parser.add_argument('--orca', action='store_true', help='Check installed Orca readers and speech generation; no audio playback')
+    parser.add_argument('--in-xvfb', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.probe:
-        probe(args.probe)
+        probe(args.probe, args.orca)
         return 0
-    if not os.environ.get('DISPLAY'):
+    # Never reuse an inherited desktop/Xwayland display for this fixture.
+    if not args.in_xvfb:
         return subprocess.call(['xvfb-run', '-a', sys.executable, str(Path(__file__).resolve()),
-                                '--binary', str(args.binary.resolve()), '--dbus-daemon', args.dbus_daemon or ''])
+                                '--in-xvfb', '--binary', str(args.binary.resolve()),
+                                '--dbus-daemon', args.dbus_daemon or ''] + (['--orca'] if args.orca else []))
     if not args.dbus_daemon:
         print('SKIP: dbus-daemon unavailable; provide --dbus-daemon PATH')
         return 77
@@ -138,8 +152,10 @@ def main():
             env['AT_SPI_BUS_ADDRESS'] = start(command, 'a11y-bus', True)
             start([registry], 'registry')
             app = start([str(args.binary.resolve()), '-p', '/ui/accessible-text-atspi-fixture'], 'application')
-            subprocess.run([sys.executable, str(Path(__file__).resolve()), '--probe', str(root)],
-                           env=env, check=True, timeout=25)
+            probe_command = [sys.executable, str(Path(__file__).resolve()), '--probe', str(root)]
+            if args.orca:
+                probe_command.append('--orca')
+            subprocess.run(probe_command, env=env, check=True, timeout=25)
             assert app.wait(timeout=8) == 0
         except BaseException:
             for log in logs:

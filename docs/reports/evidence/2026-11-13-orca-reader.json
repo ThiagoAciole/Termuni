@@ -1,0 +1,20 @@
+{
+  "text": "ATSPITERM 日本 é 👩‍💻",
+  "caret_before": 9,
+  "caret_after": 11,
+  "selection_before": [
+    0,
+    9
+  ],
+  "selection_after": [],
+  "events": [
+    "object:text-changed:delete",
+    "object:text-changed:insert",
+    "object:text-caret-moved",
+    "object:text-selection-changed"
+  ],
+  "display": ":110",
+  "orca_generated_speech": "ATSPITERM 日本 é 👩‍💻",
+  "orca_version": "51.0",
+  "scope": "Private Xvfb/D-Bus; actual Orca readers and speech generation, no audio playback or physical keyboard navigation"
+}
