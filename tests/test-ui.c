@@ -355,35 +355,52 @@ test_tab_churn (void)
 	g_assert_cmpuint (tab_count (window), ==, 1);
 }
 
+/* Each load/input scenario owns its shell, including when selected with -p. */
+static TermacWindow *
+fresh_test_window (void)
+{
+	TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+
+	gtk_window_present (GTK_WINDOW (window));
+	pump (700);
+	return window;
+}
+
 static void
 test_typing_and_interrupt (void)
 {
-	TermacWindow *window = main_window ();
-	TermacTerminal *terminal;
+	TermacWindow *window = fresh_test_window ();
+	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	g_autofree char *status = g_build_filename (g_get_user_state_dir (), "interrupt-status", NULL);
+	g_autofree char *quoted = g_shell_quote (status);
+	g_autofree char *command = g_strdup_printf ("printf '%%s' $? > %s; printf 'after-%%s\\n' interrupt", quoted);
+	g_autofree char *actual = NULL;
 
-	g_assert_nonnull (window);
-	terminal = find_terminal (GTK_WIDGET (window));
 	g_assert_nonnull (terminal);
-	focus_terminal (GTK_WIDGET (window), GTK_WIDGET (terminal));
-
-	type_text ("echo termac-ok");
-	send_keysym (XK_Return, FALSE);
-	pump (800);
+	/* Neither expected result is present literally in the echoed input. */
+	run_in_terminal (window, terminal, "printf 'termac-%s\\n' executed");
+	g_assert_true (wait_for_screen (terminal, "termac-executed", 4000));
 	save_widget_png (GTK_WIDGET (window), "typed.png");
 
-	type_text ("sleep 30");
-	send_keysym (XK_Return, FALSE);
-	pump (1500);
+	run_in_terminal (window, terminal, "sleep 30");
+	pump (1000);
 	g_assert_true (termac_terminal_has_foreground_job (terminal));
-
 	send_keysym (XK_c, TRUE);
 	pump (200);
 	g_assert_true (termac_terminal_has_foreground_job (terminal));
+	g_assert_false (g_file_test (status, G_FILE_TEST_EXISTS));
 
 	send_keysym (XK_c, TRUE);
-	pump (2000);
-	g_assert_false (termac_terminal_has_foreground_job (terminal));
+	g_assert_true (wait_for_job_end (terminal, 5000));
+	run_in_terminal (window, terminal, command);
+	g_assert_true (wait_for_screen (terminal, "after-interrupt", 4000));
+	g_assert_true (g_file_get_contents (status, &actual, NULL, NULL));
+	g_assert_cmpstr (actual, ==, "130");
+	g_test_message ("sleep interrupted with status 130; subsequent command executed");
 	save_widget_png (GTK_WIDGET (window), "interrupted.png");
+	g_unlink (status);
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 /* Finds the first widget of a GType in the tree below root. */
@@ -718,27 +735,39 @@ resident_memory_kb (void)
 	return line != NULL ? (gsize) g_ascii_strtoull (line + 6, NULL, 10) : 0;
 }
 
-/* A long output must not stall the window: the prompt comes back. */
+/* tee records every line produced by the real seq; the viewport and a second
+ * command establish that the PTY drained and the shell accepts further input. */
 static void
 test_large_output (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
-	gint64 end;
+	g_autofree char *output = g_build_filename (g_get_user_state_dir (), "seq-output", NULL);
+	g_autofree char *quoted = g_shell_quote (output);
+	g_autofree char *command = g_strdup_printf (
+	    "set -o pipefail; seq 1 30000 | tee %s; printf 'load-%%s:%%s\\n' complete $?", quoted);
+	g_autofree char *actual = NULL;
+	GString *expected = g_string_new (NULL);
 
 	g_assert_nonnull (terminal);
-	focus_terminal (GTK_WIDGET (window), GTK_WIDGET (terminal));
-	type_text ("seq 1 30000");
-	send_keysym (XK_Return, FALSE);
-	end = g_get_monotonic_time () + 20 * G_USEC_PER_SEC;
-	pump (1000);
-	while (termac_terminal_has_foreground_job (terminal) && g_get_monotonic_time () < end)
-		pump (200);
-	g_assert_false (termac_terminal_has_foreground_job (terminal));
-	type_text ("echo after-output");
-	send_keysym (XK_Return, FALSE);
-	pump (800);
+	run_in_terminal (window, terminal, command);
+	g_assert_true (wait_for_screen (terminal, "load-complete:0", 30000));
+	g_assert_true (wait_for_job_end (terminal, 3000));
+	g_assert_true (screen_contains (terminal, "29999\n30000\n"));
+	g_assert_true (g_file_get_contents (output, &actual, NULL, NULL));
+	for (guint i = 1; i <= 30000; i++)
+		g_string_append_printf (expected, "%u\n", i);
+	g_assert_cmpstr (actual, ==, expected->str);
+	g_test_message ("seq 1 30000: exact %u lines / %zu bytes; pipeline status 0 and PTY tail verified",
+	                30000, expected->len);
+	g_string_free (expected, TRUE);
+	run_in_terminal (window, terminal, "printf 'after-%s\\n' output");
+	g_assert_true (wait_for_screen (terminal, "after-output", 4000));
+	g_assert_true (wait_for_job_end (terminal, 3000));
 	save_widget_png (GTK_WIDGET (window), "large-output.png");
+	g_unlink (output);
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 /* A full-screen program (less) uses the alternate screen and gives it back on exit. */
@@ -1025,12 +1054,11 @@ static void
 report_cwd (TermacWindow *window, TermacTerminal *terminal, const char *dir)
 {
 	g_autofree char *command = g_strdup_printf ("printf '\\033]7;file://%s\\a'", dir);
+	gint64 start = g_get_monotonic_time ();
 
 	run_in_terminal (window, terminal, command);
 	while (g_strcmp0 (termac_terminal_get_cwd (terminal), dir) != 0)
 	{
-		gint64 start = g_get_monotonic_time ();
-
 		pump (100);
 		if (g_get_monotonic_time () - start > 5000000)
 			break;
@@ -1516,6 +1544,7 @@ test_attachment_sequence (void)
 	GdkFileList *list;
 	GPtrArray *buttons = g_ptr_array_new ();
 	GtkWindow *preferences;
+	GtkWidget *stack;
 	gsize before;
 	guint i;
 
@@ -1561,6 +1590,12 @@ test_attachment_sequence (void)
 	pump (800);
 	preferences = find_preferences_window ();
 	g_assert_nonnull (preferences);
+
+	stack = find_widget_of_type (GTK_WIDGET (preferences), ADW_TYPE_VIEW_STACK);
+	g_assert_nonnull (stack);
+	adw_view_stack_set_visible_child_name (ADW_VIEW_STACK (stack), "attachments");
+	pump (300);
+	g_assert_cmpstr (adw_view_stack_get_visible_child_name (ADW_VIEW_STACK (stack)), ==, "attachments");
 
 	/* The list shows a copy and a remove button per attachment; only "Remove" deletes. */
 	collect_buttons_with_data (GTK_WIDGET (preferences), "termac-path", buttons);
@@ -1699,7 +1734,7 @@ test_terminal_shortcut_rebind (void)
 static void
 test_select_all_shortcut (void)
 {
-	TermacWindow *window = main_window ();
+	TermacWindow *window = fresh_test_window ();
 	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	g_auto (GStrv) accels = NULL;
 
@@ -1717,6 +1752,8 @@ test_select_all_shortcut (void)
 	send_keysym (XK_x, FALSE);
 	pump (300);
 	g_assert_false (termac_terminal_copy (terminal));
+	gtk_window_destroy (GTK_WINDOW (window));
+	pump (200);
 }
 
 /* Ctrl+Shift+C and Ctrl+Shift+V are editable actions, with their usual keys by default. */

@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Builds Termac and starts the development build.
-#
-#   tools/dev.sh            build and start (does nothing if already running)
-#   tools/dev.sh --restart  build, stop the running instance, and start again
-#
-# Stopping the running instance closes its shell and tabs.
+# Builds and starts this checkout's development executable.
+# --restart closes only this executable's shells and tabs (never other roots).
 set -euo pipefail
 
 root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
@@ -19,24 +15,59 @@ case "${1:-}" in
 	*) echo "usage: $0 [--restart]" >&2; exit 2 ;;
 esac
 
+# Serialize two invocations without holding the lock in the launched app.
+exec 9>"$root/.termac-dev.lock"
+flock -n 9 || { echo "Another development launch is in progress for $root" >&2; exit 1; }
+
 if [ ! -d "$build" ]; then
 	meson setup "$build" "$root" -Dprofile=development
 fi
+# Refuse a default-profile build before compiling or signalling any process.
+if ! grep -qxF '#define APPLICATION_ID "thiago.aciole.Termac.Devel"' "$build/config.h"; then
+	echo "Refusing to launch/restart: $build is not a development-profile build." >&2
+	exit 1
+fi
 meson compile -C "$build"
 
-if pgrep -x termac >/dev/null; then
+matches_binary() {
+	local target
+	target="$(readlink "/proc/$1/exe" 2>/dev/null)" || return 1
+	# A running inode may have been replaced by the build above.
+	[[ "$target" == "$binary" || "$target" == "$binary (deleted)" ]]
+}
+matching_pids() {
+	local process pid name
+	for process in /proc/[0-9]*; do
+		pid="${process##*/}"
+		# Cheap candidate filter; executable identity below decides the scope.
+		IFS= read -r name < "$process/comm" 2>/dev/null || continue
+		[[ "$name" == termac ]] || continue
+		if matches_binary "$pid"; then printf '%s\n' "$pid"; fi
+	done
+}
+
+mapfile -t pids < <(matching_pids)
+if [ "${#pids[@]}" -gt 0 ]; then
 	if [ "$restart" -eq 0 ]; then
-		echo "Termac is already running; use --restart to start the new build." >&2
+		echo "Development binary $binary is already running (PID: ${pids[*]}); use --restart." >&2
 		exit 0
 	fi
-	pkill -x termac || true
-	for _ in $(seq 1 50); do
-		pgrep -x termac >/dev/null || break
+	echo "Restarting $binary (PID: ${pids[*]}): its shells and tabs will close." >&2
+	for pid in "${pids[@]}"; do
+		# Recheck identity immediately before signalling; exited/reused PIDs are ignored.
+		if matches_binary "$pid"; then kill -TERM "$pid"; fi
+	done
+	for ((attempt = 0; attempt < 50; attempt++)); do
+		mapfile -t pids < <(matching_pids)
+		[ "${#pids[@]}" -eq 0 ] && break
 		sleep 0.1
 	done
+	if [ "${#pids[@]}" -gt 0 ]; then
+		echo "Development instance did not stop (PID: ${pids[*]}); refusing to start a duplicate." >&2
+		exit 1
+	fi
 fi
 
-# Compile the translations into the build directory for the development build.
 locale_dir="$build/locale"
 while read -r lang; do
 	case "$lang" in ''|\#*) continue ;; esac
@@ -45,5 +76,12 @@ while read -r lang; do
 done < "$root/po/LINGUAS"
 
 mkdir -p "$(dirname "$log")"
-TERMAC_LOCALEDIR="$locale_dir" setsid "$binary" >"$log" 2>&1 < /dev/null &
-echo "Termac dev started (log: $log)"
+TERMAC_LOCALEDIR="$locale_dir" setsid "$binary" 9>&- >"$log" 2>&1 < /dev/null &
+pid=$!
+# Detect startup errors and single-instance handoff instead of claiming success.
+sleep 0.5
+if ! matches_binary "$pid"; then
+	echo "Development binary exited during startup; inspect $log" >&2
+	exit 1
+fi
+echo "Termac dev started (PID: $pid, executable: $binary, log: $log)"

@@ -4,7 +4,7 @@ Executar a partir da raiz. Build, perfis e suíte padrão estão em [docs/develo
 
 | Ferramenta | Uso | Efeito / limite |
 | --- | --- | --- |
-| `dev.sh` | Compilar e abrir desenvolvimento, com traduções locais | Evita nova instância se já houver Termac; `--restart` encerra shells e abas existentes. Não executar esse modo sem informar antes. |
+| `dev.sh` | Compilar e abrir desenvolvimento, com traduções locais | Verifica o executável development desta raiz em `/proc`, preservando outros perfis/checkouts; `--restart` avisa os PIDs e encerra somente suas sessões. Recusa perfil default, partida falha e duplicação após timeout. Não executar esse modo sem informar antes. |
 | `inspect_termac.py --root . --json` | Inventário heurístico do frontend e versões locais | Somente leitura. Ignora builds/caches e Ghostty baixado, mas mantém a integração `subprojects/packagefiles/ghostty`. Não comprova ABI/linkagem nem suporte a funcionalidades do motor. |
 | `prepare-icon.py INPUT OUTPUT` | Gerar canvas quadrado para instalação | Chamado pelo Meson; não sobrescrever o SVG fonte. |
 | `check-agent-boundary.py src` | Detectar nomes de CLIs fora dos adaptadores | Já integra `meson test` como `agent-names-contained`. |

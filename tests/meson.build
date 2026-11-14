@@ -72,3 +72,7 @@ test('agent', test_agent)
 test('agent-names-contained', find_program('python3'),
   args: [files('../tools/check-agent-boundary.py'), meson.project_source_root() / 'src'],
 )
+
+test('dev-tool-isolation', find_program('python3'),
+  args: files('test-dev-tool.py'), timeout: 30,
+)

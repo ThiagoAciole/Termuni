@@ -32,7 +32,7 @@ meson setup build-default -Dprofile=default
 meson compile -C build-default
 ```
 
-`tools/dev.sh` compila e inicia somente se não houver processo Termac. Carrega traduções locais e grava log em `~/.cache/termac/dev.log` (ou `TERMAC_DEV_LOG`). **`--restart` encerra shells/abas existentes**; informe o usuário antes de usá-lo. Não use `G_DEBUG=fatal-warnings` para manter o app pessoal aberto.
+`tools/dev.sh` compila e inicia somente se o executável development desta raiz ainda não estiver aberto. Confere o perfil e a identidade em `/proc/PID/exe`, preservando instâncias de outros checkouts/perfis. Carrega traduções locais e grava log em `~/.cache/termac/dev.log` (ou `TERMAC_DEV_LOG`). **`--restart` informa os PIDs e encerra somente os shells/abas desse executável**; informe o usuário antes de usá-lo. Não use `G_DEBUG=fatal-warnings` para manter o app pessoal aberto.
 
 ## Testes e evidência
 
