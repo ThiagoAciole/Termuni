@@ -21,8 +21,10 @@
 #include "config.h"
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
+#include <sys/stat.h>
 
 #include "termac-application.h"
+#include "termac-session-store.h"
 #include "termac-settings.h"
 #include "termac-attachments.h"
 #include "termac-window.h"
@@ -35,6 +37,7 @@ struct _TermacApplication
 	gboolean css_loaded;
 	gboolean session_frozen;
 	guint session_save_source;
+	TermacSessionStore *session_store;
 };
 
 G_DEFINE_FINAL_TYPE (TermacApplication, termac_application, ADW_TYPE_APPLICATION)
@@ -62,37 +65,21 @@ session_file_path_v2 (void)
 	return g_build_filename (g_get_user_state_dir (), "termac", TERMAC_SESSION_FILE_V2, NULL);
 }
 
-/* Stores the sessions in the current file. Takes ownership of sessions. */
+/* Migration happens before restoring any windows or scheduling writes. */
 static gboolean
 write_session_file (GVariant *sessions)
 {
-	g_autofree char *dir = g_build_filename (g_get_user_state_dir (), "termac", NULL);
 	g_autofree char *path = session_file_path ();
-	g_autofree guint8 *buffer = NULL;
-	gsize size;
-	gboolean written = FALSE;
-
-	size = g_variant_get_size (sessions);
-	/* An empty session has zero serialized bytes, but g_variant_store still
-	 * requires a non-NULL destination. g_malloc (0) would return NULL. */
-	buffer = g_malloc (MAX (size, (gsize) 1));
-	g_variant_store (sessions, buffer);
-	g_variant_unref (sessions);
-	if (g_mkdir_with_parents (dir, 0700) != 0)
-		return FALSE;
-	/* GLib provides consistent replacement for existing files. Keep v2 as
-	 * recovery data; first-creation durability is tracked separately. */
-	written = g_file_set_contents (path, (const char *) buffer, (gssize) size, NULL);
-	if (!written)
-		g_warning ("Could not save the session");
-	return written;
+	g_autoptr(GVariant) owned = g_variant_take_ref (sessions);
+	g_autoptr(GBytes) bytes = g_variant_get_data_as_bytes (owned);
+	return termac_session_store_write (path, bytes);
 }
 
 /* Writes the tabs of every window that still exists. Each window is stored
  * as (selected index, width, height, maximized, tabs); an empty list is saved
  * as an empty session. */
-void
-termac_application_save_session_now (TermacApplication *self)
+static void
+save_session (TermacApplication *self, gboolean flush)
 {
 	GVariantBuilder builder;
 	GList *windows;
@@ -127,7 +114,24 @@ termac_application_save_session_now (TermacApplication *self)
 		                       tabs);
 	}
 	sessions = g_variant_builder_end (&builder);
-	write_session_file (sessions);
+	{
+		g_autoptr(GVariant) snapshot = g_variant_ref_sink (sessions);
+		g_autoptr(GBytes) bytes = g_variant_get_data_as_bytes (snapshot);
+		if (self->session_store == NULL)
+		{
+			g_autofree char *path = session_file_path ();
+			self->session_store = termac_session_store_new (path);
+		}
+		termac_session_store_save (self->session_store, bytes, flush);
+	}
+}
+
+/* Explicit checkpoint: disk attempt finished on return, including older writes.
+ * This synchronous API is reserved for explicit saves and application quit. */
+void
+termac_application_save_session_now (TermacApplication *self)
+{
+	save_session (self, TRUE);
 }
 
 static gboolean
@@ -136,7 +140,7 @@ session_save_timeout (gpointer user_data)
 	TermacApplication *self = TERMAC_APPLICATION (user_data);
 
 	self->session_save_source = 0;
-	termac_application_save_session_now (self);
+	save_session (self, FALSE);
 	return G_SOURCE_REMOVE;
 }
 
@@ -147,7 +151,7 @@ termac_application_window_closing (TermacApplication *self)
 {
 	g_return_if_fail (TERMAC_IS_APPLICATION (self));
 	if (!self->session_frozen)
-		termac_application_save_session_now (self);
+		save_session (self, FALSE);
 }
 
 /* Called after each change in tabs, folders or titles. Saves shortly after
@@ -221,7 +225,15 @@ load_sessions (void)
 	GVariant *sessions;
 
 	if (!g_file_get_contents (path, &contents, &length, NULL))
+	{
+		GStatBuf existing;
+		/* A current file that cannot be read is still authoritative. Importing
+		 * an older v2 here could replace newer user data. A directory is not a
+		 * session file and remains a recoverable migration-write error. */
+		if (g_lstat (path, &existing) == 0 && !S_ISDIR (existing.st_mode))
+			return NULL;
 		return migrate_v2_session ();
+	}
 	bytes = g_bytes_new (contents, length);
 	sessions = g_variant_new_from_bytes (G_VARIANT_TYPE (TERMAC_SESSION_TYPE), bytes, FALSE);
 	g_bytes_unref (bytes);
@@ -344,6 +356,22 @@ termac_application_activate (GApplication *app)
 	gtk_window_present (window);
 }
 
+/* No cancellation during normal shutdown: finish the latest snapshot before
+ * returning from g_application_run, even if another owner retains the app. */
+static void
+termac_application_shutdown (GApplication *application)
+{
+	TermacApplication *self = TERMAC_APPLICATION (application);
+	self->session_frozen = TRUE;
+	if (self->session_save_source != 0)
+	{
+		g_source_remove (self->session_save_source);
+		self->session_save_source = 0;
+	}
+	termac_session_store_free (g_steal_pointer (&self->session_store));
+	G_APPLICATION_CLASS (termac_application_parent_class)->shutdown (application);
+}
+
 static void
 termac_application_class_init (TermacApplicationClass *klass)
 {
@@ -351,6 +379,7 @@ termac_application_class_init (TermacApplicationClass *klass)
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
 	app_class->activate = termac_application_activate;
+	app_class->shutdown = termac_application_shutdown;
 	object_class->finalize = termac_application_finalize;
 }
 
@@ -1445,6 +1474,7 @@ termac_application_finalize (GObject *object)
 		g_source_remove (self->session_save_source);
 		self->session_save_source = 0;
 	}
+	termac_session_store_free (self->session_store);
 	g_clear_object (&self->settings);
 	G_OBJECT_CLASS (termac_application_parent_class)->finalize (object);
 }

@@ -22,6 +22,7 @@ test('attachments', test_attachments)
 ui_sources = [
   'test-ui.c',
   '../src/termac-application.c',
+  '../src/termac-session-store.c',
   '../src/termac-settings.c',
   '../src/termac-window.c',
   '../src/termac-terminal.c',
@@ -76,3 +77,10 @@ test('agent-names-contained', find_program('python3'),
 test('dev-tool-isolation', find_program('python3'),
   args: files('test-dev-tool.py'), timeout: 30,
 )
+test_session_store = executable('test-session-store',
+  ['test-session-store.c', '../src/termac-session-store.c'],
+  dependencies: dependency('gio-2.0'),
+  include_directories: include_directories('../src'),
+  link_args: ['-Wl,--wrap=g_file_set_contents_full'],
+)
+test('session-store', test_session_store, timeout: 30)

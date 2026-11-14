@@ -2710,6 +2710,7 @@ test_save_empty_session (void)
 }
 
 #include "lifecycle.inc"
+#include "session-process.inc"
 
 int
 main (int argc, char **argv)
@@ -2717,7 +2718,9 @@ main (int argc, char **argv)
 	g_autofree char *root = NULL;
 
 	g_setenv ("LANGUAGE", "C", TRUE);
-	if (g_getenv ("TERMAC_TEST_CACHE_DIR") != NULL)
+	if (g_getenv ("TERMAC_SESSION_PROCESS_ROOT") != NULL)
+		root = g_strdup (g_getenv ("TERMAC_SESSION_PROCESS_ROOT"));
+	else if (g_getenv ("TERMAC_TEST_CACHE_DIR") != NULL)
 	{
 		/* The QA driver binds only its private temporary directory at the
 		 * same path on both sides, so host rc files and images are visible. */
@@ -2750,6 +2753,14 @@ main (int argc, char **argv)
 	app = termac_application_new (APPLICATION_ID, G_APPLICATION_NON_UNIQUE);
 	g_application_register (G_APPLICATION (app), NULL, NULL);
 
+	if (g_getenv ("TERMAC_SESSION_PROCESS_MODE") != NULL)
+	{
+		int status;
+		g_idle_add (session_process_child, (gpointer) g_getenv ("TERMAC_SESSION_PROCESS_MODE"));
+		status = g_application_run (G_APPLICATION (app), 0, NULL);
+		g_object_unref (app);
+		return status;
+	}
 	g_test_init (&argc, &argv, NULL);
 	/* g_test_init makes warnings fatal; criticals stay fatal, GTK warnings from the
 	 * virtual keyboard layout are reported but do not stop the run. */
@@ -2803,6 +2814,7 @@ main (int argc, char **argv)
  g_test_add_func ("/ui/search-current-match", test_search_current_match);
 	g_test_add_func ("/ui/session-migration-write-failure", test_session_migration_write_failure);
 	g_test_add_func ("/ui/save-empty-session", test_save_empty_session);
+	g_test_add_func ("/ui/session-cross-process-restart", test_session_cross_process_restart);
 	g_test_add_func ("/ui/truecolor-unicode-render", test_truecolor_unicode_render);
 	g_test_add_func ("/ui/modern-tui", test_modern_tui);
 	g_test_add_func ("/ui/async-child-close", test_async_child_close);

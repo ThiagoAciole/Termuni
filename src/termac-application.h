@@ -36,10 +36,11 @@ TermacApplication *termac_application_new (const char        *application_id,
 GSettings *termac_application_get_settings (TermacApplication *self);
 const TermacAgent *termac_application_get_agent (TermacApplication *self);
 
-/* Saves the tabs of a window so they can be restored at the next start. */
+/* Explicit synchronous checkpoint of all windows; waits for ordered disk I/O.
+ * Failures are logged and preserve the previous consistent file. */
 void termac_application_save_session_now (TermacApplication *self);
 
-/* Saves synchronously when a window closes, unless the app is quitting. */
+/* Queues an immutable snapshot when a window closes, unless quitting. */
 void termac_application_window_closing (TermacApplication *self);
 
 /* Schedules a save shortly after a change in tabs, folders or titles. */
