@@ -14,6 +14,27 @@ session_process_child (gpointer data)
 	pump (500);
 	window = main_window ();
 	g_assert_nonnull (window);
+	if (g_str_equal (mode, "resistant-quit"))
+	{
+		g_autofree char *script = g_build_filename (g_get_user_state_dir (), "resistant.py", NULL);
+		g_autofree char *pidfile = g_build_filename (g_get_user_state_dir (), "resistant.pid", NULL);
+		g_autofree char *quoted = g_shell_quote (script);
+		g_autofree char *command = g_strdup_printf ("exec python3 %s", quoted);
+		g_autofree char *program = g_strdup_printf (
+		    "import os,signal,time\nfrom pathlib import Path\n"
+		    "signal.signal(signal.SIGHUP, signal.SIG_IGN)\n"
+		    "Path(__file__).with_suffix('.pid').write_text(str(os.getpid()))\n"
+		    "while True: time.sleep(1)\n");
+		gint64 deadline = g_get_monotonic_time () + 5 * G_USEC_PER_SEC;
+		g_assert_true (g_file_set_contents (script, program, -1, NULL));
+		run_in_terminal (window, selected_terminal (window), command);
+		while (!g_file_test (pidfile, G_FILE_TEST_EXISTS) && g_get_monotonic_time () < deadline)
+			pump (50);
+		g_assert_true (g_file_test (pidfile, G_FILE_TEST_EXISTS));
+		g_settings_set_boolean (termac_application_get_settings (app), "confirm-close", FALSE);
+		g_action_group_activate_action (G_ACTION_GROUP (app), "quit", NULL);
+		return G_SOURCE_REMOVE;
+	}
 	if (g_str_equal (mode, "write"))
 	{
 		g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
@@ -139,4 +160,19 @@ test_session_cross_process_restart (void)
 		run_session_child (root, "migrate");
 		run_session_child (root, "read");
 	}
+}
+
+static void
+test_process_quit_reaps_resistant_child (void)
+{
+	g_autofree char *root = g_dir_make_tmp ("termac-quit-process-XXXXXX", NULL);
+	g_autofree char *pidfile = g_build_filename (root, "resistant.pid", NULL);
+	g_autofree char *contents = NULL;
+	pid_t pid;
+	run_session_child (root, "resistant-quit");
+	g_assert_true (g_file_get_contents (pidfile, &contents, NULL, NULL));
+	pid = (pid_t) g_ascii_strtoll (contents, NULL, 10);
+	g_assert_cmpint (pid, >, 1);
+	g_assert_cmpint (kill (pid, 0), ==, -1);
+	g_assert_cmpint (errno, ==, ESRCH);
 }

@@ -36,6 +36,8 @@ struct _TermacApplication
 	GSettings *settings;
 	gboolean css_loaded;
 	gboolean session_frozen;
+	gboolean quitting;
+	gboolean quit_dialog_pending;
 	guint session_save_source;
 	TermacSessionStore *session_store;
 };
@@ -325,6 +327,7 @@ termac_application_new (const char        *application_id,
 static void
 termac_application_activate (GApplication *app)
 {
+	if (TERMAC_APPLICATION (app)->quitting) return;
 	GtkWindow *window;
 
 	g_assert (TERMAC_IS_APPLICATION (app));
@@ -408,18 +411,65 @@ termac_application_about_action (GSimpleAction *action,
 }
 
 static void
-termac_application_quit_action (GSimpleAction *action,
-                                GVariant      *parameter,
-                                gpointer       user_data)
+application_finish_quit (TermacApplication *self)
 {
-	TermacApplication *self = user_data;
-
-	g_assert (TERMAC_IS_APPLICATION (self));
-
-	/* Closing the windows below must not overwrite the saved session. */
+	g_autoptr(GPtrArray) windows = g_ptr_array_new_with_free_func (g_object_unref);
+	if (self->quitting) return;
+	self->quitting = TRUE;
 	self->session_frozen = TRUE;
 	termac_application_save_session_now (self);
-	g_application_quit (G_APPLICATION (self));
+	for (GList *iter = gtk_application_get_windows (GTK_APPLICATION (self)); iter != NULL; iter = iter->next)
+		g_ptr_array_add (windows, g_object_ref (iter->data));
+	for (guint i = 0; i < windows->len; i++)
+		gtk_window_destroy (GTK_WINDOW (g_ptr_array_index (windows, i)));
+	/* Child reapers hold the application until escalation/reaping finishes.
+	 * Let the usage count end the main loop; forced quit would bypass holds. */
+}
+
+static void
+application_quit_response (GObject *source, GAsyncResult *result, gpointer data)
+{
+	TermacApplication *self = data;
+	self->quit_dialog_pending = FALSE;
+	if (g_strcmp0 (adw_alert_dialog_choose_finish (ADW_ALERT_DIALOG (source), result), "quit") == 0)
+		application_finish_quit (self);
+	g_object_unref (self);
+}
+
+static void
+termac_application_quit_action (GSimpleAction *action, GVariant *parameter, gpointer user_data)
+{
+	TermacApplication *self = user_data;
+	guint busy = 0;
+	GtkWindow *parent = gtk_application_get_active_window (GTK_APPLICATION (self));
+	GList *windows = gtk_application_get_windows (GTK_APPLICATION (self));
+	(void) action;
+	(void) parameter;
+	if (self->quitting || self->quit_dialog_pending) return;
+	if (self->settings == NULL || g_settings_get_boolean (self->settings, "confirm-close"))
+		for (GList *iter = windows; iter != NULL; iter = iter->next)
+			if (TERMAC_IS_WINDOW (iter->data))
+				busy += termac_window_busy_tabs (TERMAC_WINDOW (iter->data));
+	if (busy == 0)
+	{
+		application_finish_quit (self);
+		return;
+	}
+	if (parent == NULL && windows != NULL) parent = windows->data;
+	{
+		g_autofree char *body = g_strdup_printf (ngettext (
+		    "%u tab has a program running. Quitting Termac stops it.",
+		    "%u tabs have programs running. Quitting Termac stops them.", busy), busy);
+		AdwDialog *dialog = adw_alert_dialog_new (_("Quit Termac?"), body);
+		adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
+		    "cancel", _("Cancel"), "quit", _("Quit"), NULL);
+		adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "quit", ADW_RESPONSE_DESTRUCTIVE);
+		adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "cancel");
+		adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
+		self->quit_dialog_pending = TRUE;
+		adw_alert_dialog_choose (ADW_ALERT_DIALOG (dialog), GTK_WIDGET (parent), NULL,
+		    application_quit_response, g_object_ref (self));
+	}
 }
 
 static void

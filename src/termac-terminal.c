@@ -84,6 +84,8 @@ struct _TermacTerminal
 	uint16_t rows;
 	gboolean child_exited;
 	gboolean closing;
+	gboolean input_closed;
+	gboolean input_warning;
 	gboolean selecting;
 	guint mouse_button;
 	double pointer_x;
@@ -206,9 +208,13 @@ terminal_write_ready (gint         fd,
 {
 	TermacTerminal *self = user_data;
 	gsize written_total = 0;
+	gboolean failed = FALSE;
 
 	if (condition & (G_IO_ERR | G_IO_NVAL))
+	{
+		failed = TRUE;
 		goto done;
+	}
 
 	for (;;)
 	{
@@ -234,6 +240,7 @@ terminal_write_ready (gint         fd,
 				continue;
 			if (n < 0 && errno == EAGAIN)
 				return G_SOURCE_CONTINUE;
+			failed = TRUE;
 			goto done;
 		}
 	}
@@ -242,6 +249,16 @@ terminal_write_ready (gint         fd,
 		return G_SOURCE_CONTINUE;
 
 done:
+	if (failed && (self->write_queue->len > 0 || self->write_backlog->len > 0))
+	{
+		g_byte_array_set_size (self->write_queue, 0);
+		g_byte_array_set_size (self->write_backlog, 0);
+		if (!self->input_closed)
+			g_signal_emit (self, terminal_signals[SIGNAL_MESSAGE], 0,
+			    _("The terminal connection is closed. Open a new tab to continue."));
+		self->input_closed = TRUE;
+	}
+	if (self->write_queue->len == 0 && self->write_backlog->len == 0) self->input_warning = FALSE;
 	self->write_source = 0;
 	return G_SOURCE_REMOVE;
 }
@@ -251,13 +268,24 @@ terminal_queue_bytes (TermacTerminal *self,
                       const uint8_t  *bytes,
                       gsize           len)
 {
-	if (self->pty_fd < 0 || len == 0 || self->closing)
+	if (len == 0 || self->closing) return;
+	if (self->child_exited || self->input_closed)
+	{
+		if (!self->input_closed)
+			g_signal_emit (self, terminal_signals[SIGNAL_MESSAGE], 0,
+			    _("The terminal connection is closed. Open a new tab to continue."));
+		self->input_closed = TRUE;
 		return;
+	}
+	if (self->pty_fd < 0) return;
 	if (self->write_backlog->len > 0 || len > WRITE_QUEUE_LIMIT - self->write_queue->len)
 	{
 		if (len > WRITE_BACKLOG_LIMIT - self->write_backlog->len)
 		{
-			g_warning ("terminal input backlog reached its 256 MiB limit");
+			if (!self->input_warning)
+				g_signal_emit (self, terminal_signals[SIGNAL_MESSAGE], 0,
+				    _("The terminal input buffer is full. Wait for the program to read input, then try again."));
+			self->input_warning = TRUE;
 			return;
 		}
 		g_byte_array_append (self->write_backlog, bytes, (guint) len);
@@ -588,6 +616,7 @@ terminal_spawn (TermacTerminal *self)
 		else if (home_dir != NULL)
 			chdir (home_dir);
 		setenv ("TERM", "xterm-256color", 1);
+		setenv ("COLORTERM", "truecolor", 1);
 		execvp (shell_argv[0], shell_argv);
 		saved = errno;
 		{
@@ -627,6 +656,8 @@ terminal_spawn (TermacTerminal *self)
 		return FALSE;
 	}
 	self->child_exited = FALSE;
+	self->input_closed = FALSE;
+	self->input_warning = FALSE;
 	self->io_source = g_unix_fd_add (self->pty_fd,
 	                                 G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
 	                                 terminal_read_ready,

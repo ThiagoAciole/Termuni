@@ -279,6 +279,7 @@ termac_shell_command_argv (const char *shell, const char *cwd, const char *rcfil
 		g_ptr_array_add (args, g_strdup ("--directory=/"));
 		g_ptr_array_add (args, g_strdup_printf ("--env=TERMAC_HOST_CWD=%s", cwd));
 		g_ptr_array_add (args, g_strdup ("--env=TERM=xterm-256color"));
+		g_ptr_array_add (args, g_strdup ("--env=COLORTERM=truecolor"));
 		/* script allocates the controlling PTY on the host. A PTY created
 		 * in the sandbox cannot become the host shell's controlling TTY. */
 		g_ptr_array_add (args, g_strdup_printf ("--env=TERMAC_HOST_RCFILE=%s", rcfile != NULL ? rcfile : ""));

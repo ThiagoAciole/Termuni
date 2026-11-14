@@ -140,7 +140,7 @@ static void
 test_shell_argv (void)
 {
 	g_auto(GStrv) host = termac_shell_argv ("/usr/bin/bash", "/tmp/a b; echo injected", "/tmp/rc file", TRUE);
-	const char *expected[] = { "flatpak-spawn", "--host", "--watch-bus", "--directory=/", "--env=TERMAC_HOST_CWD=/tmp/a b; echo injected", "--env=TERM=xterm-256color", "--env=TERMAC_HOST_RCFILE=/tmp/rc file", "script", "-qefc", "cd -- \"$TERMAC_HOST_CWD\" 2>/dev/null || cd \"$HOME\" || exit; shell=${SHELL:-/bin/sh}; if [ \"${shell##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$shell\" --rcfile \"$TERMAC_HOST_RCFILE\" -i; else exec \"$shell\" -i; fi", "/dev/null", NULL };
+	const char *expected[] = { "flatpak-spawn", "--host", "--watch-bus", "--directory=/", "--env=TERMAC_HOST_CWD=/tmp/a b; echo injected", "--env=TERM=xterm-256color", "--env=COLORTERM=truecolor", "--env=TERMAC_HOST_RCFILE=/tmp/rc file", "script", "-qefc", "cd -- \"$TERMAC_HOST_CWD\" 2>/dev/null || cd \"$HOME\" || exit; shell=${SHELL:-/bin/sh}; if [ \"${shell##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$shell\" --rcfile \"$TERMAC_HOST_RCFILE\" -i; else exec \"$shell\" -i; fi", "/dev/null", NULL };
 	g_assert_true (g_strv_equal ((const char * const *) host, expected));
 	g_auto(GStrv) local = termac_shell_argv ("/bin/sh", "/tmp", NULL, FALSE);
 	const char *native[] = { "/bin/sh", "-i", NULL };
