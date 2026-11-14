@@ -66,4 +66,9 @@ typedef struct { guint row; guint column; guint cells; } TermacVtMatch;
 GArray *termac_vt_find_matches (GhosttyTerminal terminal, guint columns,
                                guint rows, const char *needle);
 
+/* Safe HTTP(S) textual/OSC8 link at a viewport cell; caller frees the URI.
+ * Bounds are cell columns, with last_column exclusive. */
+char *termac_vt_link_at (GhosttyTerminal terminal, guint columns, guint row,
+                        guint column, guint *first_column, guint *last_column);
+
 G_END_DECLS

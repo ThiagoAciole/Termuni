@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "termac-vt.h"
+#include "termac-util.h"
 
 #include <string.h>
 
@@ -348,6 +349,161 @@ termac_vt_find (GhosttyTerminal terminal, const char *needle, gboolean backwards
 	return termac_vt_find_target (terminal, needle, backwards, NULL, NULL);
 }
 
+/* One byte-to-cell map is shared by search and link hit testing. It reads grid
+ * references only, preserving the dirty flags of the authoritative renderer. */
+static void
+viewport_row_map (GhosttyTerminal terminal, guint columns, guint row,
+                  gboolean casefold, GString *text, GArray *starts, GArray *ends)
+{
+	g_autoptr(GString) cluster = g_string_new (NULL);
+	for (guint column = 0; column < columns; column++)
+	{
+		GhosttyGridRef ref = GHOSTTY_INIT_SIZED (GhosttyGridRef);
+		GhosttyCell raw;
+		GhosttyCellWide wide = GHOSTTY_CELL_WIDE_NARROW;
+		uint32_t local[32], *codepoints = local;
+		size_t length = 0;
+		GhosttyResult result;
+		g_autofree uint32_t *extra = NULL;
+		g_autofree char *value = NULL;
+		guint end;
+
+		if (!viewport_ref (terminal, column, row, &ref) ||
+		    ghostty_grid_ref_cell (&ref, &raw) != GHOSTTY_SUCCESS ||
+		    ghostty_cell_get (raw, GHOSTTY_CELL_DATA_WIDE, &wide) != GHOSTTY_SUCCESS)
+			break;
+		if (wide == GHOSTTY_CELL_WIDE_SPACER_TAIL || wide == GHOSTTY_CELL_WIDE_SPACER_HEAD)
+			continue;
+		result = ghostty_grid_ref_graphemes (&ref, local, G_N_ELEMENTS (local), &length);
+		if (result == GHOSTTY_OUT_OF_SPACE)
+		{
+			extra = g_new (uint32_t, length);
+			codepoints = extra;
+			result = ghostty_grid_ref_graphemes (&ref, codepoints, length, &length);
+		}
+		if (result != GHOSTTY_SUCCESS)
+			break;
+		g_string_truncate (cluster, 0);
+		for (size_t i = 0; i < length; i++)
+			g_string_append_unichar (cluster, codepoints[i]);
+		if (length == 0)
+			g_string_append_c (cluster, ' ');
+		value = casefold ? g_utf8_casefold (cluster->str, cluster->len) : g_strdup (cluster->str);
+		end = MIN (column + (wide == GHOSTTY_CELL_WIDE_WIDE ? 2 : 1), columns);
+		for (gsize i = 0, bytes = strlen (value); i < bytes; i++)
+		{
+			g_array_append_val (starts, column);
+			g_array_append_val (ends, end);
+		}
+		g_string_append (text, value);
+	}
+}
+
+static char *
+cell_hyperlink (GhosttyTerminal terminal, guint row, guint column)
+{
+	GhosttyGridRef ref = GHOSTTY_INIT_SIZED (GhosttyGridRef);
+	GhosttyCell cell;
+	GhosttyCellWide wide;
+	char local[256];
+	size_t length = 0;
+	GhosttyResult result;
+	g_autofree char *large = NULL;
+	char *buffer = local;
+
+	if (!viewport_ref (terminal, column, row, &ref))
+		return NULL;
+	if (column > 0 && ghostty_grid_ref_cell (&ref, &cell) == GHOSTTY_SUCCESS &&
+	    ghostty_cell_get (cell, GHOSTTY_CELL_DATA_WIDE, &wide) == GHOSTTY_SUCCESS &&
+	    wide == GHOSTTY_CELL_WIDE_SPACER_TAIL)
+		viewport_ref (terminal, column - 1, row, &ref);
+	result = ghostty_grid_ref_hyperlink_uri (&ref, (uint8_t *) local, sizeof local, &length);
+	if (length == 0 || length > 8192)
+		return NULL;
+	if (result == GHOSTTY_OUT_OF_SPACE)
+	{
+		large = g_malloc (length);
+		buffer = large;
+		result = ghostty_grid_ref_hyperlink_uri (&ref, (uint8_t *) buffer, length, &length);
+	}
+	return result == GHOSTTY_SUCCESS ? g_strndup (buffer, length) : NULL;
+}
+
+static gboolean
+link_uri_allowed (const char *uri)
+{
+	g_autoptr(GUri) parsed = NULL;
+	const char *scheme;
+	if (!g_utf8_validate (uri, -1, NULL) || strlen (uri) > 8192)
+		return FALSE;
+	for (const char *p = uri; *p; p++)
+		if ((guchar) *p < 0x20 || *p == 0x7f)
+			return FALSE;
+	parsed = g_uri_parse (uri, G_URI_FLAGS_NONE, NULL);
+	if (parsed == NULL || g_uri_get_host (parsed) == NULL || *g_uri_get_host (parsed) == '\0')
+		return FALSE;
+	scheme = g_uri_get_scheme (parsed);
+	return scheme != NULL && (g_ascii_strcasecmp (scheme, "http") == 0 ||
+	                          g_ascii_strcasecmp (scheme, "https") == 0);
+}
+
+char *
+termac_vt_link_at (GhosttyTerminal terminal, guint columns, guint row, guint column,
+                   guint *first_column, guint *last_column)
+{
+	g_autofree char *uri = NULL;
+	g_autoptr(GString) text = NULL;
+	g_autoptr(GArray) starts = NULL;
+	g_autoptr(GArray) ends = NULL;
+	gsize first_byte = 0, last_byte = 0, hit_byte = 0;
+	gboolean hit = FALSE;
+
+	if (terminal == NULL || column >= columns)
+		return NULL;
+	uri = cell_hyperlink (terminal, row, column);
+	if (uri != NULL)
+	{
+		guint first = column, last = column + 1;
+		if (!link_uri_allowed (uri))
+			return NULL;
+		while (first > 0)
+		{
+			g_autofree char *other = cell_hyperlink (terminal, row, first - 1);
+			if (g_strcmp0 (other, uri) != 0) break;
+			first--;
+		}
+		while (last < columns)
+		{
+			g_autofree char *other = cell_hyperlink (terminal, row, last);
+			if (g_strcmp0 (other, uri) != 0) break;
+			last++;
+		}
+		if (first_column) *first_column = first;
+		if (last_column) *last_column = last;
+		return g_steal_pointer (&uri);
+	}
+	text = g_string_new (NULL);
+	starts = g_array_new (FALSE, FALSE, sizeof (guint));
+	ends = g_array_new (FALSE, FALSE, sizeof (guint));
+	viewport_row_map (terminal, columns, row, FALSE, text, starts, ends);
+	for (gsize i = 0; i < starts->len; i++)
+		if (column >= g_array_index (starts, guint, i) && column < g_array_index (ends, guint, i))
+		{
+			hit_byte = i;
+			hit = TRUE;
+			break;
+		}
+	if (!hit || !termac_url_span_at_column (text->str, g_utf8_strlen (text->str, hit_byte),
+	    &first_byte, &last_byte, NULL, NULL))
+		return NULL;
+	uri = g_strndup (text->str + first_byte, last_byte - first_byte);
+	if (!link_uri_allowed (uri))
+		return NULL;
+	if (first_column) *first_column = g_array_index (starts, guint, first_byte);
+	if (last_column) *last_column = g_array_index (ends, guint, last_byte - 1);
+	return g_steal_pointer (&uri);
+}
+
 /* Read the grid without updating a render state: Ghostty render updates
  * consume dirty flags owned by the terminal's persistent renderer. */
 GArray *
@@ -357,69 +513,23 @@ termac_vt_find_matches (GhosttyTerminal terminal, guint columns,
 	GArray *matches = g_array_new (FALSE, FALSE, sizeof (TermacVtMatch));
 	g_autofree char *query = NULL;
 	gboolean nonspace = FALSE;
-
 	if (terminal == NULL || needle == NULL || !g_utf8_validate (needle, -1, NULL))
 		return matches;
 	for (const char *p = needle; *p; p = g_utf8_next_char (p))
 		nonspace |= !g_unichar_isspace (g_utf8_get_char (p));
-	if (!nonspace)
-		return matches;
+	if (!nonspace) return matches;
 	query = g_utf8_casefold (needle, -1);
 	for (guint row = 0; row < rows; row++)
 	{
 		g_autoptr(GString) text = g_string_new (NULL);
-		g_autoptr(GString) cluster = g_string_new (NULL);
 		g_autoptr(GArray) starts = g_array_new (FALSE, FALSE, sizeof (guint));
 		g_autoptr(GArray) ends = g_array_new (FALSE, FALSE, sizeof (guint));
-
-		for (guint column = 0; column < columns; column++)
-		{
-			GhosttyGridRef ref = GHOSTTY_INIT_SIZED (GhosttyGridRef);
-			GhosttyCell raw;
-			GhosttyCellWide wide = GHOSTTY_CELL_WIDE_NARROW;
-			uint32_t local[32], *codepoints = local;
-			size_t length = 0;
-			GhosttyResult result;
-			g_autofree uint32_t *extra = NULL;
-			g_autofree char *folded = NULL;
-			gsize bytes;
-			guint end;
-
-			if (!viewport_ref (terminal, column, row, &ref) ||
-			    ghostty_grid_ref_cell (&ref, &raw) != GHOSTTY_SUCCESS ||
-			    ghostty_cell_get (raw, GHOSTTY_CELL_DATA_WIDE, &wide) != GHOSTTY_SUCCESS)
-				break;
-			if (wide == GHOSTTY_CELL_WIDE_SPACER_TAIL || wide == GHOSTTY_CELL_WIDE_SPACER_HEAD)
-				continue;
-			result = ghostty_grid_ref_graphemes (&ref, local, G_N_ELEMENTS (local), &length);
-			if (result == GHOSTTY_OUT_OF_SPACE)
-			{
-				extra = g_new (uint32_t, length);
-				codepoints = extra;
-				result = ghostty_grid_ref_graphemes (&ref, codepoints, length, &length);
-			}
-			if (result != GHOSTTY_SUCCESS)
-				break;
-			g_string_truncate (cluster, 0);
-			for (size_t i = 0; i < length; i++)
-				g_string_append_unichar (cluster, codepoints[i]);
-			folded = length ? g_utf8_casefold (cluster->str, cluster->len) : g_strdup (" ");
-			bytes = strlen (folded);
-			end = MIN (column + (wide == GHOSTTY_CELL_WIDE_WIDE ? 2 : 1), columns);
-			for (gsize i = 0; i < bytes; i++)
-			{
-				g_array_append_val (starts, column);
-				g_array_append_val (ends, end);
-			}
-			g_string_append (text, folded);
-		}
+		viewport_row_map (terminal, columns, row, TRUE, text, starts, ends);
 		for (const char *p = text->str; (p = strstr (p, query)) != NULL; p += strlen (query))
 		{
 			gsize start = p - text->str, last = start + strlen (query) - 1;
 			TermacVtMatch match = { row, g_array_index (starts, guint, start), 0 };
-
 			match.cells = g_array_index (ends, guint, last) - match.column;
-			/* Casefold expansion may otherwise report one cell twice. */
 			if (matches->len == 0 ||
 			    g_array_index (matches, TermacVtMatch, matches->len - 1).row != row ||
 			    g_array_index (matches, TermacVtMatch, matches->len - 1).column != match.column)

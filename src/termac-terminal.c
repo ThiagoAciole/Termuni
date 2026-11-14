@@ -1328,18 +1328,13 @@ terminal_open_url_at (TermacTerminal *self,
 {
 	guint column;
 	guint row;
-	g_autofree char *line = NULL;
-	gsize start = 0;
-	gsize end = 0;
+	g_autofree char *url = NULL;
 	GtkRoot *root;
 
 	terminal_cell_at (self, x, y, &column, &row);
-	if (!termac_vt_viewport_row_text (self->terminal, self->cols, row, &line))
-		return FALSE;
-	if (!termac_url_at_column (line, column, &start, &end))
-		return FALSE;
+	url = termac_vt_link_at (self->terminal, self->cols, row, column, NULL, NULL);
+	if (url == NULL) return FALSE;
 	{
-		g_autofree char *url = g_strndup (line + start, end - start);
 		GtkUriLauncher *launcher = gtk_uri_launcher_new (url);
 
 		root = gtk_widget_get_root (GTK_WIDGET (self));
@@ -1418,6 +1413,7 @@ terminal_clear_link_hover (TermacTerminal *self)
 	if (!self->hover_link)
 		return;
 	self->hover_link = FALSE;
+	gtk_widget_set_tooltip_text (GTK_WIDGET (self), NULL);
 	gtk_widget_set_cursor (GTK_WIDGET (self), NULL);
 	gtk_widget_queue_draw (GTK_WIDGET (self));
 }
@@ -1433,9 +1429,7 @@ terminal_update_link_hover (TermacTerminal *self,
 	guint row = 0;
 	guint first = 0;
 	guint last = 0;
-	gsize start = 0;
-	gsize end = 0;
-	g_autofree char *line = NULL;
+	g_autofree char *uri = NULL;
 
 	if ((state & GDK_CONTROL_MASK) == 0 || self->error != NULL || self->terminal == NULL)
 	{
@@ -1443,14 +1437,15 @@ terminal_update_link_hover (TermacTerminal *self,
 		return;
 	}
 	terminal_cell_at (self, x, y, &column, &row);
-	if (!termac_vt_viewport_row_text (self->terminal, self->cols, row, &line) ||
-	    !termac_url_span_at_column (line, column, &start, &end, &first, &last))
+	uri = termac_vt_link_at (self->terminal, self->cols, row, column, &first, &last);
+	if (uri == NULL)
 	{
 		terminal_clear_link_hover (self);
 		return;
 	}
 	if (!self->hover_link)
 		gtk_widget_set_cursor_from_name (GTK_WIDGET (self), "pointer");
+	gtk_widget_set_tooltip_text (GTK_WIDGET (self), uri);
 	self->hover_link = TRUE;
 	self->hover_row = row;
 	self->hover_first = first;

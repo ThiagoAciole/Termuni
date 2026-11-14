@@ -292,10 +292,50 @@ test_truecolor (void)
 	ghostty_terminal_free (terminal);
 }
 
+static void
+test_links_use_cells (void)
+{
+	const char *prefixes[] = { "日本語 ", "é ", "\033[?2027h👩‍💻 ", "👩‍💻 " };
+	const guint starts[] = { 7, 2, 3, 5 };
+	for (guint i = 0; i < G_N_ELEMENTS (prefixes); i++)
+	{
+		GhosttyTerminal terminal = new_terminal ();
+		g_autofree char *text = g_strconcat (prefixes[i], "https://example.org", NULL);
+		g_autofree char *uri = NULL;
+		guint first = 0, last = 0;
+		write_text (terminal, text);
+		g_assert_null (termac_vt_link_at (terminal, COLS, 0, starts[i] - 1, NULL, NULL));
+		uri = termac_vt_link_at (terminal, COLS, 0, starts[i], &first, &last);
+		g_assert_cmpstr (uri, ==, "https://example.org");
+		g_assert_cmpuint (first, ==, starts[i]);
+		g_assert_cmpuint (last, ==, starts[i] + strlen ("https://example.org"));
+		ghostty_terminal_free (terminal);
+	}
+}
+
+static void
+test_osc8_links (void)
+{
+	GhosttyTerminal terminal = new_terminal ();
+	g_autofree char *uri = NULL;
+	guint first = 0, last = 0;
+	write_text (terminal, "\033]8;;https://example.org/path\033\\日本語\033]8;;\033\\ gap");
+	uri = termac_vt_link_at (terminal, COLS, 0, 5, &first, &last);
+	g_assert_cmpstr (uri, ==, "https://example.org/path");
+	g_assert_cmpuint (first, ==, 0);
+	g_assert_cmpuint (last, ==, 6);
+	g_assert_null (termac_vt_link_at (terminal, COLS, 0, 6, NULL, NULL));
+	write_text (terminal, "\r\n\033]8;;javascript:alert(1)\033\\unsafe\033]8;;\033\\");
+	g_assert_null (termac_vt_link_at (terminal, COLS, 1, 0, NULL, NULL));
+	ghostty_terminal_free (terminal);
+}
+
 int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
+	g_test_add_func ("/vt/links/cell-geometry", test_links_use_cells);
+	g_test_add_func ("/vt/links/osc8", test_osc8_links);
 	g_test_add_func ("/vt/truecolor", test_truecolor);
  g_test_add_func ("/vt/find-matches", test_find_matches);
  g_test_add_func ("/vt/find-matches-preserves-render-updates", test_find_matches_preserves_render_updates);
