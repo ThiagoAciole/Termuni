@@ -23,6 +23,8 @@ O plano vigente e o roadmap orientam a próxima tarefa. Relatórios provam o que
 
 ## Relatórios e planos executados
 
+- [M04 — conteúdo acessível, 13/11/2026](reports/2026-11-13-accessible-text.md).
+
 - [Revisão arquitetural/estabilidade, 13/11/2026](reports/2026-11-13-stability-review.md).
 
 - [Organização e auditoria, 13/11/2026](reports/2026-11-13-project-organization.md).

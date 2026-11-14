@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <glib-unix.h>
 #include <glib/gi18n.h>
+#include <math.h>
 #include <ghostty/vt.h>
 #include <gtk/gtk.h>
 #include <pango/pangocairo.h>
@@ -91,9 +92,17 @@ struct _TermacTerminal
 	char *cwd;
 	char *initial_cwd;
 	char *session_id;
+	GString *accessible_text;
+	GBytes *accessible_selection;
+	guint accessible_caret;
+	gboolean accessible_removing;
 };
 
-G_DEFINE_FINAL_TYPE (TermacTerminal, termac_terminal, GTK_TYPE_DRAWING_AREA)
+static void terminal_accessible_text_init (GtkAccessibleTextInterface *iface);
+G_DEFINE_FINAL_TYPE_WITH_CODE (TermacTerminal, termac_terminal, GTK_TYPE_DRAWING_AREA,
+                              G_IMPLEMENT_INTERFACE (GTK_TYPE_ACCESSIBLE_TEXT, terminal_accessible_text_init))
+
+#include "termac-terminal-accessible.inc"
 
 enum
 {
@@ -285,6 +294,7 @@ terminal_refresh (TermacTerminal *self)
 {
 	if (self->terminal != NULL)
 		ghostty_render_state_update (self->render_state, self->terminal);
+	terminal_accessible_update (self);
 	gtk_widget_queue_draw (GTK_WIDGET (self));
 }
 
@@ -748,6 +758,7 @@ terminal_draw (GtkDrawingArea *area,
 	if (self->terminal == NULL || self->render_state == NULL)
 		return;
 	ghostty_render_state_update (self->render_state, self->terminal);
+	terminal_accessible_update (self);
 	if (ghostty_render_state_colors_get (self->render_state, &colors) != GHOSTTY_SUCCESS)
 		return;
 
@@ -1886,6 +1897,12 @@ terminal_dispose (GObject *object)
 	g_clear_pointer (&self->initial_command, g_free);
 	g_clear_pointer (&self->session_id, g_free);
 	g_clear_pointer (&self->highlight, g_free);
+	if (self->accessible_text)
+	{
+		g_string_free (self->accessible_text, TRUE);
+		self->accessible_text = NULL;
+	}
+	g_clear_pointer (&self->accessible_selection, g_bytes_unref);
 	G_OBJECT_CLASS (termac_terminal_parent_class)->dispose (object);
 }
 

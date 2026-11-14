@@ -14,7 +14,7 @@ Atualizado em 13/11/2026. Este é o quadro vigente; a lista priorizada de melhor
 | 3 — interface | Implementado; aprovação real pendente | Uma/duas abas, overview, paletas, Preferências, Sobre, atalhos e busca inspecionados em Xvfb no P3. Fontes, bordas, ícones e aparência no compositor real permanecem na checklist. |
 | 4 — imagens para agentes | Implementado (MVP); em validação no Flatpak | Claude Code e Codex: PNG/JPEG/Ctrl+V reconhecidos nos CLIs reais sob Xvfb, 6/6. Adaptadores e seleção explícita implementados. Repetir recebimento multimodal pelo Flatpak; outros agentes estão fora do MVP. |
 | 5 — produtividade | Parcial; núcleo implementado | Busca com realce/navegação, editor com conflitos, links HTTP(S), restauração v3, atenção e política de notificações existem. Falta entrega/clique da notificação no GNOME; OSC 8 com rótulo, busy/idle host e eventos por agente são melhorias separadas; o Marco 5 inteiro não é bloqueador de lançamento. |
-| 6 — consolidação | Parcial | Valgrind corrigiu referência de ícone por aba; suíte normal/HiDPI e nomes/papel acessíveis existem. Faltam conteúdo acessível de texto (M04), benchmark, CI e aceite desktop/distribuição. |
+| 6 — consolidação | Parcial | Valgrind corrigiu referência de ícone por aba; suíte normal/HiDPI e nomes/papel acessíveis existem. Texto acessível (M04) implementado com offsets Unicode, caret, seleção e notificações; regressão em Xvfb passou. Faltam aceite Orca/AT-SPI, benchmark, CI e aceite desktop/distribuição. |
 
 As referências atuais de produto e arquitetura são [PDR.Arquiteture.md](PDR.Arquiteture.md) e [DESIGN.md](DESIGN.md). Os recuos atuais são **12 unidades acima / 8 à esquerda**. Perfis de terminal, outros agentes e gráficos inline não são requisitos da primeira versão estável.
 

@@ -2237,6 +2237,7 @@ test_flatpak_agent_context (void)
 }
 
 #include "real-agent-driver.inc"
+#include "accessible-text.inc"
 
 static void
 test_search_highlight (void)
@@ -2789,6 +2790,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/flatpak-agent-context", test_flatpak_agent_context);
 	g_test_add_func ("/ui/flatpak-host-session", test_flatpak_host_session);
 	g_test_add_func ("/ui/accessibility-labels", test_accessibility_labels);
+	g_test_add_func ("/ui/accessible-text", test_accessible_text);
 	g_test_add_func ("/ui/grid-fits-widget", test_grid_fits_widget);
  g_test_add_func ("/ui/search-highlight", test_search_highlight);
  g_test_add_func ("/ui/shortcut-conflict", test_shortcut_conflict);
