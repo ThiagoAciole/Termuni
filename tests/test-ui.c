@@ -9,6 +9,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
+#include <signal.h>
 #include <gtk/gtk.h>
 #include <dlfcn.h>
 #include <X11/Xlib.h>
@@ -2707,6 +2709,8 @@ test_save_empty_session (void)
 	pump (300);
 }
 
+#include "lifecycle.inc"
+
 int
 main (int argc, char **argv)
 {
@@ -2801,6 +2805,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/save-empty-session", test_save_empty_session);
 	g_test_add_func ("/ui/truecolor-unicode-render", test_truecolor_unicode_render);
 	g_test_add_func ("/ui/modern-tui", test_modern_tui);
+	g_test_add_func ("/ui/async-child-close", test_async_child_close);
 	{
 		int status = g_test_run ();
 

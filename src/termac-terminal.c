@@ -35,6 +35,14 @@
 #define TERMAC_TERMINAL_CLOSE_GRACE_MS 1000
 #define TERMAC_TERMINAL_DEFAULT_SCROLLBACK 10000
 
+typedef struct {
+	TermacTerminal *terminal; /* weak; detached before widget disposal */
+	GPid pid;
+	pid_t foreground;
+	guint kill_source;
+	GApplication *application; /* held only while stopping */
+} TerminalChildWatch;
+
 struct _TermacTerminal
 {
 	GtkDrawingArea parent_instance;
@@ -59,6 +67,7 @@ struct _TermacTerminal
 	const TermacAgent *agent;
 	char *initial_command;
 	GPid child_pid;
+	TerminalChildWatch *child_watch;
 	char *proc_cwd;
 	guint io_source;
 	guint write_source;
@@ -357,24 +366,67 @@ terminal_read_ready (gint         fd,
 /* ---- child process ---------------------------------------------------- */
 
 static void
-terminal_child_exited (GPid     pid,
-                       gint     status,
-                       gpointer user_data)
+terminal_child_watch_free (gpointer data)
 {
-	TermacTerminal *self = user_data;
-	(void) status;
-	self->child_exited = TRUE;
-	self->child_pid = 0;
-	self->child_source = 0;
-	g_spawn_close_pid (pid);
-	if (self->job_source != 0)
+	TerminalChildWatch *watch = data;
+	if (watch->kill_source != 0) g_source_remove (watch->kill_source);
+	if (watch->application != NULL)
 	{
-		g_source_remove (self->job_source);
-		self->job_source = 0;
+		g_application_release (watch->application);
+		g_object_unref (watch->application);
 	}
-	self->job_active = FALSE;
-	if (self->pty_fd >= 0 && self->io_source == 0)
-		gtk_widget_queue_draw (GTK_WIDGET (self));
+	g_free (watch);
+}
+
+static void
+terminal_child_exited (GPid pid, gint status, gpointer user_data)
+{
+	TerminalChildWatch *watch = user_data;
+	TermacTerminal *self = watch->terminal;
+	(void) status;
+	if (self != NULL)
+	{
+		self->child_exited = TRUE;
+		self->child_pid = 0;
+		self->child_source = 0;
+		self->child_watch = NULL;
+		if (self->job_source != 0)
+		{
+			g_source_remove (self->job_source);
+			self->job_source = 0;
+		}
+		self->job_active = FALSE;
+		if (self->pty_fd >= 0 && self->io_source == 0)
+			gtk_widget_queue_draw (GTK_WIDGET (self));
+	}
+	else if (watch->foreground > 0 && watch->foreground != pid && watch->foreground != getpgrp ())
+	{
+		/* The shell exited while its old foreground job was still alive. */
+		kill (-watch->foreground, SIGKILL);
+	}
+	g_spawn_close_pid (pid);
+}
+
+static void
+terminal_watch_child (TermacTerminal *self)
+{
+	TerminalChildWatch *watch = g_new0 (TerminalChildWatch, 1);
+	watch->terminal = self;
+	watch->pid = self->child_pid;
+	self->child_watch = watch;
+	self->child_source = g_child_watch_add_full (G_PRIORITY_DEFAULT, self->child_pid,
+	    terminal_child_exited, watch, terminal_child_watch_free);
+}
+
+static gboolean
+terminal_child_force_exit (gpointer data)
+{
+	TerminalChildWatch *watch = data;
+	watch->kill_source = 0;
+	if (watch->foreground > 0 && watch->foreground != watch->pid && watch->foreground != getpgrp ())
+		kill (-watch->foreground, SIGKILL);
+	kill (watch->pid, SIGKILL);
+	return G_SOURCE_REMOVE;
 }
 
 static gboolean
@@ -579,30 +631,38 @@ terminal_spawn (TermacTerminal *self)
 	                                 G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
 	                                 terminal_read_ready,
 	                                 self);
-	self->child_source = g_child_watch_add (self->child_pid, terminal_child_exited, self);
+	terminal_watch_child (self);
 	self->job_source = g_timeout_add (TERMAC_TERMINAL_JOB_POLL_MS, terminal_job_poll, self);
 	return TRUE;
 }
 
-/* Stops the shell: hang up first, then kill it if it does not exit. */
+/* Transfer process ownership to the existing child watch. It outlives the
+ * widget without retaining it; normal exit cancels escalation and reaps once. */
 static void
 terminal_stop_child (TermacTerminal *self)
 {
-	gint64 deadline;
-
-	if (self->child_pid <= 0 || self->child_exited)
-		return;
-	kill (self->child_pid, SIGHUP);
-	deadline = terminal_now_us () + TERMAC_TERMINAL_CLOSE_GRACE_MS * 1000;
-	while (terminal_now_us () < deadline)
+	TerminalChildWatch *watch;
+	GApplication *application;
+	if (self->child_pid <= 0 || self->child_exited) return;
+	if (self->child_watch == NULL) terminal_watch_child (self);
+	watch = self->child_watch;
+	watch->terminal = NULL;
+	watch->foreground = self->pty_fd >= 0 ? tcgetpgrp (self->pty_fd) : -1;
+	application = g_application_get_default ();
+	if (application != NULL && g_application_get_is_registered (application))
 	{
-		if (waitpid (self->child_pid, NULL, WNOHANG) != 0)
-			return;
-		g_usleep (20 * 1000);
+		watch->application = g_object_ref (application);
+		g_application_hold (application);
 	}
-	kill (self->child_pid, SIGKILL);
-	while (waitpid (self->child_pid, NULL, 0) < 0 && errno == EINTR)
-		;
+	if (watch->foreground > 0 && watch->foreground != watch->pid && watch->foreground != getpgrp ())
+		kill (-watch->foreground, SIGHUP);
+	kill (watch->pid, SIGHUP);
+	watch->kill_source = g_timeout_add (TERMAC_TERMINAL_CLOSE_GRACE_MS,
+	    terminal_child_force_exit, watch);
+	self->child_watch = NULL;
+	self->child_source = 0;
+	self->child_pid = 0;
+	self->child_exited = TRUE;
 }
 
 /* ---- engine callbacks ------------------------------------------------- */
@@ -1857,9 +1917,8 @@ terminal_dispose (GObject *object)
 	self->closing = TRUE;
 	if (self->io_source != 0) g_source_remove (self->io_source);
 	if (self->write_source != 0) g_source_remove (self->write_source);
-	if (self->child_source != 0) g_source_remove (self->child_source);
 	if (self->job_source != 0) g_source_remove (self->job_source);
-	self->io_source = self->write_source = self->child_source = self->job_source = 0;
+	self->io_source = self->write_source = self->job_source = 0;
 	terminal_stop_child (self);
 	if (self->pty_fd >= 0) close (self->pty_fd);
 	self->pty_fd = -1;
