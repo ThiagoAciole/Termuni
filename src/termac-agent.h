@@ -22,9 +22,9 @@ typedef enum {
 	TERMAC_AGENT_DIRECTORY_MISSING,
 } TermacAgentAvailability;
 
-/* Queries use the target folder and interactive shell PATH, native or host.
+/* Queries use the target folder and interactive shell PATH.
  * Startup jobs are isolated and cleaned up on completion/timeout/cancellation. */
-void termac_agent_check_async (const TermacAgent *agent, const char *cwd, gboolean host,
+void termac_agent_check_async (const TermacAgent *agent, const char *cwd,
                               GCancellable *cancellable, GAsyncReadyCallback callback, gpointer user_data);
 TermacAgentAvailability termac_agent_check_finish (GAsyncResult *result, GError **error);
 char *termac_agent_build_launch_command (const TermacAgent *agent);

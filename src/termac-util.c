@@ -268,33 +268,9 @@ termac_path_from_pwd (const char *value)
 }
 
 char **
-termac_shell_command_argv (const char *shell, const char *cwd, const char *rcfile, gboolean host, const char *command)
+termac_shell_command_argv (const char *shell, const char *rcfile, const char *command)
 {
 	GPtrArray *args = g_ptr_array_new_with_free_func (g_free);
-	if (host)
-	{
-		g_ptr_array_add (args, g_strdup ("flatpak-spawn"));
-		g_ptr_array_add (args, g_strdup ("--host"));
-		g_ptr_array_add (args, g_strdup ("--watch-bus"));
-		g_ptr_array_add (args, g_strdup ("--directory=/"));
-		g_ptr_array_add (args, g_strdup_printf ("--env=TERMAC_HOST_CWD=%s", cwd));
-		g_ptr_array_add (args, g_strdup ("--env=TERM=xterm-256color"));
-		g_ptr_array_add (args, g_strdup ("--env=COLORTERM=truecolor"));
-		/* script allocates the controlling PTY on the host. A PTY created
-		 * in the sandbox cannot become the host shell's controlling TTY. */
-		g_ptr_array_add (args, g_strdup_printf ("--env=TERMAC_HOST_RCFILE=%s", rcfile != NULL ? rcfile : ""));
-		if (command != NULL)
-			g_ptr_array_add (args, g_strdup_printf ("--env=TERMAC_START_COMMAND=%s; if [ \"${SHELL##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$SHELL\" --rcfile \"$TERMAC_HOST_RCFILE\" -i; else exec \"${SHELL:-/bin/sh}\" -i; fi", command));
-		g_ptr_array_add (args, g_strdup ("script"));
-		g_ptr_array_add (args, g_strdup ("-qefc"));
-		/* This fixed script uses the host's SHELL; paths are environment data. */
-		g_ptr_array_add (args, g_strdup (command != NULL
-			? "cd -- \"$TERMAC_HOST_CWD\" 2>/dev/null || cd \"$HOME\" || exit; shell=${SHELL:-/bin/sh}; if [ \"${shell##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$shell\" --rcfile \"$TERMAC_HOST_RCFILE\" -ic \"$TERMAC_START_COMMAND\"; else exec \"$shell\" -ic \"$TERMAC_START_COMMAND\"; fi"
-			: "cd -- \"$TERMAC_HOST_CWD\" 2>/dev/null || cd \"$HOME\" || exit; shell=${SHELL:-/bin/sh}; if [ \"${shell##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$shell\" --rcfile \"$TERMAC_HOST_RCFILE\" -i; else exec \"$shell\" -i; fi"));
-		g_ptr_array_add (args, g_strdup ("/dev/null"));
-		g_ptr_array_add (args, NULL);
-		return (char **) g_ptr_array_free (args, FALSE);
-	}
 	g_ptr_array_add (args, g_strdup (shell));
 	if (rcfile != NULL)
 	{
@@ -320,19 +296,17 @@ termac_shell_command_argv (const char *shell, const char *cwd, const char *rcfil
 }
 
 char *
-termac_session_directory (const char *cwd, gboolean host)
+termac_session_directory (const char *cwd)
 {
-	/* A host folder may deliberately be invisible inside the sandbox. */
-	if (cwd != NULL && g_path_is_absolute (cwd) &&
-	    (host || g_file_test (cwd, G_FILE_TEST_IS_DIR)))
+	if (cwd != NULL && g_path_is_absolute (cwd) && g_file_test (cwd, G_FILE_TEST_IS_DIR))
 		return g_strdup (cwd);
 	return NULL;
 }
 
 char **
-termac_shell_argv (const char *shell, const char *cwd, const char *rcfile, gboolean host)
+termac_shell_argv (const char *shell, const char *rcfile)
 {
-	return termac_shell_command_argv (shell, cwd, rcfile, host, NULL);
+	return termac_shell_command_argv (shell, rcfile, NULL);
 }
 
 gboolean

@@ -187,18 +187,18 @@ agent_check_done (GObject *source, GAsyncResult *result, gpointer data)
 		if (status == 0) g_task_return_int (task, TERMAC_AGENT_AVAILABLE);
 		else if (status == 43) g_task_return_int (task, TERMAC_AGENT_MISSING);
 		else if (status == 44) g_task_return_int (task, TERMAC_AGENT_DIRECTORY_MISSING);
-		else g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, _("Host availability check failed (status %d)"), status);
+		else g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, _("Agent availability check failed (status %d)"), status);
 	}
 }
 
 void
-termac_agent_check_async (const TermacAgent *agent, const char *cwd, gboolean host,
+termac_agent_check_async (const TermacAgent *agent, const char *cwd,
                          GCancellable *cancellable, GAsyncReadyCallback callback, gpointer user_data)
 {
 	g_autoptr(GTask) task = g_task_new (NULL, cancellable, callback, user_data);
 	g_task_set_source_tag (task, termac_agent_check_async);
 	if (g_task_return_error_if_cancelled (task)) return;
-	if (!host && cwd != NULL && !g_file_test (cwd, G_FILE_TEST_IS_DIR))
+	if (cwd != NULL && !g_file_test (cwd, G_FILE_TEST_IS_DIR))
 	{
 		g_task_return_int (task, TERMAC_AGENT_DIRECTORY_MISSING);
 		return;
@@ -206,33 +206,21 @@ termac_agent_check_async (const TermacAgent *agent, const char *cwd, gboolean ho
 	{
 		g_autofree char *binary = termac_agent_build_launch_command (agent);
 		g_autofree char *query = g_strdup_printf ("command -v -- %s >/dev/null || exit 43", binary);
-		g_autofree char *directory = g_strdup_printf ("--env=TERMAC_AGENT_CWD=%s", cwd != NULL ? cwd : "");
-		const char *argv[] = { "flatpak-spawn", "--host", "--watch-bus", "--directory=/", directory,
-			"/bin/sh", "-c", /* Keep the host shell in its own session, so the supervisor can
-			 * terminate its rc children on normal completion, timeout or cancel. */
-			"if [ -n \"$TERMAC_AGENT_CWD\" ]; then cd -- \"$TERMAC_AGENT_CWD\" 2>/dev/null || exit 44; else cd \"$HOME\" || exit 44; fi; "
-			"child=; cleanup() { [ -n \"$child\" ] || return; kill -KILL \"-$child\" 2>/dev/null; "
-			"for stat in /proc/[0-9]*/stat; do IFS= read -r record < \"$stat\" 2>/dev/null || continue; fields=${record##*) }; "
-			"set -- $fields; [ \"$4\" = \"$child\" ] || continue; pid=${stat#/proc/}; pid=${pid%/stat}; kill -KILL \"$pid\" 2>/dev/null; done; }; "
-			"trap cleanup EXIT; trap 'exit 125' HUP INT TERM; setsid \"${SHELL:-/bin/sh}\" -ic \"$1\" & child=$!; wait \"$child\"; status=$?; exit \"$status\"", "termac-agent-check", query, NULL };
 		const char *shell = g_getenv ("SHELL");
-		const char *native_argv[] = { shell != NULL && *shell != '\0' ? shell : "/bin/sh", "-ic", query, NULL };
+		const char *argv[] = { shell != NULL && *shell != '\0' ? shell : "/bin/sh", "-ic", query, NULL };
 		g_autoptr(GError) error = NULL;
 		g_autoptr(GSubprocessLauncher) launcher = g_subprocess_launcher_new (G_SUBPROCESS_FLAGS_STDOUT_SILENCE | G_SUBPROCESS_FLAGS_STDERR_SILENCE);
 		AgentCheck *check = g_new0 (AgentCheck, 1);
-		if (!host)
-		{
-			g_subprocess_launcher_set_cwd (launcher, cwd != NULL ? cwd : g_get_home_dir ());
-			g_subprocess_launcher_set_child_setup (launcher, agent_check_child_setup, NULL, NULL);
-		}
-		check->process = g_subprocess_launcher_spawnv (launcher, host ? argv : native_argv, &error);
+		g_subprocess_launcher_set_cwd (launcher, cwd != NULL ? cwd : g_get_home_dir ());
+		g_subprocess_launcher_set_child_setup (launcher, agent_check_child_setup, NULL, NULL);
+		check->process = g_subprocess_launcher_spawnv (launcher, argv, &error);
 		if (check->process == NULL)
 		{
 			g_free (check);
 			g_task_return_error (task, g_steal_pointer (&error));
 			return;
 		}
-		if (!host && g_subprocess_get_identifier (check->process) != NULL)
+		if (g_subprocess_get_identifier (check->process) != NULL)
 			check->session = (pid_t) g_ascii_strtoll (g_subprocess_get_identifier (check->process), NULL, 10);
 		g_task_set_task_data (task, check, agent_check_free);
 		if (cancellable != NULL)
@@ -241,8 +229,8 @@ termac_agent_check_async (const TermacAgent *agent, const char *cwd, gboolean ho
 			check->cancel_id = g_cancellable_connect (cancellable, G_CALLBACK (agent_check_cancel), check, NULL);
 		}
 		check->timeout_id = g_timeout_add_full (G_PRIORITY_DEFAULT, 5000, agent_check_timeout, g_object_ref (task), g_object_unref);
-		/* Reap even when cancelled; cancellation kills the helper and --watch-bus
-		 * terminates its host query, rather than leaving shell startup running. */
+		/* Reap even when cancelled; terminate the private process session rather
+		 * than leaving shell startup running. */
 		g_subprocess_wait_async (check->process, NULL, agent_check_done, g_object_ref (task));
 	}
 }

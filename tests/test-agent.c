@@ -83,50 +83,6 @@ wait_check (CheckResult *check)
 	g_assert_true (check->done);
 }
 static void
-test_host_check (void)
-{
-	g_autofree char *dir = g_dir_make_tmp ("termac-host-agent-XXXXXX", NULL);
-	g_autofree char *path = g_build_filename (dir, "flatpak-spawn", NULL);
-	g_autofree char *previous = g_strdup (g_getenv ("PATH"));
-	const char script[] = "#!/bin/sh\n[ \"$1\" = --host ] || exit 99\nif [ \"$TERMAC_TEST_AGENT_STATUS\" = wait ]; then exec /bin/sleep 30; fi\nexit \"$TERMAC_TEST_AGENT_STATUS\"\n";
-	const char *codes[] = { "0", "43", "44" };
-	const TermacAgentAvailability expected[] = { TERMAC_AGENT_AVAILABLE, TERMAC_AGENT_MISSING, TERMAC_AGENT_DIRECTORY_MISSING };
-	g_assert_true (g_file_set_contents (path, script, -1, NULL));
-	g_assert_cmpint (g_chmod (path, 0755), ==, 0);
-	g_setenv ("PATH", dir, TRUE);
-	for (guint i = 0; i < G_N_ELEMENTS (codes); i++)
-	{
-		CheckResult check = { 0 };
-		g_setenv ("TERMAC_TEST_AGENT_STATUS", codes[i], TRUE);
-		termac_agent_check_async (termac_agent_default (), "/tmp/it's here", TRUE, NULL, check_done, &check);
-		wait_check (&check);
-		g_assert_no_error (check.error);
-		g_assert_cmpint (check.status, ==, expected[i]);
-	}
-	{
-		CheckResult check = { 0 };
-		g_autoptr(GCancellable) cancel = g_cancellable_new ();
-		g_setenv ("TERMAC_TEST_AGENT_STATUS", "wait", TRUE);
-		termac_agent_check_async (termac_agent_default (), NULL, TRUE, cancel, check_done, &check);
-		g_cancellable_cancel (cancel);
-		wait_check (&check);
-		g_assert_error (check.error, G_IO_ERROR, G_IO_ERROR_CANCELLED);
-		g_clear_error (&check.error);
-	}
-	{
-		CheckResult check = { 0 };
-		termac_agent_check_async (termac_agent_default (), NULL, TRUE, NULL, check_done, &check);
-		wait_check (&check);
-		g_assert_error (check.error, G_IO_ERROR, G_IO_ERROR_TIMED_OUT);
-		g_clear_error (&check.error);
-	}
-	g_setenv ("PATH", previous != NULL ? previous : "", TRUE);
-	g_unsetenv ("TERMAC_TEST_AGENT_STATUS");
-	g_unlink (path);
-	g_rmdir (dir);
-}
-
-static void
 test_shell_path (void)
 {
 	g_autofree char *dir = g_dir_make_tmp ("termac-agent-path-XXXXXX", NULL);
@@ -142,7 +98,7 @@ test_shell_path (void)
 	g_setenv ("PATH", "/nonexistent", TRUE);
 	g_setenv ("SHELL", shell, TRUE);
 	g_assert_false (termac_agent_is_installed (termac_agent_default ()));
-	termac_agent_check_async (termac_agent_default (), dir, FALSE, NULL, check_done, &check);
+	termac_agent_check_async (termac_agent_default (), dir, NULL, check_done, &check);
 	wait_check (&check);
 	g_assert_no_error (check.error);
 	g_assert_cmpint (check.status, ==, TERMAC_AGENT_AVAILABLE);
@@ -165,7 +121,7 @@ test_relative_path (void)
 	g_chmod (program, 0755);
 	g_setenv ("PATH", "bin", TRUE);
 	g_setenv ("SHELL", "/bin/sh", TRUE);
-	termac_agent_check_async (termac_agent_default (), dir, FALSE, NULL, check_done, &check);
+	termac_agent_check_async (termac_agent_default (), dir, NULL, check_done, &check);
 	wait_check (&check);
 	g_assert_no_error (check.error);
 	g_assert_cmpint (check.status, ==, TERMAC_AGENT_AVAILABLE);
@@ -187,7 +143,7 @@ test_check_reaps_children (void)
 	guint64 pid;
 	g_assert_true (g_file_set_contents (shell, script, -1, NULL)); g_chmod (shell, 0755);
 	g_setenv ("SHELL", shell, TRUE);
-	termac_agent_check_async (termac_agent_default (), dir, FALSE, NULL, check_done, &check);
+	termac_agent_check_async (termac_agent_default (), dir, NULL, check_done, &check);
 	wait_check (&check);
 	g_assert_error (check.error, G_IO_ERROR, G_IO_ERROR_TIMED_OUT); g_clear_error (&check.error);
 	g_assert_true (g_file_get_contents (pidfile, &pidtext, NULL, NULL));
@@ -211,7 +167,6 @@ int main (int argc, char **argv)
 	g_test_add_func ("/agent/relative-path", test_relative_path);
 	g_test_add_func ("/agent/check-reaps-children", test_check_reaps_children);
 	g_test_add_func ("/agent/shell-path", test_shell_path);
-	g_test_add_func ("/agent/host-check", test_host_check);
 	g_test_add_func ("/agent/installed", test_installed);
 	g_test_add_func ("/agent/find", test_find);
 	g_test_add_func ("/agent/format-plain", test_format_plain);

@@ -130,21 +130,21 @@ test_path_from_pwd_strips_file_uri (void)
 static void
 test_session_directory (void)
 {
-	g_autofree char *host = termac_session_directory ("/inaccessible-host-folder", TRUE);
-	g_autofree char *native = termac_session_directory ("/inaccessible-host-folder", FALSE);
-	g_assert_cmpstr (host, ==, "/inaccessible-host-folder");
-	g_assert_null (native);
+	g_autofree char *dir = g_dir_make_tmp ("termac-session-directory-XXXXXX", NULL);
+	g_autofree char *missing_path = g_build_filename (dir, "missing", NULL);
+	g_autofree char *native = termac_session_directory (dir);
+	g_autofree char *missing = termac_session_directory (missing_path);
+	g_assert_cmpstr (native, ==, dir);
+	g_assert_null (missing);
+	g_rmdir (dir);
 }
 
 static void
 test_shell_argv (void)
 {
-	g_auto(GStrv) host = termac_shell_argv ("/usr/bin/bash", "/tmp/a b; echo injected", "/tmp/rc file", TRUE);
-	const char *expected[] = { "flatpak-spawn", "--host", "--watch-bus", "--directory=/", "--env=TERMAC_HOST_CWD=/tmp/a b; echo injected", "--env=TERM=xterm-256color", "--env=COLORTERM=truecolor", "--env=TERMAC_HOST_RCFILE=/tmp/rc file", "script", "-qefc", "cd -- \"$TERMAC_HOST_CWD\" 2>/dev/null || cd \"$HOME\" || exit; shell=${SHELL:-/bin/sh}; if [ \"${shell##*/}\" = bash ] && [ -n \"$TERMAC_HOST_RCFILE\" ]; then exec \"$shell\" --rcfile \"$TERMAC_HOST_RCFILE\" -i; else exec \"$shell\" -i; fi", "/dev/null", NULL };
-	g_assert_true (g_strv_equal ((const char * const *) host, expected));
-	g_auto(GStrv) local = termac_shell_argv ("/bin/sh", "/tmp", NULL, FALSE);
-	const char *native[] = { "/bin/sh", "-i", NULL };
-	g_assert_true (g_strv_equal ((const char * const *) local, native));
+	g_auto(GStrv) shell = termac_shell_argv ("/bin/sh", NULL);
+	const char *expected[] = { "/bin/sh", "-i", NULL };
+	g_assert_true (g_strv_equal ((const char * const *) shell, expected));
 }
 
 static void
@@ -156,7 +156,7 @@ test_initial_command_after_rc (void)
 	g_autofree char *output = NULL;
 	int status;
 	g_assert_true (g_file_set_contents (rc, "TERMAC_TEST_INITIAL=rc-loaded; export TERMAC_TEST_INITIAL\n", -1, NULL));
-	args = termac_shell_command_argv ("/bin/bash", dir, rc, FALSE, "printf %s \"$TERMAC_TEST_INITIAL\"; exit 23");
+	args = termac_shell_command_argv ("/bin/bash", rc, "printf %s \"$TERMAC_TEST_INITIAL\"; exit 23");
 	g_assert_true (g_spawn_sync (dir, args, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL, &output, NULL, &status, NULL));
 	g_assert_cmpstr (output, ==, "rc-loaded");
 	g_assert_cmpint (WEXITSTATUS (status), ==, 23);

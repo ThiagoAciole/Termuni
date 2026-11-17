@@ -39,9 +39,9 @@ char *termac_display_path (const char *path,
 char *termac_path_from_pwd (const char *value);
 
 /* Build argv before fork; paths remain individual arguments, never shell code. */
-char *termac_session_directory (const char *cwd, gboolean host);
-char **termac_shell_argv (const char *shell, const char *cwd, const char *rcfile, gboolean host);
-char **termac_shell_command_argv (const char *shell, const char *cwd, const char *rcfile, gboolean host, const char *command);
+char *termac_session_directory (const char *cwd);
+char **termac_shell_argv (const char *shell, const char *rcfile);
+char **termac_shell_command_argv (const char *shell, const char *rcfile, const char *command);
 
 /* Only background views with explicitly enabled, eligible completion events. */
 gboolean termac_should_notify (gboolean setting_enabled, gboolean window_active,

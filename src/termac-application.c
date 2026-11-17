@@ -886,7 +886,6 @@ termac_application_attachments_page (TermacApplication *self)
 		GtkStringList *names = gtk_string_list_new (NULL);
 		gsize count;
 		const TermacAgent *const *agents = termac_agent_all (&count);
-		gboolean host = g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS);
 		gint *statuses = g_new (gint, count);
 		GCancellable *cancel = g_cancellable_new ();
 		g_object_set_data_full (G_OBJECT (agent_row), "agent-statuses", statuses, g_free);
@@ -911,7 +910,7 @@ termac_application_attachments_page (TermacApplication *self)
 				AgentRowCheck *query = g_new0 (AgentRowCheck, 1);
 				g_weak_ref_init (&query->row, agent_row);
 				query->index = i;
-				termac_agent_check_async (agents[i], NULL, host, cancel, agent_row_checked, query);
+				termac_agent_check_async (agents[i], NULL, cancel, agent_row_checked, query);
 			}
 		adw_preferences_group_add (agent_group, GTK_WIDGET (agent_row));
 		adw_preferences_page_add (page, agent_group);
