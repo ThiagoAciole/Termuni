@@ -2,8 +2,8 @@ desktop_conf = configuration_data()
 desktop_conf.set('application_id', application_id)
 desktop_conf.set('application_icon', application_id)
 desktop_template = configure_file(
-        input: 'thiago.aciole.termac.desktop.in',
-       output: 'termac.desktop.in',
+        input: 'io.github.ThiagoAciole.Termuni.desktop.in',
+       output: 'termuni.desktop.in',
  configuration: desktop_conf,
 )
 desktop_file = i18n.merge_file(
@@ -23,8 +23,8 @@ endif
 appstream_conf = configuration_data()
 appstream_conf.set('application_id', application_id)
 appstream_template = configure_file(
-        input: 'thiago.aciole.termac.metainfo.xml.in',
-       output: 'termac.metainfo.xml.in',
+        input: 'io.github.ThiagoAciole.Termuni.metainfo.xml.in',
+       output: 'termuni.metainfo.xml.in',
  configuration: appstream_conf,
 )
 appstream_file = i18n.merge_file(
@@ -44,7 +44,7 @@ schema_conf = configuration_data()
 schema_conf.set('application_id', application_id)
 schema_conf.set('settings_path', '/' + application_id.replace('.', '/') + '/')
 schema_file = configure_file(
-  input: 'thiago.aciole.termac.gschema.xml.in',
+  input: 'io.github.ThiagoAciole.Termuni.gschema.xml.in',
   output: '@0@.gschema.xml'.format(application_id),
   configuration: schema_conf,
 )
@@ -52,7 +52,7 @@ install_data(schema_file,
   install_dir: get_option('datadir') / 'glib-2.0' / 'schemas'
 )
 
-schema_build = custom_target('termac-gsettings-schema',
+schema_build = custom_target('termuni-gsettings-schema',
   input: schema_file,
   output: 'gschemas.compiled',
   command: [find_program('glib-compile-schemas'), '--strict',
@@ -70,7 +70,7 @@ service_conf = configuration_data()
 service_conf.set('bindir', get_option('prefix') / get_option('bindir'))
 service_conf.set('application_id', application_id)
 configure_file(
-  input: 'thiago.aciole.termac.service.in',
+  input: 'io.github.ThiagoAciole.Termuni.service.in',
   output: '@0@.service'.format(application_id),
   configuration: service_conf,
   install_dir: get_option('datadir') / 'dbus-1' / 'services'

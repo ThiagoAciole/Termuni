@@ -1,17 +1,17 @@
-termac_sources = [
+termuni_sources = [
   'main.c',
-  'termac-application.c',
-  'termac-session-store.c',
-  'termac-settings.c',
-  'termac-window.c',
-  'termac-terminal.c',
-  'termac-vt.c',
-  'termac-util.c',
-  'termac-attachments.c',
-  'termac-agent.c',
+  'termuni-application.c',
+  'termuni-session-store.c',
+  'termuni-settings.c',
+  'termuni-window.c',
+  'termuni-terminal.c',
+  'termuni-vt.c',
+  'termuni-util.c',
+  'termuni-attachments.c',
+  'termuni-agent.c',
 ]
 
-termac_deps = [
+termuni_deps = [
   dependency('gtk4', version: '>= 4.22'),
   dependency('libadwaita-1', version: '>= 1.8'),
   dependency('pangocairo'),
@@ -19,13 +19,13 @@ termac_deps = [
   cc.find_library('util', required: false),
 ]
 
-termac_sources += gnome.compile_resources('termac-resources',
-  'termac.gresource.xml',
-  c_name: 'termac',
+termuni_sources += gnome.compile_resources('termuni-resources',
+  'termuni.gresource.xml',
+  c_name: 'termuni',
   source_dir: ['.', '../assets'],
 )
 
-executable('termac', termac_sources,
-  dependencies: termac_deps,
+executable('termuni', termuni_sources,
+  dependencies: termuni_deps,
        install: true,
 )

@@ -32,8 +32,8 @@ gtk_accessible_text_update_contents (GtkAccessibleText *text, GtkAccessibleTextC
 static void
 test_accessible_text (void)
 {
-	TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
-	TermacTerminal *terminal;
+	TermuniWindow *window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
+	TermuniTerminal *terminal;
 	GhosttyTerminal vt;
 	GtkAccessibleText *text;
 	GtkAccessibleTextInterface *iface;
@@ -50,7 +50,7 @@ test_accessible_text (void)
 	gtk_window_present (GTK_WINDOW (window));
 	pump (700);
 	terminal = selected_terminal (window);
-	vt = termac_terminal_get_vt_handle (terminal);
+	vt = termuni_terminal_get_vt_handle (terminal);
 	text = GTK_ACCESSIBLE_TEXT (terminal);
 	iface = GTK_ACCESSIBLE_TEXT_GET_IFACE (text);
 	ghostty_terminal_vt_write (vt, (const uint8_t *) fixture, strlen (fixture));
@@ -108,13 +108,13 @@ test_accessible_text (void)
 	g_assert_cmpuint (n, ==, 2); g_assert_cmpuint (ranges[0].length, ==, 2);
 	g_assert_cmpuint (ranges[1].length, ==, 4);
 	g_clear_pointer (&ranges, g_free);
-	termac_vt_clear_selection (vt);
+	termuni_vt_clear_selection (vt);
 	g_assert_false (iface->get_selection (text, &n, &ranges));
 	g_assert_cmpuint (n, ==, 0); g_assert_null (ranges);
 	g_assert_false (iface->set_caret_position (text, 0));
 	GtkAccessibleTextRange arbitrary = { 0, 2 };
 	g_assert_false (iface->set_selection (text, 0, &arbitrary));
-	termac_terminal_get_cell_size (terminal, &cw, &ch);
+	termuni_terminal_get_cell_size (terminal, &cw, &ch);
 	g_assert_true (iface->get_extents (text, 0, 1, &rect));
 	g_assert_cmpfloat (rect.origin.x, ==, 8); g_assert_cmpfloat (rect.origin.y, ==, 12);
 	g_assert_cmpfloat (rect.size.width, ==, 2 * cw);
@@ -162,7 +162,7 @@ test_accessible_text (void)
 	for (guint i = 0; i < accessible_changes->len; i++) g_free (g_array_index (accessible_changes, AccessibleChange, i).text);
 	g_clear_pointer (&accessible_changes, g_array_unref);
 	/* History is the same accessible document when scrolled into view. */
-	for (guint i = 0; i < termac_terminal_get_rows (terminal) + 10; i++) {
+	for (guint i = 0; i < termuni_terminal_get_rows (terminal) + 10; i++) {
 		g_autofree char *line = g_strdup_printf ("\r\nhistory-%03u", i);
 		ghostty_terminal_vt_write (vt, (const uint8_t *) line, strlen (line));
 	}
@@ -179,9 +179,9 @@ test_accessible_text (void)
 static void
 test_accessible_text_atspi_fixture (void)
 {
-	const char *directory = g_getenv ("TERMAC_ATSPI_FIXTURE");
-	TermacWindow *window;
-	TermacTerminal *terminal;
+	const char *directory = g_getenv ("TERMUNI_ATSPI_FIXTURE");
+	TermuniWindow *window;
+	TermuniTerminal *terminal;
 	GhosttyTerminal vt;
 	g_autofree char *ready = NULL, *change = NULL, *changed = NULL, *quit = NULL;
 	gboolean did_change = FALSE;
@@ -191,10 +191,10 @@ test_accessible_text_atspi_fixture (void)
 	change = g_build_filename (directory, "change", NULL);
 	changed = g_build_filename (directory, "changed", NULL);
 	quit = g_build_filename (directory, "quit", NULL);
-	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
 	gtk_window_present (GTK_WINDOW (window)); pump (700);
 	terminal = selected_terminal (window);
-	vt = termac_terminal_get_vt_handle (terminal);
+	vt = termuni_terminal_get_vt_handle (terminal);
 	const char *fixture = "\033[?2027h\033[2J\033[HATSPITERM 日本 é 👩‍💻\033[1;10H";
 	ghostty_terminal_vt_write (vt, (const uint8_t *) fixture, strlen (fixture));
 	GhosttySelection selection = GHOSTTY_INIT_SIZED (GhosttySelection);
@@ -211,7 +211,7 @@ test_accessible_text_atspi_fixture (void)
 		if (!did_change && g_file_test (change, G_FILE_TEST_EXISTS)) {
 			const char *update = "\033[1;1HUPDATED!!\033[1;13H";
 			ghostty_terminal_vt_write (vt, (const uint8_t *) update, strlen (update));
-			termac_vt_clear_selection (vt);
+			termuni_vt_clear_selection (vt);
 			gtk_widget_queue_draw (GTK_WIDGET (terminal)); pump (200);
 			g_file_set_contents (changed, "changed", -1, NULL);
 			did_change = TRUE;

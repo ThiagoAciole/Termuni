@@ -21,14 +21,14 @@ O perfil `default` foi compilado e instalado nesta máquina em 14/11/2026. O reg
 
 ```sh
 python3 tools/build-deb.py
-sudo apt install ./dist/thiago.aciole.termac_0.1.0_amd64.deb
+sudo apt install ./dist/io.github.ThiagoAciole.Termuni_0.1.0_amd64.deb
 ```
 
 | Passo | Resultado / ambiente / data |
 | --- | --- |
-| Conferir `dpkg-query -W thiago.aciole.termac` | Concluído: 0.1.0 amd64 instalado, 14/11/2026 |
-| Confirmar `/usr/bin/termac` e abrir pelo menu de aplicativos | Binário conferido; abertura visual pendente |
-| Confirmar `Icon=thiago.aciole.Termac` e o ícone em `/usr/share/icons/hicolor/scalable/apps/thiago.aciole.Termac.svg` | Concluído: arquivo pertence ao pacote; 14/11/2026 |
+| Conferir `dpkg-query -W io.github.ThiagoAciole.Termuni` | Concluído: 0.1.0 amd64 instalado, 14/11/2026 |
+| Confirmar `/usr/bin/termuni` e abrir pelo menu de aplicativos | Binário conferido; abertura visual pendente |
+| Confirmar `Icon=io.github.ThiagoAciole.Termuni` e o ícone em `/usr/share/icons/hicolor/scalable/apps/io.github.ThiagoAciole.Termuni.svg` | Concluído: arquivo pertence ao pacote; 14/11/2026 |
 | Verificar no dock e no alternador de janelas | |
 | Abrir abas em pastas diferentes e confirmar o shell/CWD local | |
 | Executar `sleep 30`, interromper com Ctrl+C e fechar a aba após retornar ao prompt | |
@@ -49,7 +49,7 @@ Xvfb com `GDK_SCALE=2` e `GDK_DPI_SCALE=1.25` não simula escalonamento fracion�
 
 | Passo | Resultado / ambiente / data |
 | --- | --- |
-| Ativar Orca e abrir Termac | |
+| Ativar Orca e abrir Termuni | |
 | Ouvir a faixa de abas, botões e Preferências | |
 | Confirmar leitura de digitação e saída do terminal | |
 

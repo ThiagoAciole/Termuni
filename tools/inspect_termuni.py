@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Heuristic read-only audit for Termac. This is NOT proof of linkage or ABI."""
+"""Heuristic read-only audit for Termuni. This is NOT proof of linkage or ABI."""
 import argparse, json, subprocess, os, re
 from pathlib import Path
 
 IGNORE={'.git','.cache','.zig-cache','zig-cache','zig-out','node_modules','target','build','dist','vendor','.venv','__pycache__','.agents','.claude','.flatpak-builder','.superpowers','tools','prompts','references'}
-# Audit the Termac frontend, not the fetched Ghostty application or build caches.
+# Audit the Termuni frontend, not the fetched Ghostty application or build caches.
 # Keep subprojects/packagefiles/ghostty: it is our Meson integration.
 DEPENDENCY_PATHS={Path('subprojects/ghostty'), Path('subprojects/packagecache')}
 SIGNALS={

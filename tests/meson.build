@@ -1,19 +1,19 @@
 test_util = executable('test-util',
-  ['test-util.c', '../src/termac-util.c'],
+  ['test-util.c', '../src/termuni-util.c'],
   dependencies: [dependency('glib-2.0')],
   include_directories: include_directories('../src'),
 )
 test('util', test_util)
 
 test_vt = executable('test-vt',
-  ['test-vt.c', '../src/termac-vt.c', '../src/termac-util.c'],
+  ['test-vt.c', '../src/termuni-vt.c', '../src/termuni-util.c'],
   dependencies: [dependency('glib-2.0'), ghostty_vt_dep],
   include_directories: include_directories('../src'),
 )
 test('vt', test_vt)
 
 test_attachments = executable('test-attachments',
-  ['test-attachments.c', '../src/termac-attachments.c', '../src/termac-util.c'],
+  ['test-attachments.c', '../src/termuni-attachments.c', '../src/termuni-util.c'],
   dependencies: [dependency('glib-2.0'), dependency('gio-2.0')],
   include_directories: include_directories('../src'),
 )
@@ -21,19 +21,19 @@ test('attachments', test_attachments)
 
 ui_sources = [
   'test-ui.c',
-  '../src/termac-application.c',
-  '../src/termac-session-store.c',
-  '../src/termac-settings.c',
-  '../src/termac-window.c',
-  '../src/termac-terminal.c',
-  '../src/termac-vt.c',
-  '../src/termac-util.c',
-  '../src/termac-attachments.c',
-  '../src/termac-agent.c',
+  '../src/termuni-application.c',
+  '../src/termuni-session-store.c',
+  '../src/termuni-settings.c',
+  '../src/termuni-window.c',
+  '../src/termuni-terminal.c',
+  '../src/termuni-vt.c',
+  '../src/termuni-util.c',
+  '../src/termuni-attachments.c',
+  '../src/termuni-agent.c',
 ]
-ui_sources += gnome.compile_resources('termac-ui-resources',
-  '../src/termac.gresource.xml',
-  c_name: 'termac',
+ui_sources += gnome.compile_resources('termuni-ui-resources',
+  '../src/termuni.gresource.xml',
+  c_name: 'termuni',
   source_dir: ['../src', '../assets'],
 )
 test_ui = executable('test-ui', ui_sources,
@@ -58,14 +58,14 @@ else
 endif
 
 test_settings = executable('test-settings',
-  ['test-settings.c', '../src/termac-settings.c'],
+  ['test-settings.c', '../src/termuni-settings.c'],
   dependencies: dependency('gio-2.0'),
   include_directories: include_directories('../src'),
 )
 test('settings', test_settings, depends: schema_build, env: ['GSETTINGS_BACKEND=memory'])
 
 test_agent = executable('test-agent',
-  ['test-agent.c', '../src/termac-agent.c', '../src/termac-attachments.c', '../src/termac-util.c'],
+  ['test-agent.c', '../src/termuni-agent.c', '../src/termuni-attachments.c', '../src/termuni-util.c'],
   dependencies: dependency('gio-2.0'),
   include_directories: include_directories('../src'),
 )
@@ -79,7 +79,7 @@ test('dev-tool-isolation', find_program('python3'),
   args: files('test-dev-tool.py'), timeout: 30,
 )
 test_session_store = executable('test-session-store',
-  ['test-session-store.c', '../src/termac-session-store.c'],
+  ['test-session-store.c', '../src/termuni-session-store.c'],
   dependencies: dependency('gio-2.0'),
   include_directories: include_directories('../src'),
   link_args: ['-Wl,--wrap=g_file_set_contents_full'],

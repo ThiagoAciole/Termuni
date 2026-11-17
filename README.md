@@ -1,4 +1,4 @@
-# Termac
+# Termuni
 
 Terminal Linux em C, GTK 4 e libadwaita, com motor **libghostty-vt**, sessões independentes em abas e anexos de imagem para Claude Code e Codex CLI.
 
@@ -27,7 +27,7 @@ Compilar e executar um build já configurado:
 
 ```sh
 meson compile -C build
-build/src/termac
+build/src/termuni
 ```
 
 Para usar as traduções locais e evitar abrir outra instância desnecessária, veja [tools/dev.sh](tools/dev.sh). O modo `--restart` encerra shells e abas existentes e exige cuidado com trabalho aberto.
@@ -42,8 +42,8 @@ As suítes de interface usam Xvfb/X11 quando disponível e cobrem também HiDPI.
 
 ## GNOME Builder e perfis
 
-Abra esta raiz como projeto Meson no GNOME Builder e configure um build nativo `development`, ID `thiago.aciole.Termac.Devel`.
+Abra esta raiz como projeto Meson no GNOME Builder e configure um build nativo `development`, ID `io.github.ThiagoAciole.Termuni.Devel`.
 
-O perfil `default` usa `thiago.aciole.Termac`; configure-o em outro diretório (`build-default`). Gere o pacote instalável com `python3 tools/build-deb.py`; os detalhes e o aceite de desktop ficam na [checklist GNOME](docs/checklists/gnome-manual.md). Não troque o perfil de um build em uso.
+O perfil `default` usa `io.github.ThiagoAciole.Termuni`; configure-o em outro diretório (`build-default`). Gere o pacote instalável com `python3 tools/build-deb.py`; os detalhes e o aceite de desktop ficam na [checklist GNOME](docs/checklists/gnome-manual.md). Não troque o perfil de um build em uso.
 
 Licença: [GPL-3.0-or-later](COPYING). As artes e avisos existentes são preservados.

@@ -14,4 +14,4 @@
 __pycache__/
 *.py[cod]
 
-/.termac-dev.lock
+/.termuni-dev.lock

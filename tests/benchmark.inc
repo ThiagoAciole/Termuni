@@ -13,9 +13,9 @@ benchmark_cpu_ms (void)
 static void
 test_benchmark (void)
 {
-	const char *count = g_getenv ("TERMAC_BENCHMARK_TABS");
-	TermacWindow *window;
-	TermacTerminal *terminals[10];
+	const char *count = g_getenv ("TERMUNI_BENCHMARK_TABS");
+	TermuniWindow *window;
+	TermuniTerminal *terminals[10];
 	AdwTabView *view;
 	guint n, lines;
 	gint64 start, startup_us, mapped_us, output_us, search_us, resize_us;
@@ -25,11 +25,11 @@ test_benchmark (void)
 	g_autoptr(GString) expected = g_string_new (NULL);
 	if (!count) { g_test_skip ("opt-in: tools/benchmark.py"); return; }
 	n = (guint) g_ascii_strtoull (count, NULL, 10);
-	lines = g_getenv ("TERMAC_BENCHMARK_LINES") ? (guint) g_ascii_strtoull (g_getenv ("TERMAC_BENCHMARK_LINES"), NULL, 10) : 3000;
+	lines = g_getenv ("TERMUNI_BENCHMARK_LINES") ? (guint) g_ascii_strtoull (g_getenv ("TERMUNI_BENCHMARK_LINES"), NULL, 10) : 3000;
 	g_assert_true (n == 1 || n == 5 || n == 10);
 	g_assert_true (lines >= 1000 && lines <= 30000);
 	start = g_get_monotonic_time ();
-	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
 	gtk_window_present (GTK_WINDOW (window));
 	for (guint i = 1; i < n; i++)
 		g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
@@ -74,7 +74,7 @@ test_benchmark (void)
 	{
 		g_autofree char *needle = g_strdup_printf ("%u", lines - 1);
 		for (guint i = 0; i < 20; i++)
-			g_assert_true (termac_terminal_find (terminals[n - 1], needle, i % 2));
+			g_assert_true (termuni_terminal_find (terminals[n - 1], needle, i % 2));
 	}
 	search_us = g_get_monotonic_time () - start;
 	start = g_get_monotonic_time ();
@@ -88,7 +88,7 @@ test_benchmark (void)
 	gtk_window_present (background); pump (200);
 	cpu = benchmark_cpu_ms (); pump (500); background_cpu = benchmark_cpu_ms () - cpu;
 	getrusage (RUSAGE_SELF, &usage);
-	g_print ("TERMAC_BENCHMARK {\"tabs\":%u,\"mapped_ms\":%.3f,\"shell_ready_with_driver_ms\":%.3f,\"output_ms\":%.3f,"
+	g_print ("TERMUNI_BENCHMARK {\"tabs\":%u,\"mapped_ms\":%.3f,\"shell_ready_with_driver_ms\":%.3f,\"output_ms\":%.3f,"
 	    "\"search_20_ms\":%.3f,\"resize_10_ms\":%.3f,\"rss_kib\":%zu,\"peak_rss_kib\":%ld,"
 	    "\"focused_idle_cpu_ms\":%.3f,\"background_idle_cpu_ms\":%.3f,\"lines_per_tab\":%u}\n",
 	    n, mapped_us / 1000.0, startup_us / 1000.0, output_us / 1000.0, search_us / 1000.0, resize_us / 1000.0,

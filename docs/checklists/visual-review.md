@@ -6,11 +6,11 @@ Reprodução (diretório temporário, preferências e sessões isoladas pelo tes
 
 ```sh
 meson compile -C build
-mkdir -p /tmp/termac-p3-shots
-TERMAC_UI_SCREENSHOTS=/tmp/termac-p3-shots GSETTINGS_BACKEND=memory \
+mkdir -p /tmp/termuni-p3-shots
+TERMUNI_UI_SCREENSHOTS=/tmp/termuni-p3-shots GSETTINGS_BACKEND=memory \
   GDK_BACKEND=x11 xvfb-run -a build/tests/test-ui
 # Apenas as telas principais:
-TERMAC_UI_SCREENSHOTS=/tmp/termac-p3-shots GDK_BACKEND=x11 \
+TERMUNI_UI_SCREENSHOTS=/tmp/termuni-p3-shots GDK_BACKEND=x11 \
   xvfb-run -a build/tests/test-ui -p /ui/visual-screens
 ```
 
@@ -29,18 +29,18 @@ Os popovers têm superfície nativa própria: `menu-*.png` captura o popover dir
 | Tema, `assets/tema-escuro.png` | Arte escura e seleção | `menu-dark.png`: arte escura selecionada e app escuro | Sim |
 | Tema, `assets/tema-automatico.png` | Arte dividida, seguir sistema | `menu-system.png`: arte dividida selecionada; Xvfb forneceu aparência escura | Arte: sim; seguir preferências reais do GNOME pendente |
 | Preferências, `Frame 3 4.png` | Áreas organizadas, somente opções implementadas | Geral/Aparência/Atalhos/Anexos na barra inferior, em vez das abas superiores do mockup. Perfis continuam fora da primeira versão | Diferença de composição registrada; não acrescentados controles fictícios |
-| Cabeçalho de Preferências | Um botão de fechar | Captura inicial tinha botão explícito e controle nativo duplicados. Desativados controles nativos deste cabeçalho; novo PNG mostra um só botão | Corrigido; antes em `/tmp/termac-p3-preferences-before.png` |
+| Cabeçalho de Preferências | Um botão de fechar | Captura inicial tinha botão explícito e controle nativo duplicados. Desativados controles nativos deste cabeçalho; novo PNG mostra um só botão | Corrigido; antes em `/tmp/termuni-p3-preferences-before.png` |
 | Cartões de paleta e espaçamento | Três colunas, seis amostras, seleção identificável | Nove cartões iniciais, doze ao expandir; seis amostras e marca/contorno na seleção; espaçamento de 12 unidades | Sim no tamanho capturado |
 | Medidas antigas dos cartões em DESIGN.md | Documento citava mínimo 175×145 | Código e captura atuais usam 175×90; cartões não têm recorte horizontal, página rola verticalmente | Divergência documental; sem alteração arbitrária de altura |
 | Geral | Preferências de restauração, histórico, integração, notificação e fechamento | Grupos legíveis e notificação desligada por padrão em `preferences-behavior.png` | Sim |
 | Atalhos editáveis | Ações e restaurar padrões visíveis | `preferences-shortcuts.png`: ações e combinações alinhadas; restante acessível por rolagem. Conflito testado pelo caminho real do editor | Sim |
 | Anexos | Seletor do agente, estado vazio e limpeza | `preferences-attachments.png`: agente e explicações visíveis, sem sobreposição | Sim |
-| Sobre | Identidade Termac, versão, créditos e licença | `about.png`: ícone do perfil de desenvolvimento, nome, 0.1.0, créditos e legal | Sim para este perfil; lançador e perfil default no GNOME pendentes |
+| Sobre | Identidade Termuni, versão, créditos e licença | `about.png`: ícone do perfil de desenvolvimento, nome, 0.1.0, créditos e legal | Sim para este perfil; lançador e perfil default no GNOME pendentes |
 | Diálogo de atalhos | Categorias e combinações legíveis | `shortcuts.png`: navegação e teclas legíveis, conteúdo longo com rolagem | Sim para padrões; adaptação do diálogo a atalhos personalizados não faz parte desta mudança |
 | Busca | Barra inferior e todas as ocorrências destacadas | `search-highlight.png`: quatro ocorrências de marker (comando + saída), destaque azul translúcido, atual mais forte; sem destaque após fechar | Sim; CJK/emoji/acentos cobertos nos testes do motor |
 | Bordas, fonte e escala | Integração nativa no GNOME | Xvfb não tem o compositor, tema de desktop e escala fracionária da sessão real; bordas retangulares e fontes diferem dos mockups | Precisa de sessão real |
 
-Capturas principais em `/tmp/termac-p3-shots/`:
+Capturas principais em `/tmp/termuni-p3-shots/`:
 
 - `main-one-tab.png`, `main-two-tabs.png`, `tab-overview.png`;
 - `menu-light.png`, `menu-dark.png`, `menu-system.png`;

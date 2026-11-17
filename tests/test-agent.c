@@ -3,25 +3,25 @@
 #include <glib/gstdio.h>
 #include <signal.h>
 #include <string.h>
-#include "termac-agent.h"
+#include "termuni-agent.h"
 
 static void
 test_find (void)
 {
 	gsize count = 0;
-	const TermacAgent *const *agents = termac_agent_all (&count);
+	const TermuniAgent *const *agents = termuni_agent_all (&count);
 	g_assert_cmpuint (count, ==, 2);
-	g_assert_true (termac_agent_find ("claude") == agents[0]);
-	g_assert_true (termac_agent_find ("codex") == agents[1]);
-	g_assert_null (termac_agent_find (NULL));
-	g_assert_null (termac_agent_find ("nope"));
-	g_assert_cmpstr (termac_agent_default ()->id, ==, "claude");
+	g_assert_true (termuni_agent_find ("claude") == agents[0]);
+	g_assert_true (termuni_agent_find ("codex") == agents[1]);
+	g_assert_null (termuni_agent_find (NULL));
+	g_assert_null (termuni_agent_find ("nope"));
+	g_assert_cmpstr (termuni_agent_default ()->id, ==, "claude");
 }
 
 static void
 test_format_plain (void)
 {
-	g_autofree char *formatted = termac_agent_format_attachment (termac_agent_default (), "/tmp/a.png");
+	g_autofree char *formatted = termuni_agent_format_attachment (termuni_agent_default (), "/tmp/a.png");
 	g_assert_cmpstr (formatted, ==, "'/tmp/a.png' ");
 }
 
@@ -30,11 +30,11 @@ test_format (void)
 {
 	const char *paths[] = { "/tmp/a.png", "/tmp/it's here.png", "/tmp/$HOME `x`.png", "/tmp/ação.png" };
 	gsize count;
-	const TermacAgent *const *agents = termac_agent_all (&count);
+	const TermuniAgent *const *agents = termuni_agent_all (&count);
 	for (guint a = 0; a < count + 1; a++)
 		for (guint i = 0; i < G_N_ELEMENTS (paths); i++)
 		{
-			g_autofree char *formatted = termac_agent_format_attachment (a < count ? agents[a] : NULL, paths[i]);
+			g_autofree char *formatted = termuni_agent_format_attachment (a < count ? agents[a] : NULL, paths[i]);
 			g_autofree char *command = g_strconcat ("printf %s ", formatted, NULL);
 			char *argv[] = { "/bin/sh", "-c", command, NULL };
 			g_autofree char *output = NULL;
@@ -49,26 +49,26 @@ test_format (void)
 static void
 test_installed (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-agent-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-agent-XXXXXX", NULL);
 	g_autofree char *path = g_build_filename (dir, "claude", NULL);
 	g_autofree char *previous = g_strdup (g_getenv ("PATH"));
 	g_assert_true (g_file_set_contents (path, "#!/bin/sh\nexit 0\n", -1, NULL));
 	g_assert_cmpint (g_chmod (path, 0755), ==, 0);
 	g_setenv ("PATH", dir, TRUE);
-	g_assert_true (termac_agent_is_installed (termac_agent_default ()));
-	g_assert_false (termac_agent_is_installed (termac_agent_find ("codex")));
+	g_assert_true (termuni_agent_is_installed (termuni_agent_default ()));
+	g_assert_false (termuni_agent_is_installed (termuni_agent_find ("codex")));
 	g_unlink (path);
-	g_assert_false (termac_agent_is_installed (termac_agent_default ()));
+	g_assert_false (termuni_agent_is_installed (termuni_agent_default ()));
 	if (previous != NULL) g_setenv ("PATH", previous, TRUE); else g_unsetenv ("PATH");
 	g_rmdir (dir);
 }
 
-typedef struct { gboolean done; TermacAgentAvailability status; GError *error; } CheckResult;
+typedef struct { gboolean done; TermuniAgentAvailability status; GError *error; } CheckResult;
 static void
 check_done (GObject *source, GAsyncResult *result, gpointer user_data)
 {
 	CheckResult *check = user_data;
-	check->status = termac_agent_check_finish (result, &check->error);
+	check->status = termuni_agent_check_finish (result, &check->error);
 	check->done = TRUE;
 }
 static void
@@ -85,7 +85,7 @@ wait_check (CheckResult *check)
 static void
 test_shell_path (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-agent-path-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-agent-path-XXXXXX", NULL);
 	g_autofree char *shell = g_build_filename (dir, "shell", NULL);
 	g_autofree char *binary = g_build_filename (dir, "claude", NULL);
 	g_autofree char *old_path = g_strdup (g_getenv ("PATH"));
@@ -97,11 +97,11 @@ test_shell_path (void)
 	g_chmod (shell, 0755); g_chmod (binary, 0755);
 	g_setenv ("PATH", "/nonexistent", TRUE);
 	g_setenv ("SHELL", shell, TRUE);
-	g_assert_false (termac_agent_is_installed (termac_agent_default ()));
-	termac_agent_check_async (termac_agent_default (), dir, NULL, check_done, &check);
+	g_assert_false (termuni_agent_is_installed (termuni_agent_default ()));
+	termuni_agent_check_async (termuni_agent_default (), dir, NULL, check_done, &check);
 	wait_check (&check);
 	g_assert_no_error (check.error);
-	g_assert_cmpint (check.status, ==, TERMAC_AGENT_AVAILABLE);
+	g_assert_cmpint (check.status, ==, TERMUNI_AGENT_AVAILABLE);
 	g_setenv ("PATH", old_path != NULL ? old_path : "", TRUE);
 	g_setenv ("SHELL", old_shell != NULL ? old_shell : "/bin/sh", TRUE);
 	g_unlink (shell); g_unlink (binary); g_rmdir (dir);
@@ -110,7 +110,7 @@ test_shell_path (void)
 static void
 test_relative_path (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-agent-cwd-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-agent-cwd-XXXXXX", NULL);
 	g_autofree char *bin = g_build_filename (dir, "bin", NULL);
 	g_autofree char *program = g_build_filename (bin, "claude", NULL);
 	g_autofree char *old_path = g_strdup (g_getenv ("PATH"));
@@ -121,10 +121,10 @@ test_relative_path (void)
 	g_chmod (program, 0755);
 	g_setenv ("PATH", "bin", TRUE);
 	g_setenv ("SHELL", "/bin/sh", TRUE);
-	termac_agent_check_async (termac_agent_default (), dir, NULL, check_done, &check);
+	termuni_agent_check_async (termuni_agent_default (), dir, NULL, check_done, &check);
 	wait_check (&check);
 	g_assert_no_error (check.error);
-	g_assert_cmpint (check.status, ==, TERMAC_AGENT_AVAILABLE);
+	g_assert_cmpint (check.status, ==, TERMUNI_AGENT_AVAILABLE);
 	g_setenv ("PATH", old_path != NULL ? old_path : "", TRUE);
 	g_setenv ("SHELL", old_shell != NULL ? old_shell : "/bin/sh", TRUE);
 	g_unlink (program); g_rmdir (bin); g_rmdir (dir);
@@ -133,7 +133,7 @@ test_relative_path (void)
 static void
 test_check_reaps_children (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-agent-reap-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-agent-reap-XXXXXX", NULL);
 	g_autofree char *shell = g_build_filename (dir, "shell", NULL);
 	g_autofree char *pidfile = g_build_filename (dir, "pid", NULL);
 	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
@@ -143,7 +143,7 @@ test_check_reaps_children (void)
 	guint64 pid;
 	g_assert_true (g_file_set_contents (shell, script, -1, NULL)); g_chmod (shell, 0755);
 	g_setenv ("SHELL", shell, TRUE);
-	termac_agent_check_async (termac_agent_default (), dir, NULL, check_done, &check);
+	termuni_agent_check_async (termuni_agent_default (), dir, NULL, check_done, &check);
 	wait_check (&check);
 	g_assert_error (check.error, G_IO_ERROR, G_IO_ERROR_TIMED_OUT); g_clear_error (&check.error);
 	g_assert_true (g_file_get_contents (pidfile, &pidtext, NULL, NULL));

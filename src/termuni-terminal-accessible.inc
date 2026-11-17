@@ -2,7 +2,7 @@
 /* The accessible document is the visible grid, including history when scrolled.
  * Offsets count Unicode codepoints (not bytes, cells or grapheme clusters).
  * Never call render_state_update here: it consumes the renderer's dirty flags.
- * This file belongs to TermacTerminal and runs only on GTK's main thread. */
+ * This file belongs to TermuniTerminal and runs only on GTK's main thread. */
 typedef struct {
 	GString *text;
 	GArray *starts, *ends;
@@ -21,7 +21,7 @@ terminal_accessible_snapshot_free (TerminalAccessibleSnapshot *s)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (TerminalAccessibleSnapshot, terminal_accessible_snapshot_free)
 
 static gboolean
-terminal_accessible_ref (TermacTerminal *self, guint x, guint y, GhosttyGridRef *ref)
+terminal_accessible_ref (TermuniTerminal *self, guint x, guint y, GhosttyGridRef *ref)
 {
 	GhosttyPoint p = { .tag = GHOSTTY_POINT_TAG_VIEWPORT };
 	p.value.coordinate.x = x;
@@ -30,7 +30,7 @@ terminal_accessible_ref (TermacTerminal *self, guint x, guint y, GhosttyGridRef 
 }
 
 static TerminalAccessibleSnapshot *
-terminal_accessible_snapshot (TermacTerminal *self)
+terminal_accessible_snapshot (TermuniTerminal *self)
 {
 	TerminalAccessibleSnapshot *s = g_new0 (TerminalAccessibleSnapshot, 1);
 	uint16_t cx = 0, cy = 0;
@@ -90,7 +90,7 @@ terminal_accessible_slice (TerminalAccessibleSnapshot *s, guint start, guint end
 static GBytes *
 terminal_accessible_contents (GtkAccessibleText *text, guint start, guint end)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (text);
+	TermuniTerminal *self = TERMUNI_TERMINAL (text);
 	/* A remove notification must still expose the old text to GTK/AT-SPI. */
 	if (self->accessible_removing && self->accessible_text) {
 		TerminalAccessibleSnapshot old = { .text = self->accessible_text,
@@ -105,7 +105,7 @@ static GBytes *
 terminal_accessible_contents_at (GtkAccessibleText *text, guint offset,
                                  GtkAccessibleTextGranularity granularity, guint *start, guint *end)
 {
-	g_autoptr(TerminalAccessibleSnapshot) s = terminal_accessible_snapshot (TERMAC_TERMINAL (text));
+	g_autoptr(TerminalAccessibleSnapshot) s = terminal_accessible_snapshot (TERMUNI_TERMINAL (text));
 	g_autofree PangoLogAttr *attrs = g_new0 (PangoLogAttr, s->length + 1);
 	guint a = MIN (offset, s->length), b = a;
 	pango_get_log_attrs (s->text->str, s->text->len, -1, pango_language_get_default (), attrs, s->length + 1);
@@ -131,14 +131,14 @@ terminal_accessible_contents_at (GtkAccessibleText *text, guint offset,
 static guint
 terminal_accessible_caret (GtkAccessibleText *text)
 {
-	g_autoptr(TerminalAccessibleSnapshot) s = terminal_accessible_snapshot (TERMAC_TERMINAL (text));
+	g_autoptr(TerminalAccessibleSnapshot) s = terminal_accessible_snapshot (TERMUNI_TERMINAL (text));
 	return s->caret;
 }
 
 static gboolean
 terminal_accessible_selection (GtkAccessibleText *text, gsize *n_ranges, GtkAccessibleTextRange **ranges)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (text);
+	TermuniTerminal *self = TERMUNI_TERMINAL (text);
 	g_autoptr(TerminalAccessibleSnapshot) s = NULL;
 	GhosttySelection selection = GHOSTTY_INIT_SIZED (GhosttySelection);
 	GhosttyPointCoordinate a, b, origin;
@@ -208,7 +208,7 @@ terminal_accessible_attributes (GtkAccessibleText *text, guint offset, gsize *n,
 static gboolean
 terminal_accessible_extents (GtkAccessibleText *text, guint start, guint end, graphene_rect_t *extents)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (text);
+	TermuniTerminal *self = TERMUNI_TERMINAL (text);
 	g_autoptr(TerminalAccessibleSnapshot) s = terminal_accessible_snapshot (self);
 	gboolean found = FALSE;
 	if (start >= s->length || end > s->length || end < start) return FALSE;
@@ -216,8 +216,8 @@ terminal_accessible_extents (GtkAccessibleText *text, guint start, guint end, gr
 		guint a = g_array_index (s->starts, guint, i), b = g_array_index (s->ends, guint, i);
 		graphene_rect_t cell;
 		if (!(a <= start && start < b) && !(a < end && b > start)) continue;
-		graphene_rect_init (&cell, TERMAC_TERMINAL_INSET_START + (i % s->cols) * self->cell_width,
-		                   TERMAC_TERMINAL_INSET_TOP + (i / s->cols) * self->cell_height,
+		graphene_rect_init (&cell, TERMUNI_TERMINAL_INSET_START + (i % s->cols) * self->cell_width,
+		                   TERMUNI_TERMINAL_INSET_TOP + (i / s->cols) * self->cell_height,
 		                   self->cell_width, self->cell_height);
 		if (found) graphene_rect_union (extents, &cell, extents);
 		else { *extents = cell; found = TRUE; }
@@ -228,9 +228,9 @@ terminal_accessible_extents (GtkAccessibleText *text, guint start, guint end, gr
 static gboolean
 terminal_accessible_offset (GtkAccessibleText *text, const graphene_point_t *point, guint *offset)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (text);
+	TermuniTerminal *self = TERMUNI_TERMINAL (text);
 	g_autoptr(TerminalAccessibleSnapshot) s = terminal_accessible_snapshot (self);
-	double x = point->x - TERMAC_TERMINAL_INSET_START, y = point->y - TERMAC_TERMINAL_INSET_TOP;
+	double x = point->x - TERMUNI_TERMINAL_INSET_START, y = point->y - TERMUNI_TERMINAL_INSET_TOP;
 	if (!isfinite (x) || !isfinite (y) || !self->cell_width || !self->cell_height || x < 0 || y < 0 ||
 	    x >= s->cols * self->cell_width || y >= s->rows * self->cell_height) return FALSE;
 	*offset = g_array_index (s->starts, guint,
@@ -254,7 +254,7 @@ terminal_accessible_text_init (GtkAccessibleTextInterface *iface)
 }
 
 static void
-terminal_accessible_update (TermacTerminal *self)
+terminal_accessible_update (TermuniTerminal *self)
 {
 	g_autoptr(TerminalAccessibleSnapshot) s = terminal_accessible_snapshot (self);
 	gboolean changed = !self->accessible_text || strcmp (self->accessible_text->str, s->text->str);

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include "termac-util.h"
+#include "termuni-util.h"
 
 #include <string.h>
 
@@ -87,7 +87,7 @@ probe_jpeg (const guint8 *data,
 }
 
 /**
- * termac_image_probe:
+ * termuni_image_probe:
  * @data: file contents, at least the header
  * @length: number of bytes in @data
  * @width: (out): image width in pixels
@@ -96,22 +96,22 @@ probe_jpeg (const guint8 *data,
  * Identifies a PNG or JPEG by its signature and reads its dimensions.
  * Only the header is inspected; the image is not decoded.
  *
- * Returns: the detected format, or %TERMAC_IMAGE_FORMAT_NONE
+ * Returns: the detected format, or %TERMUNI_IMAGE_FORMAT_NONE
  */
-TermacImageFormat
-termac_image_probe (const guint8 *data,
+TermuniImageFormat
+termuni_image_probe (const guint8 *data,
                     gsize         length,
                     guint        *width,
                     guint        *height)
 {
-	g_return_val_if_fail (data != NULL, TERMAC_IMAGE_FORMAT_NONE);
-	g_return_val_if_fail (width != NULL && height != NULL, TERMAC_IMAGE_FORMAT_NONE);
+	g_return_val_if_fail (data != NULL, TERMUNI_IMAGE_FORMAT_NONE);
+	g_return_val_if_fail (width != NULL && height != NULL, TERMUNI_IMAGE_FORMAT_NONE);
 
 	if (probe_png (data, length, width, height))
-		return TERMAC_IMAGE_FORMAT_PNG;
+		return TERMUNI_IMAGE_FORMAT_PNG;
 	if (probe_jpeg (data, length, width, height))
-		return TERMAC_IMAGE_FORMAT_JPEG;
-	return TERMAC_IMAGE_FORMAT_NONE;
+		return TERMUNI_IMAGE_FORMAT_JPEG;
+	return TERMUNI_IMAGE_FORMAT_NONE;
 }
 
 static gboolean
@@ -142,7 +142,7 @@ columns_before (const char *line,
 }
 
 /**
- * termac_url_at_column:
+ * termuni_url_at_column:
  * @line: UTF-8 text of one terminal row
  * @column: column measured in characters from the start of @line
  * @start: (out): byte offset of the URL start
@@ -154,7 +154,7 @@ columns_before (const char *line,
  * Returns: %TRUE if a URL covers the column
  */
 gboolean
-termac_url_span_at_column (const char *line,
+termuni_url_span_at_column (const char *line,
                            guint       column,
                            gsize      *start,
                            gsize      *end,
@@ -211,23 +211,23 @@ termac_url_span_at_column (const char *line,
 }
 
 gboolean
-termac_url_at_column (const char *line,
+termuni_url_at_column (const char *line,
                       guint       column,
                       gsize      *start,
                       gsize      *end)
 {
-	return termac_url_span_at_column (line, column, start, end, NULL, NULL);
+	return termuni_url_span_at_column (line, column, start, end, NULL, NULL);
 }
 
 /**
- * termac_display_path:
+ * termuni_display_path:
  * @path: absolute path
  * @home: (nullable): home directory to abbreviate as "~"
  *
  * Returns: a newly allocated path for display
  */
 char *
-termac_display_path (const char *path,
+termuni_display_path (const char *path,
                      const char *home)
 {
 	gsize home_length;
@@ -247,7 +247,7 @@ termac_display_path (const char *path,
 }
 
 /**
- * termac_path_from_pwd:
+ * termuni_path_from_pwd:
  * @value: working directory reported by the shell
  *
  * OSC 7 reports "file://host/path". Returns the path part, or a copy of
@@ -256,7 +256,7 @@ termac_display_path (const char *path,
  * Returns: a newly allocated path
  */
 char *
-termac_path_from_pwd (const char *value)
+termuni_path_from_pwd (const char *value)
 {
 	const char *slash;
 
@@ -268,7 +268,7 @@ termac_path_from_pwd (const char *value)
 }
 
 char **
-termac_shell_command_argv (const char *shell, const char *rcfile, const char *command)
+termuni_shell_command_argv (const char *shell, const char *rcfile, const char *command)
 {
 	GPtrArray *args = g_ptr_array_new_with_free_func (g_free);
 	g_ptr_array_add (args, g_strdup (shell));
@@ -296,7 +296,7 @@ termac_shell_command_argv (const char *shell, const char *rcfile, const char *co
 }
 
 char *
-termac_session_directory (const char *cwd)
+termuni_session_directory (const char *cwd)
 {
 	if (cwd != NULL && g_path_is_absolute (cwd) && g_file_test (cwd, G_FILE_TEST_IS_DIR))
 		return g_strdup (cwd);
@@ -304,13 +304,13 @@ termac_session_directory (const char *cwd)
 }
 
 char **
-termac_shell_argv (const char *shell, const char *rcfile)
+termuni_shell_argv (const char *shell, const char *rcfile)
 {
-	return termac_shell_command_argv (shell, rcfile, NULL);
+	return termuni_shell_command_argv (shell, rcfile, NULL);
 }
 
 gboolean
-termac_should_notify (gboolean setting_enabled, gboolean window_active,
+termuni_should_notify (gboolean setting_enabled, gboolean window_active,
                       gboolean tab_selected, gboolean took_long_enough)
 {
 	return setting_enabled && (!window_active || !tab_selected) && took_long_enough;

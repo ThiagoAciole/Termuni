@@ -14,7 +14,7 @@ SOURCE = Path(__file__).resolve().parents[1]
 
 class DevelopmentLauncher(unittest.TestCase):
     def test_checkout_and_profile_isolation(self):
-        with tempfile.TemporaryDirectory(prefix="termac-dev-test-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="termuni-dev-test-") as tmp:
             base = Path(tmp)
             fixture = base / "fixture"
             subprocess.run(["cc", "-x", "c", "-", "-o", str(fixture)], input=b'''
@@ -40,12 +40,12 @@ int main(void) {
                 (root / "po").mkdir()
                 (root / "po/LINGUAS").write_text("")
                 (root / "build/config.h").write_text(
-                    '#define APPLICATION_ID "thiago.aciole.Termac' +
+                    '#define APPLICATION_ID "io.github.ThiagoAciole.Termuni' +
                     ('' if root.name == 'default' else '.Devel') + '"\n')
                 shutil.copy2(SOURCE / "tools/dev.sh", root / "tools/dev.sh")
-                shutil.copy2(fixture, root / "build/src/termac")
+                shutil.copy2(fixture, root / "build/src/termuni")
             env = dict(os.environ, PATH=str(bindir) + ":" + os.environ["PATH"],
-                       TERMAC_DEV_LOG=str(base / "dev.log"))
+                       TERMUNI_DEV_LOG=str(base / "dev.log"))
             processes = []
             children = []
 
@@ -61,7 +61,7 @@ int main(void) {
                         target = os.readlink(proc / 'exe')
                     except OSError:
                         continue
-                    if target in (str(root / 'build/src/termac'), str(root / 'build/src/termac') + ' (deleted)'):
+                    if target in (str(root / 'build/src/termuni'), str(root / 'build/src/termuni') + ' (deleted)'):
                         result.append(int(proc.name))
                 return result
 
@@ -72,7 +72,7 @@ int main(void) {
             try:
                 # Two different development roots and a default binary coexist.
                 for root in roots[1:]:
-                    child = subprocess.Popen([str(root / 'build/src/termac')])
+                    child = subprocess.Popen([str(root / 'build/src/termuni')])
                     children.append(child)
                     processes.append(child.pid)
                 time.sleep(0.1)
@@ -96,7 +96,7 @@ int main(void) {
                 # Simulate Meson replacing the running executable's inode.
                 replacement = roots[0] / 'build/src/replacement'
                 shutil.copy2(fixture, replacement)
-                replacement.replace(roots[0] / 'build/src/termac')
+                replacement.replace(roots[0] / 'build/src/termuni')
                 result = launch(roots[0], args=['--restart'])
                 self.assertEqual(result.returncode, 0, result.stderr)
                 collect()

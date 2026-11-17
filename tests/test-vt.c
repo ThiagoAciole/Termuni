@@ -4,7 +4,7 @@
 #include <ghostty/vt.h>
 #include <glib.h>
 
-#include "termac-vt.h"
+#include "termuni-vt.h"
 
 #define COLS 40
 #define ROWS 10
@@ -38,7 +38,7 @@ geometry (void)
 }
 
 static void
-drag_select (TermacVtSelector *selector,
+drag_select (TermuniVtSelector *selector,
              GhosttyTerminal   terminal,
              guint             from_column,
              guint             to_column,
@@ -46,13 +46,13 @@ drag_select (TermacVtSelector *selector,
 {
 	GhosttySelectionGestureGeometry geo = geometry ();
 
-	termac_vt_selector_event (selector, terminal, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_PRESS,
+	termuni_vt_selector_event (selector, terminal, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_PRESS,
 	                          from_column, row, from_column * CELL_WIDTH + 2, row * 20 + 10,
 	                          1000, NULL);
-	termac_vt_selector_event (selector, terminal, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_DRAG,
+	termuni_vt_selector_event (selector, terminal, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_DRAG,
 	                          to_column, row, to_column * CELL_WIDTH + 7, row * 20 + 10,
 	                          0, &geo);
-	termac_vt_selector_event (selector, terminal, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_RELEASE,
+	termuni_vt_selector_event (selector, terminal, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_RELEASE,
 	                          to_column, row, to_column * CELL_WIDTH + 7, row * 20 + 10,
 	                          0, NULL);
 }
@@ -61,18 +61,18 @@ static void
 test_selection_copies_ascii_text (void)
 {
 	GhosttyTerminal terminal = new_terminal ();
-	TermacVtSelector *selector = termac_vt_selector_new ();
+	TermuniVtSelector *selector = termuni_vt_selector_new ();
 	g_autofree char *text = NULL;
 
 	write_text (terminal, "hello world\r\n");
 	drag_select (selector, terminal, 0, 4, 0);
-	g_assert_true (termac_vt_selection_text (terminal, &text));
+	g_assert_true (termuni_vt_selection_text (terminal, &text));
 	g_assert_cmpstr (text, ==, "hello");
 
-	termac_vt_selection_clear (terminal);
-	g_assert_false (termac_vt_selection_text (terminal, &text));
+	termuni_vt_selection_clear (terminal);
+	g_assert_false (termuni_vt_selection_text (terminal, &text));
 
-	termac_vt_selector_free (selector);
+	termuni_vt_selector_free (selector);
 	ghostty_terminal_free (terminal);
 }
 
@@ -80,15 +80,15 @@ static void
 test_selection_copies_wide_characters (void)
 {
 	GhosttyTerminal terminal = new_terminal ();
-	TermacVtSelector *selector = termac_vt_selector_new ();
+	TermuniVtSelector *selector = termuni_vt_selector_new ();
 	g_autofree char *text = NULL;
 
 	write_text (terminal, "\xe6\xbc\xa2\xe5\xad\x97\r\n"); /* 漢字 */
 	drag_select (selector, terminal, 0, 3, 0);
-	g_assert_true (termac_vt_selection_text (terminal, &text));
+	g_assert_true (termuni_vt_selection_text (terminal, &text));
 	g_assert_cmpstr (text, ==, "\xe6\xbc\xa2\xe5\xad\x97");
 
-	termac_vt_selector_free (selector);
+	termuni_vt_selector_free (selector);
 	ghostty_terminal_free (terminal);
 }
 
@@ -97,11 +97,11 @@ test_bracketed_paste_mode_is_reported (void)
 {
 	GhosttyTerminal terminal = new_terminal ();
 
-	g_assert_false (termac_vt_bracketed_paste (terminal));
+	g_assert_false (termuni_vt_bracketed_paste (terminal));
 	write_text (terminal, "\x1b[?2004h");
-	g_assert_true (termac_vt_bracketed_paste (terminal));
+	g_assert_true (termuni_vt_bracketed_paste (terminal));
 	write_text (terminal, "\x1b[?2004l");
-	g_assert_false (termac_vt_bracketed_paste (terminal));
+	g_assert_false (termuni_vt_bracketed_paste (terminal));
 
 	ghostty_terminal_free (terminal);
 }
@@ -114,12 +114,12 @@ test_paste_is_wrapped_only_when_bracketed (void)
 	g_autofree char *plain = NULL;
 	g_autofree char *discarded = NULL;
 
-	wrapped = termac_vt_encode_paste ("abc", 3, TRUE, &length);
+	wrapped = termuni_vt_encode_paste ("abc", 3, TRUE, &length);
 	g_assert_nonnull (wrapped);
 	g_assert_cmpmem (wrapped, length, "\x1b[200~abc\x1b[201~", 12 + 3);
 
-	discarded = termac_vt_encode_paste ("x", 1, FALSE, &length);
-	plain = termac_vt_encode_paste ("a\nb", 3, FALSE, &length);
+	discarded = termuni_vt_encode_paste ("x", 1, FALSE, &length);
+	plain = termuni_vt_encode_paste ("a\nb", 3, FALSE, &length);
 	g_assert_cmpmem (plain, length, "a\rb", 3);
 }
 
@@ -130,7 +130,7 @@ test_paste_cannot_inject_end_marker (void)
 	const char *text = "a\x1b[201~b";
 	gsize length = 0;
 	gsize count = 0;
-	g_autofree char *encoded = termac_vt_encode_paste (text, strlen (text), TRUE, &length);
+	g_autofree char *encoded = termuni_vt_encode_paste (text, strlen (text), TRUE, &length);
 	gsize i;
 
 	g_assert_nonnull (encoded);
@@ -146,9 +146,9 @@ test_mouse_tracking_is_reported (void)
 {
 	GhosttyTerminal terminal = new_terminal ();
 
-	g_assert_false (termac_vt_mouse_tracking (terminal));
+	g_assert_false (termuni_vt_mouse_tracking (terminal));
 	write_text (terminal, "\x1b[?1000h");
-	g_assert_true (termac_vt_mouse_tracking (terminal));
+	g_assert_true (termuni_vt_mouse_tracking (terminal));
 	ghostty_terminal_free (terminal);
 }
 
@@ -165,12 +165,12 @@ test_find_scrolls_to_match (void)
 		g_snprintf (line, sizeof line, "line %u\r\n", i);
 		write_text (terminal, line);
 	}
-	g_assert_false (termac_vt_find (terminal, "", FALSE));
-	g_assert_false (termac_vt_find (terminal, "  ", FALSE));
-	g_assert_false (termac_vt_find (terminal, "absent", FALSE));
+	g_assert_false (termuni_vt_find (terminal, "", FALSE));
+	g_assert_false (termuni_vt_find (terminal, "  ", FALSE));
+	g_assert_false (termuni_vt_find (terminal, "absent", FALSE));
 
 	/* "line 7" is screen row 7 because nothing precedes the output. */
-	g_assert_true (termac_vt_find (terminal, "LINE 7", TRUE));
+	g_assert_true (termuni_vt_find (terminal, "LINE 7", TRUE));
 	g_assert_cmpint (ghostty_terminal_get (terminal, GHOSTTY_TERMINAL_DATA_SCROLLBAR, &bar), ==,
 	                 GHOSTTY_SUCCESS);
 	g_assert_cmpuint (bar.offset, ==, 7 - bar.len / 2);
@@ -185,10 +185,10 @@ test_find_matches (void)
  GArray *matches;
  const guint positions[][2] = { {0,0}, {0,8}, {1,1} };
  write_text (terminal, "foo bar Foo\r\nxfoo");
- matches = termac_vt_find_matches (terminal, COLS, ROWS, "foo");
+ matches = termuni_vt_find_matches (terminal, COLS, ROWS, "foo");
  g_assert_cmpuint (matches->len, ==, 3);
  for (guint i = 0; i < matches->len; i++) {
-  TermacVtMatch m = g_array_index (matches, TermacVtMatch, i);
+  TermuniVtMatch m = g_array_index (matches, TermuniVtMatch, i);
   g_assert_cmpuint (m.row, ==, positions[i][0]);
   g_assert_cmpuint (m.column, ==, positions[i][1]);
   g_assert_cmpuint (m.cells, ==, 3);
@@ -206,9 +206,9 @@ test_find_matches_wide (void)
   GhosttyTerminal terminal = new_terminal ();
   GArray *matches;
   write_text (terminal, lines[i]);
-  matches = termac_vt_find_matches (terminal, COLS, ROWS, "foo");
+  matches = termuni_vt_find_matches (terminal, COLS, ROWS, "foo");
   g_assert_cmpuint (matches->len, ==, 1);
-  g_assert_cmpuint (g_array_index (matches, TermacVtMatch, 0).column, ==, columns[i]);
+  g_assert_cmpuint (g_array_index (matches, TermuniVtMatch, 0).column, ==, columns[i]);
   g_array_unref (matches);
   ghostty_terminal_free (terminal);
  }
@@ -220,7 +220,7 @@ test_find_matches_empty (void)
  GhosttyTerminal terminal = new_terminal ();
  const char *queries[] = { NULL, "", "  ", "\t\n", "　" };
  for (guint i = 0; i < G_N_ELEMENTS (queries); i++) {
-  GArray *matches = termac_vt_find_matches (terminal, COLS, ROWS, queries[i]);
+  GArray *matches = termuni_vt_find_matches (terminal, COLS, ROWS, queries[i]);
   g_assert_cmpuint (matches->len, ==, 0);
   g_array_unref (matches);
  }
@@ -244,7 +244,7 @@ test_find_matches_preserves_render_updates (void)
 	write_text (terminal, "old");
 	g_assert_cmpint (ghostty_render_state_update (state, terminal), ==, GHOSTTY_SUCCESS);
 	write_text (terminal, "\rnew");
-	matches = termac_vt_find_matches (terminal, COLS, ROWS, "new");
+	matches = termuni_vt_find_matches (terminal, COLS, ROWS, "new");
 	g_assert_cmpuint (matches->len, ==, 1);
 	/* The normal renderer must still receive this pending change after a query. */
 	g_assert_cmpint (ghostty_render_state_update (state, terminal), ==, GHOSTTY_SUCCESS);
@@ -304,8 +304,8 @@ test_links_use_cells (void)
 		g_autofree char *uri = NULL;
 		guint first = 0, last = 0;
 		write_text (terminal, text);
-		g_assert_null (termac_vt_link_at (terminal, COLS, 0, starts[i] - 1, NULL, NULL));
-		uri = termac_vt_link_at (terminal, COLS, 0, starts[i], &first, &last);
+		g_assert_null (termuni_vt_link_at (terminal, COLS, 0, starts[i] - 1, NULL, NULL));
+		uri = termuni_vt_link_at (terminal, COLS, 0, starts[i], &first, &last);
 		g_assert_cmpstr (uri, ==, "https://example.org");
 		g_assert_cmpuint (first, ==, starts[i]);
 		g_assert_cmpuint (last, ==, starts[i] + strlen ("https://example.org"));
@@ -320,13 +320,13 @@ test_osc8_links (void)
 	g_autofree char *uri = NULL;
 	guint first = 0, last = 0;
 	write_text (terminal, "\033]8;;https://example.org/path\033\\日本語\033]8;;\033\\ gap");
-	uri = termac_vt_link_at (terminal, COLS, 0, 5, &first, &last);
+	uri = termuni_vt_link_at (terminal, COLS, 0, 5, &first, &last);
 	g_assert_cmpstr (uri, ==, "https://example.org/path");
 	g_assert_cmpuint (first, ==, 0);
 	g_assert_cmpuint (last, ==, 6);
-	g_assert_null (termac_vt_link_at (terminal, COLS, 0, 6, NULL, NULL));
+	g_assert_null (termuni_vt_link_at (terminal, COLS, 0, 6, NULL, NULL));
 	write_text (terminal, "\r\n\033]8;;javascript:alert(1)\033\\unsafe\033]8;;\033\\");
-	g_assert_null (termac_vt_link_at (terminal, COLS, 1, 0, NULL, NULL));
+	g_assert_null (termuni_vt_link_at (terminal, COLS, 1, 0, NULL, NULL));
 	ghostty_terminal_free (terminal);
 }
 

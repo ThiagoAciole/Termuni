@@ -1,13 +1,13 @@
 # List of source files containing translatable strings.
 # Please keep this file sorted alphabetically.
-data/thiago.aciole.termac.desktop.in
-data/thiago.aciole.termac.gschema.xml.in
-data/thiago.aciole.termac.metainfo.xml.in
+data/io.github.ThiagoAciole.Termuni.desktop.in
+data/io.github.ThiagoAciole.Termuni.gschema.xml.in
+data/io.github.ThiagoAciole.Termuni.metainfo.xml.in
 src/main.c
 src/shortcuts-dialog.ui
-src/termac-agent.c
-src/termac-application.c
-src/termac-attachments.c
-src/termac-terminal.c
-src/termac-window.c
-src/termac-window.ui
+src/termuni-agent.c
+src/termuni-application.c
+src/termuni-attachments.c
+src/termuni-terminal.c
+src/termuni-window.c
+src/termuni-window.ui

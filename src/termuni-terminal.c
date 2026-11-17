@@ -17,26 +17,26 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "termac-attachments.h"
-#include "termac-terminal.h"
-#include "termac-util.h"
-#include "termac-vt.h"
-#include "termac-window.h"
+#include "termuni-attachments.h"
+#include "termuni-terminal.h"
+#include "termuni-util.h"
+#include "termuni-vt.h"
+#include "termuni-window.h"
 
 #define READ_BUDGET (64 * 1024)
 #define WRITE_QUEUE_LIMIT (1024 * 1024)
 /* Input that does not fit the queue waits here, in order, and is moved in as the
  * program reads. The cap only guards against a runaway producer. */
 #define WRITE_BACKLOG_LIMIT (256 * 1024 * 1024)
-#define TERMAC_TERMINAL_INSET_START 8
-#define TERMAC_TERMINAL_INSET_TOP 12
-#define TERMAC_TERMINAL_WHEEL_LINES 3
-#define TERMAC_TERMINAL_JOB_POLL_MS 500
-#define TERMAC_TERMINAL_CLOSE_GRACE_MS 1000
-#define TERMAC_TERMINAL_DEFAULT_SCROLLBACK 10000
+#define TERMUNI_TERMINAL_INSET_START 8
+#define TERMUNI_TERMINAL_INSET_TOP 12
+#define TERMUNI_TERMINAL_WHEEL_LINES 3
+#define TERMUNI_TERMINAL_JOB_POLL_MS 500
+#define TERMUNI_TERMINAL_CLOSE_GRACE_MS 1000
+#define TERMUNI_TERMINAL_DEFAULT_SCROLLBACK 10000
 
 typedef struct {
-	TermacTerminal *terminal; /* weak; detached before widget disposal */
+	TermuniTerminal *terminal; /* weak; detached before widget disposal */
 	GPid pid;
 	int pty_fd;
 	pid_t foreground;
@@ -44,7 +44,7 @@ typedef struct {
 	GApplication *application; /* held only while stopping */
 } TerminalChildWatch;
 
-struct _TermacTerminal
+struct _TermuniTerminal
 {
 	GtkDrawingArea parent_instance;
 	GhosttyTerminal terminal;
@@ -55,7 +55,7 @@ struct _TermacTerminal
 	GhosttyRenderState render_state;
 	GhosttyRenderStateRowIterator row_iterator;
 	GhosttyRenderStateRowCells cells;
-	TermacVtSelector *selector;
+	TermuniVtSelector *selector;
 	GtkIMContext *im_context;
 	char *preedit;
 	char *highlight;
@@ -65,7 +65,7 @@ struct _TermacTerminal
 	GByteArray *write_queue;
 	GByteArray *write_backlog;
 	GPtrArray *attachments;
-	const TermacAgent *agent;
+	const TermuniAgent *agent;
 	char *initial_command;
 	GPid child_pid;
 	TerminalChildWatch *child_watch;
@@ -110,10 +110,10 @@ struct _TermacTerminal
 };
 
 static void terminal_accessible_text_init (GtkAccessibleTextInterface *iface);
-G_DEFINE_FINAL_TYPE_WITH_CODE (TermacTerminal, termac_terminal, GTK_TYPE_DRAWING_AREA,
+G_DEFINE_FINAL_TYPE_WITH_CODE (TermuniTerminal, termuni_terminal, GTK_TYPE_DRAWING_AREA,
                               G_IMPLEMENT_INTERFACE (GTK_TYPE_ACCESSIBLE_TEXT, terminal_accessible_text_init))
 
-#include "termac-terminal-accessible.inc"
+#include "termuni-terminal-accessible.inc"
 
 enum
 {
@@ -129,10 +129,10 @@ enum
 
 static guint terminal_signals[N_SIGNALS];
 
-static void terminal_queue_bytes (TermacTerminal *self, const uint8_t *bytes, gsize len);
-static void terminal_send_input (TermacTerminal *self, const char *bytes, gsize len);
-static gboolean terminal_spawn (TermacTerminal *self);
-static void terminal_resize (TermacTerminal *self, int width, int height);
+static void terminal_queue_bytes (TermuniTerminal *self, const uint8_t *bytes, gsize len);
+static void terminal_send_input (TermuniTerminal *self, const char *bytes, gsize len);
+static gboolean terminal_spawn (TermuniTerminal *self);
+static void terminal_resize (TermuniTerminal *self, int width, int height);
 
 /* ---- helpers ---------------------------------------------------------- */
 
@@ -146,7 +146,7 @@ ghostty_string_copy (const uint8_t *ptr,
 }
 
 static void
-terminal_set_error (TermacTerminal *self,
+terminal_set_error (TermuniTerminal *self,
                     const char     *message)
 {
 	g_clear_pointer (&self->error, g_free);
@@ -155,7 +155,7 @@ terminal_set_error (TermacTerminal *self,
 }
 
 static gboolean
-terminal_mode_enabled (TermacTerminal *self,
+terminal_mode_enabled (TermuniTerminal *self,
                        GhosttyMode     mode)
 {
 	GhosttyTerminalModeConfig config = { mode, FALSE };
@@ -186,14 +186,14 @@ terminal_now_us (void)
 }
 
 static void
-terminal_cell_at (TermacTerminal *self,
+terminal_cell_at (TermuniTerminal *self,
                   double          x,
                   double          y,
                   guint          *column,
                   guint          *row)
 {
-	int col = (int) ((x - TERMAC_TERMINAL_INSET_START) / MAX (self->cell_width, 1));
-	int line = (int) ((y - TERMAC_TERMINAL_INSET_TOP) / MAX (self->cell_height, 1));
+	int col = (int) ((x - TERMUNI_TERMINAL_INSET_START) / MAX (self->cell_width, 1));
+	int line = (int) ((y - TERMUNI_TERMINAL_INSET_TOP) / MAX (self->cell_height, 1));
 
 	*column = (guint) CLAMP (col, 0, MAX (self->cols - 1, 0));
 	*row = (guint) CLAMP (line, 0, MAX (self->rows - 1, 0));
@@ -206,7 +206,7 @@ terminal_write_ready (gint         fd,
                       GIOCondition condition,
                       gpointer     user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	gsize written_total = 0;
 	gboolean failed = FALSE;
 
@@ -264,7 +264,7 @@ done:
 }
 
 static void
-terminal_queue_bytes (TermacTerminal *self,
+terminal_queue_bytes (TermuniTerminal *self,
                       const uint8_t  *bytes,
                       gsize           len)
 {
@@ -301,14 +301,14 @@ terminal_queue_bytes (TermacTerminal *self,
 
 /* Input typed by the user returns the view to the newest output. */
 static void
-terminal_send_input (TermacTerminal *self,
+terminal_send_input (TermuniTerminal *self,
                      const char     *bytes,
                      gsize           len)
 {
 	if (self->terminal != NULL)
 	{
 		/* Typing ends the selection, so a later Ctrl+C reaches the program again. */
-		termac_vt_clear_selection (self->terminal);
+		termuni_vt_clear_selection (self->terminal);
 		ghostty_terminal_scroll_viewport (self->terminal,
 		    (GhosttyTerminalScrollViewport) { .tag = GHOSTTY_SCROLL_VIEWPORT_BOTTOM });
 		gtk_widget_queue_draw (GTK_WIDGET (self));
@@ -323,11 +323,11 @@ terminal_write_pty (GhosttyTerminal *terminal,
                     size_t           len)
 {
 	(void) terminal;
-	terminal_queue_bytes (TERMAC_TERMINAL (userdata), data, len);
+	terminal_queue_bytes (TERMUNI_TERMINAL (userdata), data, len);
 }
 
 static void
-terminal_refresh (TermacTerminal *self)
+terminal_refresh (TermuniTerminal *self)
 {
 	if (self->terminal != NULL)
 		ghostty_render_state_update (self->render_state, self->terminal);
@@ -340,7 +340,7 @@ terminal_read_ready (gint         fd,
                      GIOCondition condition,
                      gpointer     user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	uint8_t buffer[4096];
 	gsize total = 0;
 	gboolean changed = FALSE;
@@ -411,7 +411,7 @@ static void
 terminal_child_exited (GPid pid, gint status, gpointer user_data)
 {
 	TerminalChildWatch *watch = user_data;
-	TermacTerminal *self = watch->terminal;
+	TermuniTerminal *self = watch->terminal;
 	(void) status;
 	if (self != NULL)
 	{
@@ -437,7 +437,7 @@ terminal_child_exited (GPid pid, gint status, gpointer user_data)
 }
 
 static void
-terminal_watch_child (TermacTerminal *self)
+terminal_watch_child (TermuniTerminal *self)
 {
 	TerminalChildWatch *watch = g_new0 (TerminalChildWatch, 1);
 	watch->terminal = self;
@@ -460,7 +460,7 @@ terminal_child_force_exit (gpointer data)
 }
 
 static gboolean
-terminal_has_job (TermacTerminal *self)
+terminal_has_job (TermuniTerminal *self)
 {
 	pid_t group;
 
@@ -471,17 +471,17 @@ terminal_has_job (TermacTerminal *self)
 }
 
 gboolean
-termac_terminal_has_foreground_job (TermacTerminal *self)
+termuni_terminal_has_foreground_job (TermuniTerminal *self)
 {
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), FALSE);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), FALSE);
 	return terminal_has_job (self);
 }
 
 void
-termac_terminal_run_command (TermacTerminal *self, const char *command)
+termuni_terminal_run_command (TermuniTerminal *self, const char *command)
 {
 	g_autofree char *line = NULL;
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	g_return_if_fail (command != NULL);
 	/* Typed like keyboard input, so the shell that is already running executes it. */
 	line = g_strconcat (command, "\r", NULL);
@@ -491,7 +491,7 @@ termac_terminal_run_command (TermacTerminal *self, const char *command)
 static gboolean
 terminal_job_poll (gpointer user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	gboolean busy = terminal_has_job (self);
 
 	if (busy && !self->job_active)
@@ -513,33 +513,33 @@ static char *
 terminal_write_bash_integration (gboolean report_commands)
 {
 	static const char script[] =
-		"# Termac shell integration (opt-in). Generated by Termac.\n"
+		"# Termuni shell integration (opt-in). Generated by Termuni.\n"
 		"if [ -r \"$HOME/.bashrc\" ]; then . \"$HOME/.bashrc\"; fi\n"
-		"__termac_started=0\n"
-		"__termac_in_prompt=0\n"
-		"__termac_user_prompt_command=\"${PROMPT_COMMAND}\"\n"
-		"__termac_preexec() {\n"
-		"  [ \"$__termac_in_prompt\" = 1 ] && return\n"
-		"  case \"$BASH_COMMAND\" in __termac_precmd*) return ;; esac\n"
+		"__termuni_started=0\n"
+		"__termuni_in_prompt=0\n"
+		"__termuni_user_prompt_command=\"${PROMPT_COMMAND}\"\n"
+		"__termuni_preexec() {\n"
+		"  [ \"$__termuni_in_prompt\" = 1 ] && return\n"
+		"  case \"$BASH_COMMAND\" in __termuni_precmd*) return ;; esac\n"
 		"  [ -n \"$COMP_LINE\" ] && return\n"
-		"  __termac_started=1\n"
+		"  __termuni_started=1\n"
 		"}\n"
-		"__termac_precmd() {\n"
+		"__termuni_precmd() {\n"
 		"  local status=$?\n"
-		"  __termac_in_prompt=1\n"
-		"  if [ \"$__termac_started\" = 1 ]; then\n"
-		"    __termac_started=0\n"
-		"    printf '\\033]777;notify;" TERMAC_COMMAND_NOTIFICATION_TITLE ";%d\\007' \"$status\"\n"
+		"  __termuni_in_prompt=1\n"
+		"  if [ \"$__termuni_started\" = 1 ]; then\n"
+		"    __termuni_started=0\n"
+		"    printf '\\033]777;notify;" TERMUNI_COMMAND_NOTIFICATION_TITLE ";%d\\007' \"$status\"\n"
 		"  fi\n"
-		"  eval \"$__termac_user_prompt_command\"\n"
-		"  __termac_report_pwd\n"
-		"  __termac_in_prompt=0\n"
+		"  eval \"$__termuni_user_prompt_command\"\n"
+		"  __termuni_report_pwd\n"
+		"  __termuni_in_prompt=0\n"
 		"  return $status\n"
 		"}\n"
-		"PROMPT_COMMAND=__termac_precmd\n"
-		"trap '__termac_preexec' DEBUG\n";
+		"PROMPT_COMMAND=__termuni_precmd\n"
+		"trap '__termuni_preexec' DEBUG\n";
 	static const char cwd_script[] =
-		"__termac_report_pwd() {\n"
+		"__termuni_report_pwd() {\n"
 		"  local status=$? LC_ALL=C path=$PWD encoded= byte hex i\n"
 		"  for ((i=0; i<${#path}; i++)); do\n"
 		"    byte=${path:i:1}\n"
@@ -549,7 +549,7 @@ terminal_write_bash_integration (gboolean report_commands)
 		"  printf '\\033]7;file://localhost%s\\007' \"$encoded\"\n"
 		"  return \"$status\"\n"
 		"}\n";
-	g_autofree char *dir = g_build_filename (g_get_user_cache_dir (), "termac", "shell", NULL);
+	g_autofree char *dir = g_build_filename (g_get_user_cache_dir (), "termuni", "shell", NULL);
 	g_autofree char *path = g_build_filename (dir, "bash-integration.sh", NULL);
 	g_autofree char *contents = g_strconcat (script, cwd_script, NULL);
 
@@ -561,7 +561,7 @@ terminal_write_bash_integration (gboolean report_commands)
 }
 
 static gboolean
-terminal_spawn (TermacTerminal *self)
+terminal_spawn (TermuniTerminal *self)
 {
 	struct winsize size = { 0 };
 	const char *shell;
@@ -589,7 +589,7 @@ terminal_spawn (TermacTerminal *self)
 	if (self->shell_integration && g_strcmp0 (shell_name, "bash") == 0)
 		rcfile = terminal_write_bash_integration (self->shell_integration);
 
-	shell_argv = termac_shell_command_argv (shell, rcfile, self->initial_command);
+	shell_argv = termuni_shell_command_argv (shell, rcfile, self->initial_command);
 
 	if (pipe (error_pipe) != 0)
 	{
@@ -666,14 +666,14 @@ terminal_spawn (TermacTerminal *self)
 	                                 terminal_read_ready,
 	                                 self);
 	terminal_watch_child (self);
-	self->job_source = g_timeout_add (TERMAC_TERMINAL_JOB_POLL_MS, terminal_job_poll, self);
+	self->job_source = g_timeout_add (TERMUNI_TERMINAL_JOB_POLL_MS, terminal_job_poll, self);
 	return TRUE;
 }
 
 /* Transfer process ownership to the existing child watch. It outlives the
  * widget without retaining it; normal exit cancels escalation and reaps once. */
 static void
-terminal_stop_child (TermacTerminal *self)
+terminal_stop_child (TermuniTerminal *self)
 {
 	TerminalChildWatch *watch;
 	GApplication *application;
@@ -693,7 +693,7 @@ terminal_stop_child (TermacTerminal *self)
 	if (watch->foreground > 0 && watch->foreground != watch->pid && watch->foreground != getpgrp ())
 		kill (-watch->foreground, SIGHUP);
 	kill (watch->pid, SIGHUP);
-	watch->kill_source = g_timeout_add (TERMAC_TERMINAL_CLOSE_GRACE_MS,
+	watch->kill_source = g_timeout_add (TERMUNI_TERMINAL_CLOSE_GRACE_MS,
 	    terminal_child_force_exit, watch);
 	self->child_watch = NULL;
 	self->child_source = 0;
@@ -706,7 +706,7 @@ terminal_stop_child (TermacTerminal *self)
 static void
 terminal_title_changed (GhosttyTerminal terminal, void *userdata)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (userdata);
+	TermuniTerminal *self = TERMUNI_TERMINAL (userdata);
 	GhosttyString title = { 0 };
 	g_autofree char *valid_title = NULL;
 
@@ -719,7 +719,7 @@ terminal_title_changed (GhosttyTerminal terminal, void *userdata)
 static void
 terminal_pwd_changed (GhosttyTerminal terminal, void *userdata)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (userdata);
+	TermuniTerminal *self = TERMUNI_TERMINAL (userdata);
 	GhosttyString pwd = { 0 };
 	g_autofree char *value = NULL;
 
@@ -729,7 +729,7 @@ terminal_pwd_changed (GhosttyTerminal terminal, void *userdata)
 	if (*value == '\0')
 		return;
 	g_free (self->cwd);
-	self->cwd = termac_path_from_pwd (value);
+	self->cwd = termuni_path_from_pwd (value);
 	g_signal_emit (self, terminal_signals[SIGNAL_CWD_CHANGED], 0, self->cwd);
 }
 
@@ -737,7 +737,7 @@ static void
 terminal_bell (GhosttyTerminal terminal, void *userdata)
 {
 	(void) terminal;
-	g_signal_emit (TERMAC_TERMINAL (userdata), terminal_signals[SIGNAL_BELL], 0);
+	g_signal_emit (TERMUNI_TERMINAL (userdata), terminal_signals[SIGNAL_BELL], 0);
 }
 
 static void
@@ -745,7 +745,7 @@ terminal_desktop_notification (GhosttyTerminal                          terminal
                                void                                    *userdata,
                                const GhosttyTerminalDesktopNotification *notification)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (userdata);
+	TermuniTerminal *self = TERMUNI_TERMINAL (userdata);
 	g_autofree char *title = NULL;
 	g_autofree char *body = NULL;
 
@@ -753,7 +753,7 @@ terminal_desktop_notification (GhosttyTerminal                          terminal
 	if (notification == NULL)
 		return;
 	title = ghostty_string_copy (notification->title.ptr, notification->title.len);
-	if (g_strcmp0 (title, TERMAC_COMMAND_NOTIFICATION_TITLE) != 0)
+	if (g_strcmp0 (title, TERMUNI_COMMAND_NOTIFICATION_TITLE) != 0)
 		return;
 	body = ghostty_string_copy (notification->body.ptr, notification->body.len);
 	g_signal_emit (self, terminal_signals[SIGNAL_COMMAND_FINISHED], 0,
@@ -761,7 +761,7 @@ terminal_desktop_notification (GhosttyTerminal                          terminal
 }
 
 static void
-terminal_apply_scrollback (TermacTerminal *self)
+terminal_apply_scrollback (TermuniTerminal *self)
 {
 	size_t lines = self->scrollback_lines;
 
@@ -772,7 +772,7 @@ terminal_apply_scrollback (TermacTerminal *self)
 /* Creates the libghostty-vt engine and its helpers. Returns FALSE and sets
  * the widget error when the engine cannot be created. */
 static gboolean
-terminal_create_engine (TermacTerminal *self)
+terminal_create_engine (TermuniTerminal *self)
 {
 	GhosttyResult result;
 
@@ -819,7 +819,7 @@ terminal_draw (GtkDrawingArea *area,
                int             height,
                gpointer        user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	GhosttyRenderStateColors colors = GHOSTTY_INIT_SIZED (GhosttyRenderStateColors);
 	PangoLayout *layout;
 	PangoFontDescription *font;
@@ -839,18 +839,18 @@ terminal_draw (GtkDrawingArea *area,
 		cairo_set_source_rgb (cr, 30 / 255.0, 30 / 255.0, 30 / 255.0);
 		cairo_paint (cr);
 		layout = gtk_widget_create_pango_layout (GTK_WIDGET (self), message);
-		pango_layout_set_width (layout, MAX (width - 2 * TERMAC_TERMINAL_INSET_START, 1) * PANGO_SCALE);
+		pango_layout_set_width (layout, MAX (width - 2 * TERMUNI_TERMINAL_INSET_START, 1) * PANGO_SCALE);
 		pango_layout_set_wrap (layout, PANGO_WRAP_WORD_CHAR);
 		cairo_set_source_rgb (cr, 246 / 255.0, 245 / 255.0, 244 / 255.0);
-		cairo_move_to (cr, TERMAC_TERMINAL_INSET_START, TERMAC_TERMINAL_INSET_TOP);
+		cairo_move_to (cr, TERMUNI_TERMINAL_INSET_START, TERMUNI_TERMINAL_INSET_TOP);
 		pango_cairo_show_layout (cr, layout);
 		g_object_unref (layout);
 		return;
 	}
 
 	terminal_resize (self,
-	                 MAX (1, width - TERMAC_TERMINAL_INSET_START),
-	                 MAX (1, height - TERMAC_TERMINAL_INSET_TOP));
+	                 MAX (1, width - TERMUNI_TERMINAL_INSET_START),
+	                 MAX (1, height - TERMUNI_TERMINAL_INSET_TOP));
 	if (self->terminal == NULL || self->render_state == NULL)
 		return;
 	ghostty_render_state_update (self->render_state, self->terminal);
@@ -862,7 +862,7 @@ terminal_draw (GtkDrawingArea *area,
 	                      colors.background.g / 255.0,
 	                      colors.background.b / 255.0);
 	cairo_paint (cr);
-	cairo_translate (cr, TERMAC_TERMINAL_INSET_START, TERMAC_TERMINAL_INSET_TOP);
+	cairo_translate (cr, TERMUNI_TERMINAL_INSET_START, TERMUNI_TERMINAL_INSET_TOP);
 
 	layout = gtk_widget_create_pango_layout (GTK_WIDGET (self), NULL);
 	font = pango_font_description_new ();
@@ -956,12 +956,12 @@ terminal_draw (GtkDrawingArea *area,
 	}
 
 	if (self->highlight != NULL) {
-		g_autoptr(GArray) matches = termac_vt_find_matches (self->terminal, self->cols, self->rows, self->highlight);
+		g_autoptr(GArray) matches = termuni_vt_find_matches (self->terminal, self->cols, self->rows, self->highlight);
 		GhosttyTerminalScrollbar bar = { 0 };
 		g_autoptr(GdkRGBA) accent = adw_style_manager_get_accent_color_rgba (adw_style_manager_get_default ());
 		ghostty_terminal_get (self->terminal, GHOSTTY_TERMINAL_DATA_SCROLLBAR, &bar);
 		for (guint i = 0; i < matches->len; i++) {
-			TermacVtMatch m = g_array_index (matches, TermacVtMatch, i);
+			TermuniVtMatch m = g_array_index (matches, TermuniVtMatch, i);
 			cairo_set_source_rgba (cr, accent->red, accent->green, accent->blue,
 			                       self->highlight_has_current && m.row + bar.offset == self->highlight_row &&
 			                       m.column == self->highlight_column ? 0.55 : 0.35);
@@ -993,8 +993,8 @@ terminal_draw (GtkDrawingArea *area,
 	if (cursor_in_viewport && cursor_x < self->cols && cursor_y < self->rows)
 	{
 		GdkRectangle location = {
-			TERMAC_TERMINAL_INSET_START + cursor_x * self->cell_width,
-			TERMAC_TERMINAL_INSET_TOP + cursor_y * self->cell_height,
+			TERMUNI_TERMINAL_INSET_START + cursor_x * self->cell_width,
+			TERMUNI_TERMINAL_INSET_TOP + cursor_y * self->cell_height,
 			self->cell_width, self->cell_height
 		};
 
@@ -1029,7 +1029,7 @@ terminal_draw (GtkDrawingArea *area,
 }
 
 static void
-terminal_resize (TermacTerminal *self,
+terminal_resize (TermuniTerminal *self,
                  int             width,
                  int             height)
 {
@@ -1093,23 +1093,23 @@ terminal_ghostty_key (guint keyval)
 	}
 }
 
-#define TERMAC_INTERRUPT_WINDOW_US (1000 * 1000)
+#define TERMUNI_INTERRUPT_WINDOW_US (1000 * 1000)
 
 /* Ctrl+C copies an active selection; without one, two presses within a second
  * send the interrupt to the running program. */
 void
-termac_terminal_copy_or_interrupt (TermacTerminal *self)
+termuni_terminal_copy_or_interrupt (TermuniTerminal *self)
 {
 	gint64 now = g_get_monotonic_time ();
 	char interrupt = 0x03;
 
-	if (termac_terminal_copy (self))
+	if (termuni_terminal_copy (self))
 	{
 		self->interrupt_armed_us = 0;
 		return;
 	}
 	if (self->interrupt_armed_us != 0 &&
-	    now - self->interrupt_armed_us <= TERMAC_INTERRUPT_WINDOW_US)
+	    now - self->interrupt_armed_us <= TERMUNI_INTERRUPT_WINDOW_US)
 	{
 		self->interrupt_armed_us = 0;
 		terminal_send_input (self, &interrupt, 1);
@@ -1119,28 +1119,28 @@ termac_terminal_copy_or_interrupt (TermacTerminal *self)
 }
 
 void
-termac_terminal_select_all (TermacTerminal *self)
+termuni_terminal_select_all (TermuniTerminal *self)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
-	termac_vt_select_all (self->terminal);
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
+	termuni_vt_select_all (self->terminal);
 	gtk_widget_queue_draw (GTK_WIDGET (self));
 }
 
 static gboolean
-terminal_shortcut_reserved (TermacTerminal *self,
+terminal_shortcut_reserved (TermuniTerminal *self,
                             guint           keyval,
                             GdkModifierType state)
 {
 	GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
 
-	return TERMAC_IS_WINDOW (root) &&
-	       termac_window_shortcut_is_reserved (TERMAC_WINDOW (root), keyval, state);
+	return TERMUNI_IS_WINDOW (root) &&
+	       termuni_window_shortcut_is_reserved (TERMUNI_WINDOW (root), keyval, state);
 }
 
 /* Encodes a named key with the terminal's current modes and sends it to the
  * shell. Returns FALSE when the key has no named encoding. */
 static gboolean
-terminal_send_key (TermacTerminal *self, guint keyval, GdkModifierType state)
+terminal_send_key (TermuniTerminal *self, guint keyval, GdkModifierType state)
 {
 	GhosttyKey key = terminal_ghostty_key (keyval);
 	char encoded[128];
@@ -1162,9 +1162,9 @@ terminal_send_key (TermacTerminal *self, guint keyval, GdkModifierType state)
 
 /* Moves the cursor to the start of the line, as the Home key does. */
 void
-termac_terminal_line_start (TermacTerminal *self)
+termuni_terminal_line_start (TermuniTerminal *self)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	terminal_send_key (self, GDK_KEY_Home, 0);
 }
 
@@ -1175,7 +1175,7 @@ terminal_key_pressed (GtkEventControllerKey *controller,
                       GdkModifierType        state,
                       gpointer               user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	GdkEvent *event = gtk_event_controller_get_current_event (GTK_EVENT_CONTROLLER (controller));
 	gboolean ctrl = (state & GDK_CONTROL_MASK) != 0;
 	gboolean shift = (state & GDK_SHIFT_MASK) != 0;
@@ -1187,7 +1187,7 @@ terminal_key_pressed (GtkEventControllerKey *controller,
 	if (self->error != NULL)
 	{
 		if (keyval == GDK_KEY_Return || keyval == GDK_KEY_KP_Enter)
-			termac_terminal_retry (self);
+			termuni_terminal_retry (self);
 		return terminal_shortcut_reserved (self, keyval, state) ? GDK_EVENT_PROPAGATE : GDK_EVENT_STOP;
 	}
 	if (gtk_im_context_filter_keypress (self->im_context, event))
@@ -1200,10 +1200,10 @@ terminal_key_pressed (GtkEventControllerKey *controller,
 		switch (keyval)
 		{
 		case GDK_KEY_Page_Up:
-			termac_terminal_scroll_pages (self, -1);
+			termuni_terminal_scroll_pages (self, -1);
 			return GDK_EVENT_STOP;
 		case GDK_KEY_Page_Down:
-			termac_terminal_scroll_pages (self, 1);
+			termuni_terminal_scroll_pages (self, 1);
 			return GDK_EVENT_STOP;
 		case GDK_KEY_Home:
 			ghostty_terminal_scroll_viewport (self->terminal,
@@ -1211,7 +1211,7 @@ terminal_key_pressed (GtkEventControllerKey *controller,
 			gtk_widget_queue_draw (GTK_WIDGET (self));
 			return GDK_EVENT_STOP;
 		case GDK_KEY_End:
-			termac_terminal_scroll_to_bottom (self);
+			termuni_terminal_scroll_to_bottom (self);
 			return GDK_EVENT_STOP;
 		default:
 			break;
@@ -1258,7 +1258,7 @@ terminal_key_pressed (GtkEventControllerKey *controller,
 static void
 terminal_realize (GtkWidget *widget)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (widget);
+	TermuniTerminal *self = TERMUNI_TERMINAL (widget);
 
 	if (self->im_context != NULL)
 		gtk_im_context_set_client_widget (self->im_context, widget);
@@ -1267,7 +1267,7 @@ terminal_realize (GtkWidget *widget)
 static void
 terminal_unrealize (GtkWidget *widget)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (widget);
+	TermuniTerminal *self = TERMUNI_TERMINAL (widget);
 
 	if (self->im_context != NULL)
 		gtk_im_context_set_client_widget (self->im_context, NULL);
@@ -1277,7 +1277,7 @@ static void
 terminal_focus_enter (GtkEventControllerFocus *controller,
                       gpointer                 user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	char report[8];
 	size_t written = 0;
 
@@ -1292,7 +1292,7 @@ static void
 terminal_focus_leave (GtkEventControllerFocus *controller,
                       gpointer                 user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	char report[8];
 	size_t written = 0;
 
@@ -1308,7 +1308,7 @@ terminal_commit_text (GtkIMContext *context,
                       const char   *text,
                       gpointer      user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	(void) context;
 	terminal_send_input (self, text, strlen (text));
 }
@@ -1316,10 +1316,10 @@ terminal_commit_text (GtkIMContext *context,
 /* Sets the text being composed, shown at the cursor until it is committed.
  * NULL or an empty string clears it. */
 void
-termac_terminal_set_preedit (TermacTerminal *self,
+termuni_terminal_set_preedit (TermuniTerminal *self,
                              const char     *text)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	g_clear_pointer (&self->preedit, g_free);
 	if (text != NULL && *text != '\0')
 		self->preedit = g_strdup (text);
@@ -1330,17 +1330,17 @@ static void
 terminal_preedit_changed (GtkIMContext *context,
                           gpointer      user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	g_autofree char *text = NULL;
 
 	gtk_im_context_get_preedit_string (context, &text, NULL, NULL);
-	termac_terminal_set_preedit (self, text);
+	termuni_terminal_set_preedit (self, text);
 }
 
 const char *
-termac_terminal_get_preedit (TermacTerminal *self)
+termuni_terminal_get_preedit (TermuniTerminal *self)
 {
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), "");
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), "");
 	return self->preedit != NULL ? self->preedit : "";
 }
 
@@ -1359,15 +1359,15 @@ terminal_ghostty_button (guint button)
 }
 
 static gboolean
-terminal_mouse_reporting (TermacTerminal *self,
+terminal_mouse_reporting (TermuniTerminal *self,
                           GdkModifierType state)
 {
-	return !(state & GDK_SHIFT_MASK) && termac_vt_mouse_tracking (self->terminal);
+	return !(state & GDK_SHIFT_MASK) && termuni_vt_mouse_tracking (self->terminal);
 }
 
 /* Sends a mouse report to the program when it has enabled mouse tracking. */
 static void
-terminal_send_mouse (TermacTerminal    *self,
+terminal_send_mouse (TermuniTerminal    *self,
                      GhosttyMouseAction action,
                      GhosttyMouseButton button,
                      GdkModifierType    state,
@@ -1386,8 +1386,8 @@ terminal_send_mouse (TermacTerminal    *self,
 	size.screen_height = (uint32_t) MAX (self->surface_height, 1);
 	size.cell_width = (uint32_t) self->cell_width;
 	size.cell_height = (uint32_t) self->cell_height;
-	size.padding_left = TERMAC_TERMINAL_INSET_START;
-	size.padding_top = TERMAC_TERMINAL_INSET_TOP;
+	size.padding_left = TERMUNI_TERMINAL_INSET_START;
+	size.padding_top = TERMUNI_TERMINAL_INSET_TOP;
 
 	ghostty_mouse_encoder_setopt_from_terminal (self->mouse_encoder, self->terminal);
 	ghostty_mouse_encoder_setopt (self->mouse_encoder, GHOSTTY_MOUSE_ENCODER_OPT_SIZE, &size);
@@ -1407,7 +1407,7 @@ terminal_send_mouse (TermacTerminal    *self,
 }
 
 static void
-terminal_selection_event (TermacTerminal                   *self,
+terminal_selection_event (TermuniTerminal                   *self,
                           GhosttySelectionGestureEventType  type,
                           double                            x,
                           double                            y)
@@ -1420,16 +1420,16 @@ terminal_selection_event (TermacTerminal                   *self,
 	terminal_cell_at (self, x, y, &column, &row);
 	geometry.columns = self->cols;
 	geometry.cell_width = (uint32_t) self->cell_width;
-	geometry.padding_left = TERMAC_TERMINAL_INSET_START;
+	geometry.padding_left = TERMUNI_TERMINAL_INSET_START;
 	geometry.screen_height = (uint32_t) MAX (self->surface_height, 1);
-	termac_vt_selector_event (self->selector, self->terminal, type, column, row, x, y,
+	termuni_vt_selector_event (self->selector, self->terminal, type, column, row, x, y,
 	                          (guint64) now_ns,
 	                          type == GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_DRAG ? &geometry : NULL);
 	gtk_widget_queue_draw (GTK_WIDGET (self));
 }
 
 static gboolean
-terminal_open_url_at (TermacTerminal *self,
+terminal_open_url_at (TermuniTerminal *self,
                       double          x,
                       double          y)
 {
@@ -1439,7 +1439,7 @@ terminal_open_url_at (TermacTerminal *self,
 	GtkRoot *root;
 
 	terminal_cell_at (self, x, y, &column, &row);
-	url = termac_vt_link_at (self->terminal, self->cols, row, column, NULL, NULL);
+	url = termuni_vt_link_at (self->terminal, self->cols, row, column, NULL, NULL);
 	if (url == NULL) return FALSE;
 	{
 		GtkUriLauncher *launcher = gtk_uri_launcher_new (url);
@@ -1459,7 +1459,7 @@ terminal_click_pressed (GtkGestureClick *gesture,
                         double           y,
                         gpointer         user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	GdkModifierType state = gtk_event_controller_get_current_event_state (GTK_EVENT_CONTROLLER (gesture));
 	guint button = gtk_gesture_single_get_current_button (GTK_GESTURE_SINGLE (gesture));
 	(void) n_press;
@@ -1469,7 +1469,7 @@ terminal_click_pressed (GtkGestureClick *gesture,
 	self->pointer_y = y;
 	if (self->error != NULL)
 	{
-		termac_terminal_retry (self);
+		termuni_terminal_retry (self);
 		return;
 	}
 	if (button == GDK_BUTTON_PRIMARY && (state & GDK_CONTROL_MASK) &&
@@ -1495,7 +1495,7 @@ terminal_click_released (GtkGestureClick *gesture,
                          double           y,
                          gpointer         user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	GdkModifierType state = gtk_event_controller_get_current_event_state (GTK_EVENT_CONTROLLER (gesture));
 	guint button = gtk_gesture_single_get_current_button (GTK_GESTURE_SINGLE (gesture));
 	(void) n_press;
@@ -1515,7 +1515,7 @@ terminal_click_released (GtkGestureClick *gesture,
 }
 
 static void
-terminal_clear_link_hover (TermacTerminal *self)
+terminal_clear_link_hover (TermuniTerminal *self)
 {
 	if (!self->hover_link)
 		return;
@@ -1527,7 +1527,7 @@ terminal_clear_link_hover (TermacTerminal *self)
 
 /* With Ctrl held, a link under the pointer gets a pointer cursor and an underline. */
 static void
-terminal_update_link_hover (TermacTerminal *self,
+terminal_update_link_hover (TermuniTerminal *self,
                             double          x,
                             double          y,
                             GdkModifierType state)
@@ -1544,7 +1544,7 @@ terminal_update_link_hover (TermacTerminal *self,
 		return;
 	}
 	terminal_cell_at (self, x, y, &column, &row);
-	uri = termac_vt_link_at (self->terminal, self->cols, row, column, &first, &last);
+	uri = termuni_vt_link_at (self->terminal, self->cols, row, column, &first, &last);
 	if (uri == NULL)
 	{
 		terminal_clear_link_hover (self);
@@ -1574,7 +1574,7 @@ terminal_pointer_motion (GtkEventControllerMotion *controller,
                          double                    y,
                          gpointer                  user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	GdkModifierType state = gtk_event_controller_get_current_event_state (GTK_EVENT_CONTROLLER (controller));
 
 	self->pointer_x = x;
@@ -1597,7 +1597,7 @@ terminal_scroll (GtkEventControllerScroll *controller,
                  double                    dy,
                  gpointer                  user_data)
 {
-	TermacTerminal *self = user_data;
+	TermuniTerminal *self = user_data;
 	GdkModifierType state = gtk_event_controller_get_current_event_state (GTK_EVENT_CONTROLLER (controller));
 	(void) dx;
 
@@ -1614,7 +1614,7 @@ terminal_scroll (GtkEventControllerScroll *controller,
 		return GDK_EVENT_STOP;
 	}
 	{
-		intptr_t lines = (intptr_t) (dy * TERMAC_TERMINAL_WHEEL_LINES);
+		intptr_t lines = (intptr_t) (dy * TERMUNI_TERMINAL_WHEEL_LINES);
 		if (lines == 0)
 			lines = dy < 0 ? -1 : 1;
 		ghostty_terminal_scroll_viewport (self->terminal,
@@ -1628,72 +1628,72 @@ terminal_scroll (GtkEventControllerScroll *controller,
 }
 
 void
-termac_terminal_set_agent (TermacTerminal *self, const TermacAgent *agent)
+termuni_terminal_set_agent (TermuniTerminal *self, const TermuniAgent *agent)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
-	self->agent = agent != NULL ? agent : termac_agent_default ();
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
+	self->agent = agent != NULL ? agent : termuni_agent_default ();
 }
 
 /* ---- clipboard, scroll, search, attachments --------------------------- */
 
 guint
-termac_terminal_get_font_size (TermacTerminal *self)
+termuni_terminal_get_font_size (TermuniTerminal *self)
 {
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), 0);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), 0);
 	return self->font_size;
 }
 
 guint
-termac_terminal_get_columns (TermacTerminal *self)
+termuni_terminal_get_columns (TermuniTerminal *self)
 {
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), 0);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), 0);
 	return self->cols;
 }
 
 guint
-termac_terminal_get_rows (TermacTerminal *self)
+termuni_terminal_get_rows (TermuniTerminal *self)
 {
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), 0);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), 0);
 	return self->rows;
 }
 
 void
-termac_terminal_get_cell_size (TermacTerminal *self, guint *width, guint *height)
+termuni_terminal_get_cell_size (TermuniTerminal *self, guint *width, guint *height)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	if (width != NULL) *width = self->cell_width;
 	if (height != NULL) *height = self->cell_height;
 }
 
 gpointer
-termac_terminal_get_vt_handle (TermacTerminal *self)
+termuni_terminal_get_vt_handle (TermuniTerminal *self)
 {
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), NULL);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), NULL);
 	return self->terminal;
 }
 
 gboolean
-termac_terminal_copy (TermacTerminal *self)
+termuni_terminal_copy (TermuniTerminal *self)
 {
 	g_autofree char *text = NULL;
 
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), FALSE);
-	if (!termac_vt_selection_text (self->terminal, &text) || *text == '\0')
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), FALSE);
+	if (!termuni_vt_selection_text (self->terminal, &text) || *text == '\0')
 		return FALSE;
 	gdk_clipboard_set_text (gtk_widget_get_clipboard (GTK_WIDGET (self)), text);
 	return TRUE;
 }
 
 static void
-terminal_send_paste (TermacTerminal *self,
+terminal_send_paste (TermuniTerminal *self,
                      const char     *text,
                      gsize           length)
 {
 	gsize encoded_length = 0;
 	g_autofree char *encoded = NULL;
-	gboolean bracketed = termac_vt_bracketed_paste (self->terminal);
+	gboolean bracketed = termuni_vt_bracketed_paste (self->terminal);
 
-	encoded = termac_vt_encode_paste (text, length, bracketed, &encoded_length);
+	encoded = termuni_vt_encode_paste (text, length, bracketed, &encoded_length);
 	if (encoded != NULL)
 		terminal_send_input (self, encoded, encoded_length);
 }
@@ -1703,7 +1703,7 @@ terminal_paste_read (GObject      *source,
                      GAsyncResult *result,
                      gpointer      user_data)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (user_data);
+	TermuniTerminal *self = TERMUNI_TERMINAL (user_data);
 	g_autofree char *text = gdk_clipboard_read_text_finish (GDK_CLIPBOARD (source), result, NULL);
 
 	if (text != NULL && !self->closing)
@@ -1714,14 +1714,14 @@ terminal_paste_read (GObject      *source,
 /* Stores an image from the clipboard as an attachment and types its path
  * into the prompt, without submitting it. */
 static void
-terminal_attach_texture (TermacTerminal *self,
+terminal_attach_texture (TermuniTerminal *self,
                          GdkTexture     *texture)
 {
 	g_autoptr(GBytes) png = gdk_texture_save_to_png_bytes (texture);
 	g_autoptr(GError) error = NULL;
 	gsize length = 0;
 	const guint8 *data = g_bytes_get_data (png, &length);
-	g_autofree char *stored = termac_attachments_store (self->session_id, data, length, &error);
+	g_autofree char *stored = termuni_attachments_store (self->session_id, data, length, &error);
 	g_autofree char *inserted = NULL;
 
 	if (stored == NULL)
@@ -1729,8 +1729,8 @@ terminal_attach_texture (TermacTerminal *self,
 		g_signal_emit (self, terminal_signals[SIGNAL_MESSAGE], 0, error->message);
 		return;
 	}
-	termac_terminal_add_attachment (self, stored);
-	inserted = termac_agent_format_attachment (self->agent, stored);
+	termuni_terminal_add_attachment (self, stored);
+	inserted = termuni_agent_format_attachment (self->agent, stored);
 	terminal_send_paste (self, inserted, strlen (inserted));
 	g_signal_emit (self, terminal_signals[SIGNAL_MESSAGE], 0, _("Image attached to the prompt"));
 }
@@ -1740,7 +1740,7 @@ terminal_paste_texture_read (GObject      *source,
                              GAsyncResult *result,
                              gpointer      user_data)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (user_data);
+	TermuniTerminal *self = TERMUNI_TERMINAL (user_data);
 	g_autoptr(GdkTexture) texture = gdk_clipboard_read_texture_finish (GDK_CLIPBOARD (source), result, NULL);
 
 	if (texture != NULL && !self->closing)
@@ -1750,12 +1750,12 @@ terminal_paste_texture_read (GObject      *source,
 
 /* Pastes text, or attaches the image when the clipboard holds only an image. */
 void
-termac_terminal_paste (TermacTerminal *self)
+termuni_terminal_paste (TermuniTerminal *self)
 {
 	GdkClipboard *clipboard;
 	GdkContentFormats *formats;
 
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	clipboard = gtk_widget_get_clipboard (GTK_WIDGET (self));
 	formats = gdk_clipboard_get_formats (clipboard);
 	if (gdk_content_formats_contain_gtype (formats, GDK_TYPE_TEXTURE) &&
@@ -1769,19 +1769,19 @@ termac_terminal_paste (TermacTerminal *self)
 }
 
 void
-termac_terminal_insert_text (TermacTerminal *self,
+termuni_terminal_insert_text (TermuniTerminal *self,
                              const char     *text)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	g_return_if_fail (text != NULL);
 	terminal_send_paste (self, text, strlen (text));
 }
 
 void
-termac_terminal_scroll_pages (TermacTerminal *self,
+termuni_terminal_scroll_pages (TermuniTerminal *self,
                               gint            pages)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	ghostty_terminal_scroll_viewport (self->terminal,
 	    (GhosttyTerminalScrollViewport) {
 	        .tag = GHOSTTY_SCROLL_VIEWPORT_DELTA,
@@ -1791,18 +1791,18 @@ termac_terminal_scroll_pages (TermacTerminal *self,
 }
 
 void
-termac_terminal_scroll_to_bottom (TermacTerminal *self)
+termuni_terminal_scroll_to_bottom (TermuniTerminal *self)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	ghostty_terminal_scroll_viewport (self->terminal,
 	    (GhosttyTerminalScrollViewport) { .tag = GHOSTTY_SCROLL_VIEWPORT_BOTTOM });
 	gtk_widget_queue_draw (GTK_WIDGET (self));
 }
 
 void
-termac_terminal_set_highlight (TermacTerminal *self, const char *needle)
+termuni_terminal_set_highlight (TermuniTerminal *self, const char *needle)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	if (g_strcmp0 (self->highlight, needle) != 0) {
 		g_free (self->highlight);
 		self->highlight = g_strdup (needle);
@@ -1812,16 +1812,16 @@ termac_terminal_set_highlight (TermacTerminal *self, const char *needle)
 }
 
 guint
-termac_terminal_get_highlight_count (TermacTerminal *self)
+termuni_terminal_get_highlight_count (TermuniTerminal *self)
 {
 	g_autoptr(GArray) matches = NULL;
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), 0);
-	matches = termac_vt_find_matches (self->terminal, self->cols, self->rows, self->highlight);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), 0);
+	matches = termuni_vt_find_matches (self->terminal, self->cols, self->rows, self->highlight);
 	return matches->len;
 }
 
 gboolean
-termac_terminal_find (TermacTerminal *self, const char *text, gboolean backwards)
+termuni_terminal_find (TermuniTerminal *self, const char *text, gboolean backwards)
 {
 	g_autoptr(GArray) matches = NULL;
 	GhosttyTerminalScrollbar bar = { 0 };
@@ -1829,31 +1829,31 @@ termac_terminal_find (TermacTerminal *self, const char *text, gboolean backwards
 	int current = -1, next;
 	gboolean found;
 
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), FALSE);
-	termac_terminal_set_highlight (self, text);
-	matches = termac_vt_find_matches (self->terminal, self->cols, self->rows, text);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), FALSE);
+	termuni_terminal_set_highlight (self, text);
+	matches = termuni_vt_find_matches (self->terminal, self->cols, self->rows, text);
 	ghostty_terminal_get (self->terminal, GHOSTTY_TERMINAL_DATA_SCROLLBAR, &bar);
 	for (guint i = 0; self->highlight_has_current && i < matches->len; i++) {
-		TermacVtMatch m = g_array_index (matches, TermacVtMatch, i);
+		TermuniVtMatch m = g_array_index (matches, TermuniVtMatch, i);
 		if (m.row + bar.offset == self->highlight_row && m.column == self->highlight_column)
 			current = i;
 	}
 	next = current + (backwards ? -1 : 1);
 	if (current >= 0 && next >= 0 && next < (int) matches->len) {
-		TermacVtMatch m = g_array_index (matches, TermacVtMatch, next);
+		TermuniVtMatch m = g_array_index (matches, TermuniVtMatch, next);
 		self->highlight_row = m.row + bar.offset;
 		self->highlight_column = m.column;
 		gtk_widget_queue_draw (GTK_WIDGET (self));
 		return TRUE;
 	}
-	found = text != NULL && termac_vt_find_target (self->terminal, text, backwards,
+	found = text != NULL && termuni_vt_find_target (self->terminal, text, backwards,
 	    self->highlight_has_current ? &self->highlight_row : NULL, &target);
 	self->highlight_has_current = FALSE;
 	g_clear_pointer (&matches, g_array_unref);
-	matches = termac_vt_find_matches (self->terminal, self->cols, self->rows, text);
+	matches = termuni_vt_find_matches (self->terminal, self->cols, self->rows, text);
 	ghostty_terminal_get (self->terminal, GHOSTTY_TERMINAL_DATA_SCROLLBAR, &bar);
 	for (guint i = 0; found && i < matches->len; i++) {
-		TermacVtMatch m = g_array_index (matches, TermacVtMatch, i);
+		TermuniVtMatch m = g_array_index (matches, TermuniVtMatch, i);
 		if (m.row + bar.offset != target) continue;
 		self->highlight_has_current = TRUE;
 		self->highlight_row = target;
@@ -1865,16 +1865,16 @@ termac_terminal_find (TermacTerminal *self, const char *text, gboolean backwards
 }
 
 const char *
-termac_terminal_get_session_id (TermacTerminal *self)
+termuni_terminal_get_session_id (TermuniTerminal *self)
 {
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), NULL);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), NULL);
 	return self->session_id;
 }
 
 const char *
-termac_terminal_get_cwd (TermacTerminal *self)
+termuni_terminal_get_cwd (TermuniTerminal *self)
 {
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), NULL);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), NULL);
 	/* The shell's own report (OSC 7) wins; without one, ask the kernel where the
 	 * shell is, so a tab that never reported a folder still restores to it. */
 	if (self->cwd != NULL)
@@ -1895,16 +1895,16 @@ termac_terminal_get_cwd (TermacTerminal *self)
 }
 
 const char *
-termac_terminal_get_error (TermacTerminal *self)
+termuni_terminal_get_error (TermuniTerminal *self)
 {
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), NULL);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), NULL);
 	return self->error;
 }
 
 void
-termac_terminal_retry (TermacTerminal *self)
+termuni_terminal_retry (TermuniTerminal *self)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	if (self->child_pid > 0 && !self->child_exited)
 		return;
 	g_clear_pointer (&self->error, g_free);
@@ -1915,26 +1915,26 @@ termac_terminal_retry (TermacTerminal *self)
 }
 
 void
-termac_terminal_add_attachment (TermacTerminal *self,
+termuni_terminal_add_attachment (TermuniTerminal *self,
                                 const char     *path)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	g_return_if_fail (path != NULL);
 	g_ptr_array_add (self->attachments, g_strdup (path));
 }
 
 GPtrArray *
-termac_terminal_get_attachments (TermacTerminal *self)
+termuni_terminal_get_attachments (TermuniTerminal *self)
 {
-	g_return_val_if_fail (TERMAC_IS_TERMINAL (self), NULL);
+	g_return_val_if_fail (TERMUNI_IS_TERMINAL (self), NULL);
 	return self->attachments;
 }
 
 void
-termac_terminal_remove_attachment (TermacTerminal *self,
+termuni_terminal_remove_attachment (TermuniTerminal *self,
                                    guint           index)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	if (index < self->attachments->len)
 		g_ptr_array_remove_index (self->attachments, index);
 }
@@ -1944,7 +1944,7 @@ termac_terminal_remove_attachment (TermacTerminal *self,
 static void
 terminal_dispose (GObject *object)
 {
-	TermacTerminal *self = TERMAC_TERMINAL (object);
+	TermuniTerminal *self = TERMUNI_TERMINAL (object);
 
 	self->closing = TRUE;
 	if (self->io_source != 0) g_source_remove (self->io_source);
@@ -1976,7 +1976,7 @@ terminal_dispose (GObject *object)
 	self->row_iterator = NULL;
 	self->render_state = NULL;
 	self->terminal = NULL;
-	termac_vt_selector_free (self->selector);
+	termuni_vt_selector_free (self->selector);
 	self->selector = NULL;
 	g_clear_pointer (&self->write_queue, g_byte_array_unref);
 	g_clear_pointer (&self->write_backlog, g_byte_array_unref);
@@ -1994,11 +1994,11 @@ terminal_dispose (GObject *object)
 		self->accessible_text = NULL;
 	}
 	g_clear_pointer (&self->accessible_selection, g_bytes_unref);
-	G_OBJECT_CLASS (termac_terminal_parent_class)->dispose (object);
+	G_OBJECT_CLASS (termuni_terminal_parent_class)->dispose (object);
 }
 
 static void
-termac_terminal_class_init (TermacTerminalClass *klass)
+termuni_terminal_class_init (TermuniTerminalClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
@@ -2030,7 +2030,7 @@ termac_terminal_class_init (TermacTerminalClass *klass)
 }
 
 static void
-termac_terminal_init (TermacTerminal *self)
+termuni_terminal_init (TermuniTerminal *self)
 {
 	GtkEventController *controller;
 	GtkEventController *focus_controller;
@@ -2043,15 +2043,15 @@ termac_terminal_init (TermacTerminal *self)
 
 	self->pty_fd = -1;
 	self->font_size = 11;
-	self->scrollback_lines = TERMAC_TERMINAL_DEFAULT_SCROLLBACK;
+	self->scrollback_lines = TERMUNI_TERMINAL_DEFAULT_SCROLLBACK;
 	self->cols = 80;
 	self->rows = 24;
 	self->session_id = g_uuid_string_random ();
 	self->write_queue = g_byte_array_new ();
 	self->write_backlog = g_byte_array_new ();
 	self->attachments = g_ptr_array_new_with_free_func (g_free);
-	self->agent = termac_agent_default ();
-	self->selector = termac_vt_selector_new ();
+	self->agent = termuni_agent_default ();
+	self->selector = termuni_vt_selector_new ();
 	context = gtk_widget_get_pango_context (GTK_WIDGET (self));
 	font = pango_font_description_new ();
 	pango_font_description_set_family (font, "Monospace");
@@ -2099,11 +2099,11 @@ termac_terminal_init (TermacTerminal *self)
 }
 
 GtkWidget *
-termac_terminal_new_command (const char *cwd,
+termuni_terminal_new_command (const char *cwd,
                              gboolean shell_integration,
                              const char *command)
 {
-	TermacTerminal *self = g_object_new (TERMAC_TYPE_TERMINAL, NULL);
+	TermuniTerminal *self = g_object_new (TERMUNI_TYPE_TERMINAL, NULL);
 
 	self->initial_cwd = g_strdup (cwd);
 	self->initial_command = g_strdup (command);
@@ -2114,21 +2114,21 @@ termac_terminal_new_command (const char *cwd,
 }
 
 void
-termac_terminal_set_scrollback_lines (TermacTerminal *self,
+termuni_terminal_set_scrollback_lines (TermuniTerminal *self,
                                       guint           lines)
 {
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	self->scrollback_lines = lines;
 	terminal_apply_scrollback (self);
 }
 
 void
-termac_terminal_set_font_size (TermacTerminal *self, guint size)
+termuni_terminal_set_font_size (TermuniTerminal *self, guint size)
 {
 	PangoContext *context;
 	PangoFontDescription *font;
 	PangoFontMetrics *metrics;
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	size = CLAMP (size, 8, 32);
 	if (self->font_size == size)
 		return;
@@ -2153,9 +2153,9 @@ typedef struct
 	GhosttyColorRgb foreground;
 	GhosttyColorRgb background;
 	GhosttyColorRgb colors[16];
-} TermacPalette;
+} TermuniPalette;
 
-static const TermacPalette terminal_palettes[] = {
+static const TermuniPalette terminal_palettes[] = {
 	{ "gnome", RGB (246, 245, 244), RGB (30, 30, 30), {
 		RGB (23, 20, 33), RGB (192, 28, 40), RGB (38, 162, 105), RGB (229, 165, 10),
 		RGB (26, 95, 180), RGB (145, 65, 172), RGB (14, 165, 233), RGB (211, 218, 227),
@@ -2226,11 +2226,11 @@ static const TermacPalette terminal_palettes[] = {
 };
 
 gboolean
-termac_terminal_palette_colors (const char *name,
+termuni_terminal_palette_colors (const char *name,
                                 GdkRGBA    *background,
                                 GdkRGBA    *foreground)
 {
-	const TermacPalette *theme = NULL;
+	const TermuniPalette *theme = NULL;
 	guint i;
 
 	g_return_val_if_fail (background != NULL && foreground != NULL, FALSE);
@@ -2251,13 +2251,13 @@ termac_terminal_palette_colors (const char *name,
 }
 
 void
-termac_terminal_set_palette (TermacTerminal *self, const char *name)
+termuni_terminal_set_palette (TermuniTerminal *self, const char *name)
 {
-	const TermacPalette *theme = &terminal_palettes[0];
+	const TermuniPalette *theme = &terminal_palettes[0];
 	GhosttyColorRgb base[256];
 	GhosttyColorRgb generated[256];
 	guint i;
-	g_return_if_fail (TERMAC_IS_TERMINAL (self));
+	g_return_if_fail (TERMUNI_IS_TERMINAL (self));
 	if (self->terminal == NULL)
 		return;
 	for (i = 0; i < G_N_ELEMENTS (terminal_palettes); i++)
@@ -2283,7 +2283,7 @@ termac_terminal_set_palette (TermacTerminal *self, const char *name)
 #undef RGB
 
 GtkWidget *
-termac_terminal_new (const char *cwd, gboolean shell_integration)
+termuni_terminal_new (const char *cwd, gboolean shell_integration)
 {
-	return termac_terminal_new_command (cwd, shell_integration, NULL);
+	return termuni_terminal_new_command (cwd, shell_integration, NULL);
 }

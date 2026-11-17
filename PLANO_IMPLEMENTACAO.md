@@ -1,4 +1,4 @@
-# Plano de implementação do Termac
+# Plano de implementação do Termuni
 
 Atualizado em 14/11/2026. Este é o quadro vigente; a lista priorizada de melhorias está em [docs/ROADMAP.md](docs/ROADMAP.md). [docs/README.md](docs/README.md) reúne os demais documentos.
 
@@ -16,13 +16,13 @@ Atualizado em 14/11/2026. Este é o quadro vigente; a lista priorizada de melhor
 | 5 — produtividade | Parcial; núcleo implementado | Busca com realce/navegação, editor com conflitos, links HTTP(S), restauração v3, atenção e política de notificações existem. Falta entrega/clique da notificação no GNOME; OSC 8 com rótulo implementado; busy/idle host e eventos por agente são melhorias separadas; o Marco 5 inteiro não é bloqueador de lançamento. |
 | 6 — consolidação | Parcial | Valgrind corrigiu referência de ícone por aba; suíte normal/HiDPI e nomes/papel acessíveis existem. Texto acessível (M04) implementado com offsets Unicode, caret, seleção e notificações; regressão em Xvfb passou. Transporte AT-SPI real verificado em buses privados; CI e ferramenta de benchmark implementados. Orca 51 leu e gerou texto em teste privado; pacote default instalado/atualizado isoladamente com preferência preservada. Faltam áudio/navegação Orca e aceite físico do desktop/Wayland. |
 
-O formato escolhido para distribuir e instalar o Termac é `.deb` nativo. Registros de builds anteriores ficam apenas no histórico.
+O formato escolhido para distribuir e instalar o Termuni é `.deb` nativo. Em 17/11/2026 o app foi renomeado para Termuni com ID `io.github.ThiagoAciole.Termuni` (`.Devel` no perfil de desenvolvimento). Configurações e dados foram copiados com `tools/migrate-termac-to-termuni.sh`, que não apaga os originais; o pacote `thiago.aciole.termac` foi removido. Suíte completa passou no build renomeado, o `.deb` instalado e o binário conferido; falta aceite visual do novo pacote. Registros de builds anteriores ficam apenas no histórico.
 
 As referências atuais de produto e arquitetura são [PDR.Arquiteture.md](PDR.Arquiteture.md) e [DESIGN.md](DESIGN.md). Os recuos atuais são **12 unidades acima / 8 à esquerda**. Perfis de terminal, outros agentes e gráficos inline não são requisitos da primeira versão estável.
 
 ## Consolidação e próximos aceites
 
-- [Migração para distribuição `.deb`](docs/reports/2026-11-14-local-deb-install.md): empacotador reproduzível criado; código com shell/PTY locais compilado, empacotado e reinstalado como `thiago.aciole.termac` 0.1.0/amd64. Launcher, schema, serviço D-Bus e ícone `thiago.aciole.Termac` conferidos nos caminhos `/usr`; o app antigo de desenvolvimento foi removido, preservando seus dados. Ainda falta aceite visual.
+- [Migração para distribuição `.deb`](docs/reports/2026-11-14-local-deb-install.md): empacotador reproduzível criado; código com shell/PTY locais compilado, empacotado e reinstalado como `io.github.ThiagoAciole.Termuni` 0.1.0/amd64. Launcher, schema, serviço D-Bus e ícone `io.github.ThiagoAciole.Termuni` conferidos nos caminhos `/usr`; o app antigo de desenvolvimento foi removido, preservando seus dados. Ainda falta aceite visual.
 
 M01/M02/M03/M09/M10/M12/M14/M15 têm implementação e regressões. Sessões agora usam writer ordenado em background com gravação consistente/durável; saída confirma programas ativos e aguarda coleta dos filhos sem bloquear a UI. O teste de reinício usa executáveis em processos distintos e preserva a origem v2.
 

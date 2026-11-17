@@ -1,1 +1,1 @@
-i18n.gettext('termac', preset: 'glib')
+i18n.gettext('termuni', preset: 'glib')

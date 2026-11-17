@@ -18,6 +18,6 @@ for p in sorted(skills.glob('*/SKILL.md')):
     if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',name) or len(name)>64: errors.append(f'{p}: invalid name')
     if not desc or len(desc)>1024: errors.append(f'{p}: invalid description')
     if len(parts[2].strip())<100: errors.append(f'{p}: content too small')
-print(f'Validated {len(list(skills.glob("*/SKILL.md")))} Termac skills; errors={len(errors)}')
+print(f'Validated {len(list(skills.glob("*/SKILL.md")))} Termuni skills; errors={len(errors)}')
 for e in errors: print('ERROR:',e)
 sys.exit(bool(errors))

@@ -3,7 +3,7 @@
 #include <glib/gstdio.h>
 #include <sys/wait.h>
 
-#include "termac-util.h"
+#include "termuni-util.h"
 
 static GByteArray *
 png_header (guint width, guint height)
@@ -28,8 +28,8 @@ test_probe_png_reads_dimensions (void)
 	GByteArray *bytes = png_header (640, 480);
 	guint width = 0, height = 0;
 
-	g_assert_cmpint (termac_image_probe (bytes->data, bytes->len, &width, &height), ==,
-	                 TERMAC_IMAGE_FORMAT_PNG);
+	g_assert_cmpint (termuni_image_probe (bytes->data, bytes->len, &width, &height), ==,
+	                 TERMUNI_IMAGE_FORMAT_PNG);
 	g_assert_cmpuint (width, ==, 640);
 	g_assert_cmpuint (height, ==, 480);
 	g_byte_array_unref (bytes);
@@ -46,8 +46,8 @@ test_probe_jpeg_reads_dimensions (void)
 	};
 	guint width = 0, height = 0;
 
-	g_assert_cmpint (termac_image_probe (jpeg, sizeof jpeg, &width, &height), ==,
-	                 TERMAC_IMAGE_FORMAT_JPEG);
+	g_assert_cmpint (termuni_image_probe (jpeg, sizeof jpeg, &width, &height), ==,
+	                 TERMUNI_IMAGE_FORMAT_JPEG);
 	g_assert_cmpuint (width, ==, 640);
 	g_assert_cmpuint (height, ==, 480);
 }
@@ -58,10 +58,10 @@ test_probe_rejects_other_data (void)
 	static const guint8 text[] = "not an image at all, just text";
 	guint width = 0, height = 0;
 
-	g_assert_cmpint (termac_image_probe (text, sizeof text, &width, &height), ==,
-	                 TERMAC_IMAGE_FORMAT_NONE);
-	g_assert_cmpint (termac_image_probe (text, 4, &width, &height), ==,
-	                 TERMAC_IMAGE_FORMAT_NONE);
+	g_assert_cmpint (termuni_image_probe (text, sizeof text, &width, &height), ==,
+	                 TERMUNI_IMAGE_FORMAT_NONE);
+	g_assert_cmpint (termuni_image_probe (text, 4, &width, &height), ==,
+	                 TERMUNI_IMAGE_FORMAT_NONE);
 }
 
 static void
@@ -70,8 +70,8 @@ test_probe_rejects_truncated_png (void)
 	GByteArray *bytes = png_header (1, 1);
 	guint width = 0, height = 0;
 
-	g_assert_cmpint (termac_image_probe (bytes->data, 20, &width, &height), ==,
-	                 TERMAC_IMAGE_FORMAT_NONE);
+	g_assert_cmpint (termuni_image_probe (bytes->data, 20, &width, &height), ==,
+	                 TERMUNI_IMAGE_FORMAT_NONE);
 	g_byte_array_unref (bytes);
 }
 
@@ -81,11 +81,11 @@ test_url_is_found_at_column (void)
 	const char *line = "see https://example.com/a, ok";
 	gsize start = 0, end = 0;
 
-	g_assert_true (termac_url_at_column (line, 10, &start, &end));
+	g_assert_true (termuni_url_at_column (line, 10, &start, &end));
 	g_assert_cmpuint (start, ==, 4);
 	g_assert_cmpuint (end - start, ==, strlen ("https://example.com/a"));
-	g_assert_false (termac_url_at_column (line, 0, NULL, NULL));
-	g_assert_false (termac_url_at_column (line, 25, NULL, NULL));
+	g_assert_false (termuni_url_at_column (line, 0, NULL, NULL));
+	g_assert_false (termuni_url_at_column (line, 25, NULL, NULL));
 }
 
 /* The span also reports the first and last columns, which the link underline uses. */
@@ -95,19 +95,19 @@ test_url_span_reports_columns (void)
 	const char *line = "see https://example.com/a, ok";
 	guint first = 0, last = 0;
 
-	g_assert_true (termac_url_span_at_column (line, 10, NULL, NULL, &first, &last));
+	g_assert_true (termuni_url_span_at_column (line, 10, NULL, NULL, &first, &last));
 	g_assert_cmpuint (first, ==, 4);
 	g_assert_cmpuint (last, ==, 4 + strlen ("https://example.com/a"));
-	g_assert_false (termac_url_span_at_column (line, 0, NULL, NULL, &first, &last));
+	g_assert_false (termuni_url_span_at_column (line, 0, NULL, NULL, &first, &last));
 }
 
 static void
 test_display_path_abbreviates_home (void)
 {
-	g_autofree char *home_path = termac_display_path ("/home/u/projeto", "/home/u");
-	g_autofree char *home = termac_display_path ("/home/u", "/home/u");
-	g_autofree char *other = termac_display_path ("/home/user2", "/home/u");
-	g_autofree char *none = termac_display_path ("/tmp", NULL);
+	g_autofree char *home_path = termuni_display_path ("/home/u/projeto", "/home/u");
+	g_autofree char *home = termuni_display_path ("/home/u", "/home/u");
+	g_autofree char *other = termuni_display_path ("/home/user2", "/home/u");
+	g_autofree char *none = termuni_display_path ("/tmp", NULL);
 
 	g_assert_cmpstr (home_path, ==, "~/projeto");
 	g_assert_cmpstr (home, ==, "~");
@@ -118,9 +118,9 @@ test_display_path_abbreviates_home (void)
 static void
 test_path_from_pwd_strips_file_uri (void)
 {
-	g_autofree char *plain = termac_path_from_pwd ("/home/u/x");
-	g_autofree char *uri = termac_path_from_pwd ("file://aciole/home/thiago");
-	g_autofree char *spaced = termac_path_from_pwd ("file:///tmp/a%20b");
+	g_autofree char *plain = termuni_path_from_pwd ("/home/u/x");
+	g_autofree char *uri = termuni_path_from_pwd ("file://aciole/home/thiago");
+	g_autofree char *spaced = termuni_path_from_pwd ("file:///tmp/a%20b");
 
 	g_assert_cmpstr (plain, ==, "/home/u/x");
 	g_assert_cmpstr (uri, ==, "/home/thiago");
@@ -130,10 +130,10 @@ test_path_from_pwd_strips_file_uri (void)
 static void
 test_session_directory (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-session-directory-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-session-directory-XXXXXX", NULL);
 	g_autofree char *missing_path = g_build_filename (dir, "missing", NULL);
-	g_autofree char *native = termac_session_directory (dir);
-	g_autofree char *missing = termac_session_directory (missing_path);
+	g_autofree char *native = termuni_session_directory (dir);
+	g_autofree char *missing = termuni_session_directory (missing_path);
 	g_assert_cmpstr (native, ==, dir);
 	g_assert_null (missing);
 	g_rmdir (dir);
@@ -142,7 +142,7 @@ test_session_directory (void)
 static void
 test_shell_argv (void)
 {
-	g_auto(GStrv) shell = termac_shell_argv ("/bin/sh", NULL);
+	g_auto(GStrv) shell = termuni_shell_argv ("/bin/sh", NULL);
 	const char *expected[] = { "/bin/sh", "-i", NULL };
 	g_assert_true (g_strv_equal ((const char * const *) shell, expected));
 }
@@ -150,13 +150,13 @@ test_shell_argv (void)
 static void
 test_initial_command_after_rc (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-initial-command-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-initial-command-XXXXXX", NULL);
 	g_autofree char *rc = g_build_filename (dir, "rc with ' quote", NULL);
 	g_auto(GStrv) args = NULL;
 	g_autofree char *output = NULL;
 	int status;
-	g_assert_true (g_file_set_contents (rc, "TERMAC_TEST_INITIAL=rc-loaded; export TERMAC_TEST_INITIAL\n", -1, NULL));
-	args = termac_shell_command_argv ("/bin/bash", rc, "printf %s \"$TERMAC_TEST_INITIAL\"; exit 23");
+	g_assert_true (g_file_set_contents (rc, "TERMUNI_TEST_INITIAL=rc-loaded; export TERMUNI_TEST_INITIAL\n", -1, NULL));
+	args = termuni_shell_command_argv ("/bin/bash", rc, "printf %s \"$TERMUNI_TEST_INITIAL\"; exit 23");
 	g_assert_true (g_spawn_sync (dir, args, NULL, G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL, &output, NULL, &status, NULL));
 	g_assert_cmpstr (output, ==, "rc-loaded");
 	g_assert_cmpint (WEXITSTATUS (status), ==, 23);
@@ -169,7 +169,7 @@ test_should_notify (void)
  for (guint bits = 0; bits < 16; bits++) {
   gboolean enabled = !!(bits & 1), active = !!(bits & 2);
   gboolean selected = !!(bits & 4), long_enough = !!(bits & 8);
-  g_assert_cmpint (termac_should_notify (enabled, active, selected, long_enough), ==,
+  g_assert_cmpint (termuni_should_notify (enabled, active, selected, long_enough), ==,
                    enabled && (!active || !selected) && long_enough);
  }
 }

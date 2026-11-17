@@ -10,7 +10,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 rounds="${1:-10}"
-logdir="${TERMAC_VALGRIND_LOGDIR:-$(mktemp -d -t termac-valgrind-XXXXXX)}"
+logdir="${TERMUNI_VALGRIND_LOGDIR:-$(mktemp -d -t termuni-valgrind-XXXXXX)}"
 log="$logdir/valgrind-rounds-$rounds.log"
 
 for tool in valgrind xvfb-run; do
@@ -20,12 +20,12 @@ done
 # tree with SIMD off. The first run builds it (a few minutes).
 vbuild="$root/build-valgrind"
 if [ ! -d "$vbuild" ]; then
-	(cd "$root" && TERMAC_GHOSTTY_ZIG_FLAGS=-Dsimd=false meson setup build-valgrind -Dprofile=development)
+	(cd "$root" && TERMUNI_GHOSTTY_ZIG_FLAGS=-Dsimd=false meson setup build-valgrind -Dprofile=development)
 fi
-(cd "$root" && TERMAC_GHOSTTY_ZIG_FLAGS=-Dsimd=false meson compile -C build-valgrind >/dev/null)
+(cd "$root" && TERMUNI_GHOSTTY_ZIG_FLAGS=-Dsimd=false meson compile -C build-valgrind >/dev/null)
 
 set +e
-GSETTINGS_BACKEND=memory GDK_BACKEND=x11 TERMAC_CHURN_ROUNDS="$rounds" \
+GSETTINGS_BACKEND=memory GDK_BACKEND=x11 TERMUNI_CHURN_ROUNDS="$rounds" \
 	xvfb-run -a valgrind --leak-check=full --show-leak-kinds=definite \
 	--errors-for-leak-kinds=definite --error-exitcode=0 \
 	--suppressions="$root/tools/valgrind.supp" --log-file="$log" \
@@ -35,6 +35,6 @@ set -e
 
 echo "test exit status: $status   log: $log"
 grep -E 'definitely lost:|Invalid (read|write)|Conditional jump|uninitialised' "$log" | sort | uniq -c || true
-echo "--- Termac frames in definite losses ---"
-grep -E 'termac_[a-z_]+' "$log" | sed -E 's/.*(termac_[a-z_0-9]+).*/\1/' | sort | uniq -c | sort -rn | head -10 || true
+echo "--- Termuni frames in definite losses ---"
+grep -E 'termuni_[a-z_]+' "$log" | sed -E 's/.*(termuni_[a-z_0-9]+).*/\1/' | sort | uniq -c | sort -rn | head -10 || true
 exit 0

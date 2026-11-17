@@ -19,13 +19,13 @@
 #include <gdk/x11/gdkx.h>
 #include <adwaita.h>
 
-#include "termac-application.h"
-#include "termac-agent.h"
-#include "termac-terminal.h"
-#include "termac-vt.h"
-#include "termac-window.h"
+#include "termuni-application.h"
+#include "termuni-agent.h"
+#include "termuni-terminal.h"
+#include "termuni-vt.h"
+#include "termuni-window.h"
 
-static TermacApplication *app;
+static TermuniApplication *app;
 
 static void
 pump (guint ms)
@@ -40,23 +40,23 @@ pump (guint ms)
 	}
 }
 
-static TermacWindow *
+static TermuniWindow *
 main_window (void)
 {
 	GList *windows = gtk_application_get_windows (GTK_APPLICATION (app));
 	GList *iter;
 
 	for (iter = windows; iter != NULL; iter = iter->next)
-		if (TERMAC_IS_WINDOW (iter->data))
-			return TERMAC_WINDOW (iter->data);
+		if (TERMUNI_IS_WINDOW (iter->data))
+			return TERMUNI_WINDOW (iter->data);
 	return NULL;
 }
 
 static guint
-tab_count (TermacWindow *window)
+tab_count (TermuniWindow *window)
 {
 	gint selected = 0;
-	GVariant *tabs = termac_window_session_state (window, &selected);
+	GVariant *tabs = termuni_window_session_state (window, &selected);
 	guint count = (guint) g_variant_n_children (tabs);
 
 	g_variant_unref (tabs);
@@ -64,11 +64,11 @@ tab_count (TermacWindow *window)
 }
 
 /* Saves what GTK draws for a widget as a PNG, so the screen can be inspected
- * without a screenshot tool. Enabled with TERMAC_UI_SCREENSHOTS=<directory>. */
+ * without a screenshot tool. Enabled with TERMUNI_UI_SCREENSHOTS=<directory>. */
 static void
 save_widget_png (GtkWidget *widget, const char *name)
 {
-	const char *dir = g_getenv ("TERMAC_UI_SCREENSHOTS");
+	const char *dir = g_getenv ("TERMUNI_UI_SCREENSHOTS");
 	g_autofree char *path = NULL;
 	GdkPaintable *paintable;
 	GtkSnapshot *snapshot;
@@ -97,17 +97,17 @@ save_widget_png (GtkWidget *widget, const char *name)
 	g_object_unref (paintable);
 }
 
-static TermacTerminal *
+static TermuniTerminal *
 find_terminal (GtkWidget *widget)
 {
 	GtkWidget *child;
 
-	if (TERMAC_IS_TERMINAL (widget))
-		return TERMAC_TERMINAL (widget);
+	if (TERMUNI_IS_TERMINAL (widget))
+		return TERMUNI_TERMINAL (widget);
 	for (child = gtk_widget_get_first_child (widget); child != NULL;
 	     child = gtk_widget_get_next_sibling (child))
 	{
-		TermacTerminal *found = find_terminal (child);
+		TermuniTerminal *found = find_terminal (child);
 
 		if (found != NULL)
 			return found;
@@ -239,11 +239,11 @@ focus_terminal (GtkWidget *window, GtkWidget *terminal)
 
 /* Text of every viewport row, joined with newlines. */
 static char *
-screen_text (TermacTerminal *terminal)
+screen_text (TermuniTerminal *terminal)
 {
-	GhosttyTerminal vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
-	guint columns = termac_terminal_get_columns (terminal);
-	guint rows = termac_terminal_get_rows (terminal);
+	GhosttyTerminal vt = (GhosttyTerminal) termuni_terminal_get_vt_handle (terminal);
+	guint columns = termuni_terminal_get_columns (terminal);
+	guint rows = termuni_terminal_get_rows (terminal);
 	GString *all = g_string_new (NULL);
 	guint row;
 
@@ -251,7 +251,7 @@ screen_text (TermacTerminal *terminal)
 	{
 		char *line = NULL;
 
-		if (termac_vt_viewport_row_text (vt, columns, row, &line) && line != NULL)
+		if (termuni_vt_viewport_row_text (vt, columns, row, &line) && line != NULL)
 			g_string_append (all, line);
 		g_free (line);
 		g_string_append_c (all, '\n');
@@ -260,7 +260,7 @@ screen_text (TermacTerminal *terminal)
 }
 
 static gboolean
-screen_contains (TermacTerminal *terminal, const char *needle)
+screen_contains (TermuniTerminal *terminal, const char *needle)
 {
 	g_autofree char *text = screen_text (terminal);
 
@@ -268,7 +268,7 @@ screen_contains (TermacTerminal *terminal, const char *needle)
 }
 
 static gboolean
-wait_for_screen (TermacTerminal *terminal, const char *needle, guint timeout_ms)
+wait_for_screen (TermuniTerminal *terminal, const char *needle, guint timeout_ms)
 {
 	gint64 end = g_get_monotonic_time () + (gint64) timeout_ms * 1000;
 
@@ -288,29 +288,29 @@ wait_for_alternate_screen (GhosttyTerminal vt, gboolean wanted, guint timeout_ms
 
 	while (g_get_monotonic_time () < end)
 	{
-		if (termac_vt_alternate_screen (vt) == wanted)
+		if (termuni_vt_alternate_screen (vt) == wanted)
 			return TRUE;
 		pump (100);
 	}
-	return termac_vt_alternate_screen (vt) == wanted;
+	return termuni_vt_alternate_screen (vt) == wanted;
 }
 
 static gboolean
-wait_for_job_end (TermacTerminal *terminal, guint timeout_ms)
+wait_for_job_end (TermuniTerminal *terminal, guint timeout_ms)
 {
 	gint64 end = g_get_monotonic_time () + (gint64) timeout_ms * 1000;
 
 	while (g_get_monotonic_time () < end)
 	{
-		if (!termac_terminal_has_foreground_job (terminal))
+		if (!termuni_terminal_has_foreground_job (terminal))
 			return TRUE;
 		pump (100);
 	}
-	return !termac_terminal_has_foreground_job (terminal);
+	return !termuni_terminal_has_foreground_job (terminal);
 }
 
 static void
-run_in_terminal (TermacWindow *window, TermacTerminal *terminal, const char *command)
+run_in_terminal (TermuniWindow *window, TermuniTerminal *terminal, const char *command)
 {
 	focus_terminal (GTK_WIDGET (window), GTK_WIDGET (terminal));
 	type_text (command);
@@ -320,7 +320,7 @@ run_in_terminal (TermacWindow *window, TermacTerminal *terminal, const char *com
 static void
 test_window_tabs (void)
 {
-	TermacWindow *window;
+	TermuniWindow *window;
 
 	g_application_activate (G_APPLICATION (app));
 	pump (1500);
@@ -341,8 +341,8 @@ test_window_tabs (void)
 static void
 test_tab_churn (void)
 {
-	TermacWindow *window = main_window ();
-	const char *rounds_env = g_getenv ("TERMAC_CHURN_ROUNDS");
+	TermuniWindow *window = main_window ();
+	const char *rounds_env = g_getenv ("TERMUNI_CHURN_ROUNDS");
 	guint rounds = rounds_env != NULL ? (guint) g_ascii_strtoull (rounds_env, NULL, 10) : 10;
 	guint i;
 
@@ -358,10 +358,10 @@ test_tab_churn (void)
 }
 
 /* Each load/input scenario owns its shell, including when selected with -p. */
-static TermacWindow *
+static TermuniWindow *
 fresh_test_window (void)
 {
-	TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	TermuniWindow *window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
 
 	gtk_window_present (GTK_WINDOW (window));
 	pump (700);
@@ -371,8 +371,8 @@ fresh_test_window (void)
 static void
 test_typing_and_interrupt (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	g_autofree char *status = g_build_filename (g_get_user_state_dir (), "interrupt-status", NULL);
 	g_autofree char *quoted = g_shell_quote (status);
 	g_autofree char *command = g_strdup_printf ("printf '%%s' $? > %s; printf 'after-%%s\\n' interrupt", quoted);
@@ -380,16 +380,16 @@ test_typing_and_interrupt (void)
 
 	g_assert_nonnull (terminal);
 	/* Neither expected result is present literally in the echoed input. */
-	run_in_terminal (window, terminal, "printf 'termac-%s\\n' executed");
-	g_assert_true (wait_for_screen (terminal, "termac-executed", 4000));
+	run_in_terminal (window, terminal, "printf 'termuni-%s\\n' executed");
+	g_assert_true (wait_for_screen (terminal, "termuni-executed", 4000));
 	save_widget_png (GTK_WIDGET (window), "typed.png");
 
 	run_in_terminal (window, terminal, "sleep 30");
 	pump (1000);
-	g_assert_true (termac_terminal_has_foreground_job (terminal));
+	g_assert_true (termuni_terminal_has_foreground_job (terminal));
 	send_keysym (XK_c, TRUE);
 	pump (200);
-	g_assert_true (termac_terminal_has_foreground_job (terminal));
+	g_assert_true (termuni_terminal_has_foreground_job (terminal));
 	g_assert_false (g_file_test (status, G_FILE_TEST_EXISTS));
 
 	send_keysym (XK_c, TRUE);
@@ -506,7 +506,7 @@ find_window_dialog (GtkWindow *parent, GType type)
 static gsize
 attachment_count (void)
 {
-	g_autofree char *root = g_build_filename (g_get_user_cache_dir (), "termac", "attachments", NULL);
+	g_autofree char *root = g_build_filename (g_get_user_cache_dir (), "termuni", "attachments", NULL);
 	GDir *sessions = g_dir_open (root, 0, NULL);
 	const char *session;
 	gsize count = 0;
@@ -554,8 +554,8 @@ write_test_png (const char *name)
 static void
 test_drop_image (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	g_autofree char *png = write_test_png ("termac-drop.png");
+	TermuniWindow *window = fresh_test_window ();
+	g_autofree char *png = write_test_png ("termuni-drop.png");
 	GSList *files = NULL;
 	GdkFileList *list;
 	gsize before;
@@ -564,7 +564,7 @@ test_drop_image (void)
 	before = attachment_count ();
 	files = g_slist_append (files, g_file_new_for_path (png));
 	list = gdk_file_list_new_from_list (files);
-	g_assert_true (termac_window_attach_file_list (window, list));
+	g_assert_true (termuni_window_attach_file_list (window, list));
 	g_boxed_free (GDK_TYPE_FILE_LIST, list);
 	pump (1500);
 	g_assert_cmpuint (attachment_count (), ==, before + 1);
@@ -577,9 +577,9 @@ test_drop_image (void)
 static void
 test_paste_image_clipboard (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
-	g_autofree char *png = write_test_png ("termac-clipboard.png");
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	g_autofree char *png = write_test_png ("termuni-clipboard.png");
 	g_autoptr (GdkTexture) texture = gdk_texture_new_from_filename (png, NULL);
 	GdkClipboard *clipboard = gdk_display_get_clipboard (gdk_display_get_default ());
 	gsize before;
@@ -634,35 +634,35 @@ read_clipboard_text (void)
 static void
 test_mouse_selection_copy (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	GhosttyTerminal vt;
-	TermacVtSelector *selector;
+	TermuniVtSelector *selector;
 	GhosttySelectionGestureGeometry geometry = { 0 };
 	g_autofree char *text = NULL;
 
 	g_assert_nonnull (terminal);
 	run_in_terminal (window, terminal, "printf 'selection-%s\\n' complete");
 	g_assert_true (wait_for_screen (terminal, "selection-complete", 3000));
-	vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
-	selector = termac_vt_selector_new ();
+	vt = (GhosttyTerminal) termuni_terminal_get_vt_handle (terminal);
+	selector = termuni_vt_selector_new ();
 	g_assert_nonnull (selector);
 	guint cell_width, cell_height;
-	guint columns = termac_terminal_get_columns (terminal);
-	guint rows = termac_terminal_get_rows (terminal);
-	termac_terminal_get_cell_size (terminal, &cell_width, &cell_height);
+	guint columns = termuni_terminal_get_columns (terminal);
+	guint rows = termuni_terminal_get_rows (terminal);
+	termuni_terminal_get_cell_size (terminal, &cell_width, &cell_height);
 	geometry.columns = columns;
 	geometry.cell_width = cell_width;
 	geometry.padding_left = 8;
 	geometry.screen_height = gtk_widget_get_height (GTK_WIDGET (terminal));
 
-	termac_vt_selector_event (selector, vt, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_PRESS,
+	termuni_vt_selector_event (selector, vt, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_PRESS,
 	                          0, 0, 8, 12, 1000, NULL);
-	termac_vt_selector_event (selector, vt, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_DRAG,
+	termuni_vt_selector_event (selector, vt, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_DRAG,
 	                          columns - 1, rows - 1, 8 + (columns - 1) * cell_width, 12 + (rows - 1) * cell_height, 2000, &geometry);
-	termac_vt_selector_event (selector, vt, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_RELEASE,
+	termuni_vt_selector_event (selector, vt, GHOSTTY_SELECTION_GESTURE_EVENT_TYPE_RELEASE,
 	                          columns - 1, rows - 1, 8 + (columns - 1) * cell_width, 12 + (rows - 1) * cell_height, 3000, &geometry);
-	termac_vt_selector_free (selector);
+	termuni_vt_selector_free (selector);
 
 	focus_terminal (GTK_WIDGET (window), GTK_WIDGET (terminal));
 	send_keysym_full (XK_C, TRUE, TRUE);
@@ -695,7 +695,7 @@ assert_accel_is (const char *actual, const char *expected)
 static void
 test_shortcut_editor (void)
 {
-	TermacWindow *window = main_window ();
+	TermuniWindow *window = main_window ();
 	GtkWindow *preferences;
 	GtkButton *button;
 	GtkButton *reset;
@@ -779,8 +779,8 @@ resident_memory_kb (void)
 static void
 test_large_output (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	g_autofree char *output = g_build_filename (g_get_user_state_dir (), "seq-output", NULL);
 	g_autofree char *quoted = g_shell_quote (output);
 	g_autofree char *command = g_strdup_printf (
@@ -813,22 +813,22 @@ test_large_output (void)
 static void
 test_tui_alternate_screen (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	GhosttyTerminal vt;
 
 	g_assert_nonnull (terminal);
-	vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
+	vt = (GhosttyTerminal) termuni_terminal_get_vt_handle (terminal);
 	focus_terminal (GTK_WIDGET (window), GTK_WIDGET (terminal));
 	type_text ("less /etc/services");
 	send_keysym (XK_Return, FALSE);
 	pump (1200);
-	g_assert_true (termac_vt_alternate_screen (vt));
+	g_assert_true (termuni_vt_alternate_screen (vt));
 	save_widget_png (GTK_WIDGET (window), "tui-less.png");
 	send_keysym (XK_q, FALSE);
 	pump (1000);
-	g_assert_false (termac_vt_alternate_screen (vt));
-	g_assert_false (termac_terminal_has_foreground_job (terminal));
+	g_assert_false (termuni_vt_alternate_screen (vt));
+	g_assert_false (termuni_terminal_has_foreground_job (terminal));
 	gtk_window_destroy (GTK_WINDOW (window));
 	pump (200);
 }
@@ -838,10 +838,10 @@ test_tui_alternate_screen (void)
 static void
 test_mouse_tracking_report (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	GhosttyTerminal vt;
-	g_autofree char *script = g_build_filename (g_get_user_state_dir (), "termac-mouse-test.py", NULL);
+	g_autofree char *script = g_build_filename (g_get_user_state_dir (), "termuni-mouse-test.py", NULL);
 	g_autofree char *command = g_strdup_printf ("python3 %s", script);
 	KeyCode shift_key;
 	int x0;
@@ -863,7 +863,7 @@ test_mouse_tracking_report (void)
 		"sys.stdout.write('\\x1b[?1000l\\x1b[?1006l' + 'GOT:' + repr(buf) + '\\r\\n'); sys.stdout.flush()\n";
 
 	g_assert_nonnull (terminal);
-	vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
+	vt = (GhosttyTerminal) termuni_terminal_get_vt_handle (terminal);
 	g_assert_true (g_file_set_contents (script, body, -1, NULL));
 	shift_key = XKeysymToKeycode (x_display, XK_Shift_L);
 
@@ -871,7 +871,7 @@ test_mouse_tracking_report (void)
 	run_in_terminal (window, terminal, command);
 	g_assert_true (wait_for_screen (terminal, "SELECTME-", 4000));
 	pump (400);
-	g_assert_true (termac_vt_mouse_tracking (vt));
+	g_assert_true (termuni_vt_mouse_tracking (vt));
 	terminal_point_in_window (GTK_WIDGET (window), GTK_WIDGET (terminal), 40, 60, &x0, &y0);
 	mouse_move (GTK_WIDGET (window), x0, y0);
 	mouse_button (1, TRUE);
@@ -883,9 +883,9 @@ test_mouse_tracking_report (void)
 	run_in_terminal (window, terminal, command);
 	{
 		gint64 deadline = g_get_monotonic_time () + 4 * G_USEC_PER_SEC;
-		while (!termac_vt_mouse_tracking (vt) && g_get_monotonic_time () < deadline) pump (20);
+		while (!termuni_vt_mouse_tracking (vt) && g_get_monotonic_time () < deadline) pump (20);
 	}
-	g_assert_true (termac_vt_mouse_tracking (vt));
+	g_assert_true (termuni_vt_mouse_tracking (vt));
 	terminal_point_in_window (GTK_WIDGET (window), GTK_WIDGET (terminal), 30, 40, &x0, &y0);
 	terminal_point_in_window (GTK_WIDGET (window), GTK_WIDGET (terminal), 300, 80, &x1, &y1);
 	mouse_move (GTK_WIDGET (window), x0, y0);
@@ -895,7 +895,7 @@ test_mouse_tracking_report (void)
 	mouse_button (1, FALSE);
 	fake_key_event (x_display, shift_key, 0, 0);
 	XFlush (x_display);
-	g_assert_true (termac_terminal_copy (terminal));
+	g_assert_true (termuni_terminal_copy (terminal));
 	g_assert_true (wait_for_screen (terminal, "GOT:b''", 8000));
 	g_remove (script);
 	gtk_window_destroy (GTK_WINDOW (window));
@@ -908,8 +908,8 @@ test_mouse_tracking_report (void)
 static void
 test_dead_key_and_unicode (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
 
 	g_assert_nonnull (terminal);
 	/* The virtual keyboard has no dead keys: bind two spare keycodes to them. */
@@ -931,17 +931,17 @@ test_dead_key_and_unicode (void)
 	/* Text being composed is drawn at the cursor and never sent to the program.
 	 * (The simple input context on the virtual display reports no preedit for
 	 * dead keys, so the display path is driven directly.) */
-	termac_terminal_set_preedit (terminal, "\xc2\xb4");
+	termuni_terminal_set_preedit (terminal, "\xc2\xb4");
 	pump (300);
-	g_assert_cmpstr (termac_terminal_get_preedit (terminal), ==, "\xc2\xb4");
+	g_assert_cmpstr (termuni_terminal_get_preedit (terminal), ==, "\xc2\xb4");
 	g_assert_false (screen_contains (terminal, "\xc2\xb4"));
 	save_widget_png (GTK_WIDGET (window), "preedit.png");
-	termac_terminal_set_preedit (terminal, NULL);
-	g_assert_cmpstr (termac_terminal_get_preedit (terminal), ==, "");
+	termuni_terminal_set_preedit (terminal, NULL);
+	g_assert_cmpstr (termuni_terminal_get_preedit (terminal), ==, "");
 	send_keysym (XK_dead_acute, FALSE);
 	send_keysym (XK_a, FALSE);
 	pump (400);
-	g_assert_cmpstr (termac_terminal_get_preedit (terminal), ==, "");
+	g_assert_cmpstr (termuni_terminal_get_preedit (terminal), ==, "");
 	g_assert_true (wait_for_screen (terminal, "\xc3\xa1", 3000));
 	send_keysym (XK_dead_tilde, FALSE);
 	send_keysym (XK_n, FALSE);
@@ -960,11 +960,11 @@ test_dead_key_and_unicode (void)
 }
 
 static void
-set_clipboard_and_paste (TermacTerminal *terminal, const char *text)
+set_clipboard_and_paste (TermuniTerminal *terminal, const char *text)
 {
 	gdk_clipboard_set_text (gtk_widget_get_clipboard (GTK_WIDGET (terminal)), text);
 	pump (300);
-	termac_terminal_paste (terminal);
+	termuni_terminal_paste (terminal);
 }
 
 /* Pasted text arrives intact: line breaks survive and nothing is dropped, even
@@ -972,9 +972,9 @@ set_clipboard_and_paste (TermacTerminal *terminal, const char *text)
 static void
 test_paste_integrity (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
-	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termac-paste-out.txt", NULL);
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termuni-paste-out.txt", NULL);
 	g_autofree char *command = g_strdup_printf ("cat > %s", path);
 	g_autofree char *contents = NULL;
 	GString *big = g_string_new (NULL);
@@ -1009,8 +1009,8 @@ test_paste_integrity (void)
 	pump (200);
 }
 
-static TermacTerminal *
-terminal_of_page (TermacWindow *window, int index)
+static TermuniTerminal *
+terminal_of_page (TermuniWindow *window, int index)
 {
 	AdwTabView *view = ADW_TAB_VIEW (find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_VIEW));
 	AdwTabPage *page = adw_tab_view_get_nth_page (view, index);
@@ -1023,9 +1023,9 @@ terminal_of_page (TermacWindow *window, int index)
 static void
 test_sessions_are_isolated (void)
 {
-	TermacWindow *window = main_window ();
-	TermacTerminal *first;
-	TermacTerminal *second;
+	TermuniWindow *window = main_window ();
+	TermuniTerminal *first;
+	TermuniTerminal *second;
 
 	g_assert_nonnull (window);
 	g_assert_cmpuint (tab_count (window), ==, 1);
@@ -1035,9 +1035,9 @@ test_sessions_are_isolated (void)
 	first = terminal_of_page (window, 0);
 	second = terminal_of_page (window, 1);
 	g_assert_true (first != second);
-	g_assert_cmpstr (termac_terminal_get_session_id (first), !=, termac_terminal_get_session_id (second));
+	g_assert_cmpstr (termuni_terminal_get_session_id (first), !=, termuni_terminal_get_session_id (second));
 
-	run_in_terminal (window, second, "export TERMAC_ISOLATION=two; cd /usr; echo \"[$TERMAC_ISOLATION] $(pwd)\"");
+	run_in_terminal (window, second, "export TERMUNI_ISOLATION=two; cd /usr; echo \"[$TERMUNI_ISOLATION] $(pwd)\"");
 	g_assert_true (wait_for_screen (second, "[two] /usr", 4000));
 
 	{
@@ -1046,7 +1046,7 @@ test_sessions_are_isolated (void)
 		adw_tab_view_set_selected_page (view, adw_tab_view_get_nth_page (view, 0));
 		pump (500);
 	}
-	run_in_terminal (window, first, "echo \"[$TERMAC_ISOLATION] $(pwd)\"");
+	run_in_terminal (window, first, "echo \"[$TERMUNI_ISOLATION] $(pwd)\"");
 	g_assert_true (wait_for_screen (first, "[] ", 4000));
 	g_assert_false (screen_contains (first, "[two]"));
 	g_assert_false (screen_contains (first, "/usr"));
@@ -1076,7 +1076,7 @@ destroy_all_windows (void)
 	GList *iter;
 
 	for (iter = windows; iter != NULL; iter = iter->next)
-		if (TERMAC_IS_WINDOW (iter->data))
+		if (TERMUNI_IS_WINDOW (iter->data))
 			gtk_window_destroy (GTK_WINDOW (iter->data));
 	g_list_free (windows);
 	pump (300);
@@ -1085,7 +1085,7 @@ destroy_all_windows (void)
 static char *
 session_file (void)
 {
-	return g_build_filename (g_get_user_state_dir (), "termac", "session-v3.gvariant", NULL);
+	return g_build_filename (g_get_user_state_dir (), "termuni", "session-v3.gvariant", NULL);
 }
 
 /* Removes both session files, so the next activation opens one fresh tab. */
@@ -1093,33 +1093,33 @@ static void
 forget_saved_sessions (void)
 {
 	g_autofree char *v3 = session_file ();
-	g_autofree char *v2 = g_build_filename (g_get_user_state_dir (), "termac", "session-v2.gvariant", NULL);
+	g_autofree char *v2 = g_build_filename (g_get_user_state_dir (), "termuni", "session-v2.gvariant", NULL);
 
 	g_unlink (v3);
 	g_unlink (v2);
 }
 
 static void
-report_cwd (TermacWindow *window, TermacTerminal *terminal, const char *dir)
+report_cwd (TermuniWindow *window, TermuniTerminal *terminal, const char *dir)
 {
 	g_autofree char *command = g_strdup_printf ("printf '\\033]7;file://%s\\a'", dir);
 	gint64 start = g_get_monotonic_time ();
 
 	run_in_terminal (window, terminal, command);
-	while (g_strcmp0 (termac_terminal_get_cwd (terminal), dir) != 0)
+	while (g_strcmp0 (termuni_terminal_get_cwd (terminal), dir) != 0)
 	{
 		pump (100);
 		if (g_get_monotonic_time () - start > 5000000)
 			break;
 	}
-	g_assert_cmpstr (termac_terminal_get_cwd (terminal), ==, dir);
+	g_assert_cmpstr (termuni_terminal_get_cwd (terminal), ==, dir);
 }
 
 /* Saves three tabs, reopens the application and gets the same tabs back. */
 static void
 test_session_restore_roundtrip (void)
 {
-	TermacWindow *window = main_window ();
+	TermuniWindow *window = main_window ();
 	AdwTabView *view;
 	g_autofree char *path = session_file ();
 	g_autofree char *saved = NULL;
@@ -1128,16 +1128,16 @@ test_session_restore_roundtrip (void)
 	g_autoptr (GVariant) after = NULL;
 	gint selected_before = 0;
 	gint selected_after = 0;
-	TermacTerminal *second;
-	TermacTerminal *third;
+	TermuniTerminal *second;
+	TermuniTerminal *third;
 
 	/* Start from one fresh tab whatever an earlier test left behind. */
 	destroy_all_windows ();
 	forget_saved_sessions ();
 	g_application_activate (G_APPLICATION (app));
 	pump (800);
-	window = TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
-	g_assert_true (TERMAC_IS_WINDOW (window));
+	window = TERMUNI_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
+	g_assert_true (TERMUNI_IS_WINDOW (window));
 	g_assert_cmpuint (tab_count (window), ==, 1);
 	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
 	pump (800);
@@ -1153,9 +1153,9 @@ test_session_restore_roundtrip (void)
 	report_cwd (window, second, "/usr");
 	g_object_set_data_full (G_OBJECT (second), "manual-title", g_strdup ("Build"), g_free);
 
-	before = g_variant_ref_sink (termac_window_session_state (window, &selected_before));
+	before = g_variant_ref_sink (termuni_window_session_state (window, &selected_before));
 	g_assert_cmpint (selected_before, ==, 1);
-	termac_application_save_session_now (app);
+	termuni_application_save_session_now (app);
 	g_assert_true (g_file_get_contents (path, &saved, &saved_length, NULL));
 
 	destroy_all_windows ();
@@ -1163,10 +1163,10 @@ test_session_restore_roundtrip (void)
 	g_assert_true (g_file_set_contents (path, saved, (gssize) saved_length, NULL));
 	g_application_activate (G_APPLICATION (app));
 	pump (1500);
-	window = TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
-	g_assert_true (TERMAC_IS_WINDOW (window));
+	window = TERMUNI_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
+	g_assert_true (TERMUNI_IS_WINDOW (window));
 	g_assert_cmpuint (tab_count (window), ==, 3);
-	after = g_variant_ref_sink (termac_window_session_state (window, &selected_after));
+	after = g_variant_ref_sink (termuni_window_session_state (window, &selected_after));
 	g_assert_cmpint (selected_after, ==, selected_before);
 	g_assert_true (g_variant_equal (before, after));
 
@@ -1175,7 +1175,7 @@ test_session_restore_roundtrip (void)
 	forget_saved_sessions ();
 	g_application_activate (G_APPLICATION (app));
 	pump (800);
-	g_assert_cmpuint (tab_count (TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)))), ==, 1);
+	g_assert_cmpuint (tab_count (TERMUNI_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)))), ==, 1);
 }
 
 /* A damaged session file never prevents startup: one fresh tab appears. */
@@ -1188,15 +1188,15 @@ test_session_corrupt_file (void)
 
 	for (i = 0; i < G_N_ELEMENTS (bodies); i++)
 	{
-		TermacWindow *window;
+		TermuniWindow *window;
 
 		destroy_all_windows ();
 		g_assert_cmpint (g_mkdir_with_parents (g_path_get_dirname (path), 0700), ==, 0);
 		g_assert_true (g_file_set_contents (path, bodies[i], (gssize) (i == 2 ? 9 : strlen (bodies[i])), NULL));
 		g_application_activate (G_APPLICATION (app));
 		pump (800);
-		window = TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
-		g_assert_true (TERMAC_IS_WINDOW (window));
+		window = TERMUNI_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
+		g_assert_true (TERMUNI_IS_WINDOW (window));
 		g_assert_cmpuint (tab_count (window), ==, 1);
 	}
 	destroy_all_windows ();
@@ -1212,11 +1212,11 @@ static void collect_terminals (GtkWidget *root, GPtrArray *out);
 static void
 test_vim_session (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	GhosttyTerminal vt;
-	GSettings *settings = termac_application_get_settings (app);
-	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termac-vim-test.txt", NULL);
+	GSettings *settings = termuni_application_get_settings (app);
+	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termuni-vim-test.txt", NULL);
 	g_autofree char *command = NULL;
 	g_autofree char *contents = NULL;
 	guint rows_before;
@@ -1226,12 +1226,12 @@ test_vim_session (void)
 	g_autofree char *quoted_dir = g_shell_quote (g_get_user_state_dir ());
 
 	g_assert_nonnull (terminal);
-	vt = (GhosttyTerminal) termac_terminal_get_vt_handle (terminal);
+	vt = (GhosttyTerminal) termuni_terminal_get_vt_handle (terminal);
 	g_remove (path);
 
 	/* Edit and save. */
 	/* A long temporary prefix otherwise makes vi show a hit-enter prompt. */
-	command = g_strdup_printf ("cd %s && vi -u NONE -n termac-vim-test.txt", quoted_dir);
+	command = g_strdup_printf ("cd %s && vi -u NONE -n termuni-vim-test.txt", quoted_dir);
 	run_in_terminal (window, terminal, command);
 	g_assert_true (wait_for_alternate_screen (vt, TRUE, 4000));
 	type_text ("ihello-vim");
@@ -1244,19 +1244,19 @@ test_vim_session (void)
 	g_assert_true (wait_for_job_end (terminal, 3000));
 
 	/* The PTY follows a window resize while vi runs. */
-	rows_before = termac_terminal_get_rows (terminal);
+	rows_before = termuni_terminal_get_rows (terminal);
 	run_in_terminal (window, terminal, command);
 	g_assert_true (wait_for_alternate_screen (vt, TRUE, 4000));
 	g_assert_true (wait_for_screen (terminal, "hello-vim", 4000));
 	gtk_window_set_default_size (GTK_WINDOW (window), 900, 420);
 	pump (1200);
-	rows_after = termac_terminal_get_rows (terminal);
+	rows_after = termuni_terminal_get_rows (terminal);
 	g_assert_cmpuint (rows_after, !=, rows_before);
 	type_text (":q");
 	send_keysym (XK_Return, FALSE);
 	g_assert_true (wait_for_alternate_screen (vt, FALSE, 4000));
 	run_in_terminal (window, terminal, "stty size");
-	expected = g_strdup_printf ("%u %u", rows_after, termac_terminal_get_columns (terminal));
+	expected = g_strdup_printf ("%u %u", rows_after, termuni_terminal_get_columns (terminal));
 	g_assert_true (wait_for_screen (terminal, expected, 3000));
 
 	/* Closing a tab that runs vi leaves no process behind. */
@@ -1288,8 +1288,8 @@ test_vim_session (void)
 static void
 test_tabs_are_independent (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *first = find_terminal (GTK_WIDGET (window));
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *first = find_terminal (GTK_WIDGET (window));
 	const char *first_id;
 	guint before;
 	guint count;
@@ -1298,7 +1298,7 @@ test_tabs_are_independent (void)
 	/* Drain reapers from preceding tests before taking a global PID baseline. */
 	pump (1200);
 	before = child_process_count ();
-	first_id = termac_terminal_get_session_id (first);
+	first_id = termuni_terminal_get_session_id (first);
 	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
 	pump (1200);
 	count = tab_count (window);
@@ -1316,10 +1316,10 @@ test_tabs_are_independent (void)
 static void
 test_closed_tab_releases_terminal (void)
 {
-	TermacWindow *window = main_window ();
+	TermuniWindow *window = main_window ();
 	GtkWidget *tab_view;
 	AdwTabPage *page;
-	TermacTerminal *terminal;
+	TermuniTerminal *terminal;
 	gint pages_before;
 
 	g_assert_nonnull (window);
@@ -1329,7 +1329,7 @@ test_closed_tab_releases_terminal (void)
 	g_assert_nonnull (tab_view);
 	pages_before = adw_tab_view_get_n_pages (ADW_TAB_VIEW (tab_view));
 	page = adw_tab_view_get_selected_page (ADW_TAB_VIEW (tab_view));
-	terminal = TERMAC_TERMINAL (adw_tab_page_get_child (page));
+	terminal = TERMUNI_TERMINAL (adw_tab_page_get_child (page));
 	g_assert_nonnull (terminal);
 	g_object_add_weak_pointer (G_OBJECT (terminal), (gpointer *) &terminal);
 	g_object_add_weak_pointer (G_OBJECT (page), (gpointer *) &page);
@@ -1343,7 +1343,7 @@ test_closed_tab_releases_terminal (void)
 static void
 test_no_orphan_shells (void)
 {
-	TermacWindow *window = main_window ();
+	TermuniWindow *window = main_window ();
 	guint before;
 	guint i;
 
@@ -1370,7 +1370,7 @@ test_no_orphan_shells (void)
 static void
 test_memory_stable_under_churn (void)
 {
-	TermacWindow *window = main_window ();
+	TermuniWindow *window = main_window ();
 	gsize before;
 	gsize after;
 	guint i;
@@ -1400,8 +1400,8 @@ test_memory_stable_under_churn (void)
 static void
 test_geometry_saved (void)
 {
-	TermacWindow *window = main_window ();
-	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termac",
+	TermuniWindow *window = main_window ();
+	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termuni",
 	                                          "session-v3.gvariant", NULL);
 	g_autofree char *contents = NULL;
 	gsize length = 0;
@@ -1415,7 +1415,7 @@ test_geometry_saved (void)
 	g_assert_nonnull (window);
 	gtk_window_set_default_size (GTK_WINDOW (window), 700, 500);
 	pump (300);
-	termac_application_save_session_now (app);
+	termuni_application_save_session_now (app);
 	g_assert_true (g_file_get_contents (path, &contents, &length, NULL));
 	sessions = g_variant_new_from_data (G_VARIANT_TYPE ("a(iiiba(ss))"), contents, length, TRUE, NULL, NULL);
 	g_assert_nonnull (sessions);
@@ -1441,7 +1441,7 @@ test_preferences_window (void)
 	after = gtk_window_list_toplevels ();
 	g_assert_cmpuint (g_list_length (after), >, count_before);
 	for (iter = after; iter != NULL; iter = iter->next)
-		if (GTK_IS_WINDOW (iter->data) && !TERMAC_IS_WINDOW (iter->data))
+		if (GTK_IS_WINDOW (iter->data) && !TERMUNI_IS_WINDOW (iter->data))
 			preferences = GTK_WINDOW (iter->data);
 	g_assert_nonnull (preferences);
 	pump (300);
@@ -1454,10 +1454,10 @@ test_preferences_window (void)
 static void
 test_session_saved (void)
 {
-	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termac",
+	g_autofree char *path = g_build_filename (g_get_user_state_dir (), "termuni",
 	                                          "session-v3.gvariant", NULL);
 
-	termac_application_save_session_now (app);
+	termuni_application_save_session_now (app);
 	g_assert_true (g_file_test (path, G_FILE_TEST_EXISTS));
 }
 
@@ -1487,7 +1487,7 @@ collect_terminals (GtkWidget *root, GPtrArray *out)
 {
 	GtkWidget *child;
 
-	if (TERMAC_IS_TERMINAL (root))
+	if (TERMUNI_IS_TERMINAL (root))
 		g_ptr_array_add (out, root);
 	for (child = gtk_widget_get_first_child (root); child != NULL;
 	     child = gtk_widget_get_next_sibling (child))
@@ -1510,7 +1510,7 @@ label_has_text (GtkWidget *root, const char *text)
 
 /* Every open tab, selected or not, must report the expected font size. */
 static void
-assert_all_terminals_font_size (TermacWindow *window, guint expected)
+assert_all_terminals_font_size (TermuniWindow *window, guint expected)
 {
 	GPtrArray *terminals = g_ptr_array_new ();
 	guint i;
@@ -1518,7 +1518,7 @@ assert_all_terminals_font_size (TermacWindow *window, guint expected)
 	collect_terminals (GTK_WIDGET (window), terminals);
 	g_assert_cmpuint (terminals->len, ==, tab_count (window));
 	for (i = 0; i < terminals->len; i++)
-		g_assert_cmpuint (termac_terminal_get_font_size (g_ptr_array_index (terminals, i)), ==, expected);
+		g_assert_cmpuint (termuni_terminal_get_font_size (g_ptr_array_index (terminals, i)), ==, expected);
 	g_ptr_array_unref (terminals);
 }
 
@@ -1526,7 +1526,7 @@ assert_all_terminals_font_size (TermacWindow *window, guint expected)
 static void
 test_theme_zoom_with_tabs (void)
 {
-	TermacWindow *window = main_window ();
+	TermuniWindow *window = main_window ();
 	AdwStyleManager *style = adw_style_manager_get_default ();
 	GPtrArray *buttons = g_ptr_array_new ();
 	GtkWidget *terminal;
@@ -1561,7 +1561,7 @@ test_theme_zoom_with_tabs (void)
 	save_widget_png (GTK_WIDGET (window), "theme-dark-tabs.png");
 
 	terminal = GTK_WIDGET (find_terminal (GTK_WIDGET (window)));
-	size_before = termac_terminal_get_font_size (TERMAC_TERMINAL (terminal));
+	size_before = termuni_terminal_get_font_size (TERMUNI_TERMINAL (terminal));
 	buttons = g_ptr_array_new ();
 	collect_buttons_with_data (GTK_WIDGET (window), "zoom-delta", buttons);
 	g_assert_cmpuint (buttons->len, ==, 2);
@@ -1595,11 +1595,11 @@ test_theme_zoom_with_tabs (void)
 static void
 test_attachment_sequence (void)
 {
-	TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
-	GSettings *settings = termac_application_get_settings (app);
-	g_autofree char *first = write_test_png ("termac-seq-1.png");
-	g_autofree char *second = write_test_png ("termac-seq-2.png");
+	TermuniWindow *window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	GSettings *settings = termuni_application_get_settings (app);
+	g_autofree char *first = write_test_png ("termuni-seq-1.png");
+	g_autofree char *second = write_test_png ("termuni-seq-2.png");
 	GSList *files = NULL;
 	GdkFileList *list;
 	GPtrArray *buttons = g_ptr_array_new ();
@@ -1614,7 +1614,7 @@ test_attachment_sequence (void)
 	pump (500);
 	for (guint a = 0; a < 2; a++)
 	{
-		const TermacAgent *agent = termac_agent_find (a == 0 ? "claude" : "codex");
+		const TermuniAgent *agent = termuni_agent_find (a == 0 ? "claude" : "codex");
 		g_autofree char *capture = g_build_filename (g_get_user_state_dir (), "agent-attachment-input.txt", NULL);
 		g_autofree char *quoted_capture = g_shell_quote (capture);
 		g_autofree char *command = g_strconcat ("/bin/cat > ", quoted_capture, NULL);
@@ -1628,13 +1628,13 @@ test_attachment_sequence (void)
 		pump (200);
 		files = g_slist_append (NULL, g_file_new_for_path (a == 0 ? first : second));
 		list = gdk_file_list_new_from_list (files);
-		g_assert_true (termac_window_attach_file_list (window, list));
+		g_assert_true (termuni_window_attach_file_list (window, list));
 		g_boxed_free (GDK_TYPE_FILE_LIST, list);
 		g_slist_free_full (files, g_object_unref);
 		pump (200);
-		attachments = termac_terminal_get_attachments (terminal);
+		attachments = termuni_terminal_get_attachments (terminal);
 		g_assert_cmpuint (attachments->len, ==, a + 1);
-		formatted = termac_agent_format_attachment (agent, g_ptr_array_index (attachments, a));
+		formatted = termuni_agent_format_attachment (agent, g_ptr_array_index (attachments, a));
 		expected = g_strconcat (formatted, "\n", NULL);
 		send_keysym (XK_Return, FALSE);
 		send_keysym (XK_d, TRUE);
@@ -1658,7 +1658,7 @@ test_attachment_sequence (void)
 	g_assert_cmpstr (adw_view_stack_get_visible_child_name (ADW_VIEW_STACK (stack)), ==, "attachments");
 
 	/* The list shows a copy and a remove button per attachment; only "Remove" deletes. */
-	collect_buttons_with_data (GTK_WIDGET (preferences), "termac-path", buttons);
+	collect_buttons_with_data (GTK_WIDGET (preferences), "termuni-path", buttons);
 	g_assert_cmpuint (buttons->len, ==, 2 * (before + 2));
 	for (i = 0; i < buttons->len; i++)
 	{
@@ -1723,8 +1723,8 @@ find_shortcut_button (GtkWidget *root, const char *action)
 static void
 test_terminal_shortcut_rebind (void)
 {
-	TermacWindow *window;
-	TermacTerminal *terminal;
+	TermuniWindow *window;
+	TermuniTerminal *terminal;
 	GtkWindow *preferences;
 	GtkWidget *stack;
 	GtkButton *button;
@@ -1765,12 +1765,12 @@ test_terminal_shortcut_rebind (void)
 	type_text ("sleep 30");
 	send_keysym (XK_Return, FALSE);
 	pump (1000);
-	g_assert_true (termac_terminal_has_foreground_job (terminal));
+	g_assert_true (termuni_terminal_has_foreground_job (terminal));
 	send_keysym (XK_c, TRUE);
 	end = g_get_monotonic_time () + 5 * G_USEC_PER_SEC;
-	while (termac_terminal_has_foreground_job (terminal) && g_get_monotonic_time () < end)
+	while (termuni_terminal_has_foreground_job (terminal) && g_get_monotonic_time () < end)
 		pump (200);
-	g_assert_false (termac_terminal_has_foreground_job (terminal));
+	g_assert_false (termuni_terminal_has_foreground_job (terminal));
 
 	/* Restores the default binding. */
 	g_action_group_activate_action (G_ACTION_GROUP (app), "preferences", NULL);
@@ -1794,8 +1794,8 @@ test_terminal_shortcut_rebind (void)
 static void
 test_select_all_shortcut (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	g_auto (GStrv) accels = NULL;
 
 	g_assert_nonnull (terminal);
@@ -1807,11 +1807,11 @@ test_select_all_shortcut (void)
 	pump (800);
 	send_keysym (XK_a, TRUE);
 	pump (300);
-	g_assert_true (termac_terminal_copy (terminal));
+	g_assert_true (termuni_terminal_copy (terminal));
 	/* Typing ends the selection: a later copy has nothing to take. */
 	send_keysym (XK_x, FALSE);
 	pump (300);
-	g_assert_false (termac_terminal_copy (terminal));
+	g_assert_false (termuni_terminal_copy (terminal));
 	gtk_window_destroy (GTK_WINDOW (window));
 	pump (200);
 }
@@ -1834,7 +1834,7 @@ test_clipboard_shortcuts_default (void)
 static void
 test_session_v2_migration (void)
 {
-	g_autofree char *dir = g_build_filename (g_get_user_state_dir (), "termac", NULL);
+	g_autofree char *dir = g_build_filename (g_get_user_state_dir (), "termuni", NULL);
 	g_autofree char *v2 = g_build_filename (dir, "session-v2.gvariant", NULL);
 	g_autofree char *v3 = g_build_filename (dir, "session-v3.gvariant", NULL);
 	GVariantBuilder tabs;
@@ -1843,7 +1843,7 @@ test_session_v2_migration (void)
 	g_autoptr (GBytes) data = NULL;
 	GList *windows;
 	GList *iter;
-	TermacWindow *window;
+	TermuniWindow *window;
 	g_autofree char *source = NULL;
 	g_autofree char *saved_v3 = NULL;
 	gsize source_length = 0, saved_length = 0;
@@ -1854,7 +1854,7 @@ test_session_v2_migration (void)
 	/* Destroying a window removes it from the application's list, so iterate over a copy. */
 	windows = g_list_copy (gtk_application_get_windows (GTK_APPLICATION (app)));
 	for (iter = windows; iter != NULL; iter = iter->next)
-		if (TERMAC_IS_WINDOW (iter->data))
+		if (TERMUNI_IS_WINDOW (iter->data))
 			gtk_window_destroy (GTK_WINDOW (iter->data));
 	g_list_free (windows);
 	pump (300);
@@ -1875,12 +1875,12 @@ test_session_v2_migration (void)
 
 	g_assert_true (g_file_test (v3, G_FILE_TEST_EXISTS));
 	g_assert_true (g_file_test (v2, G_FILE_TEST_EXISTS));
-	window = TERMAC_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
-	g_assert_true (TERMAC_IS_WINDOW (window));
+	window = TERMUNI_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
+	g_assert_true (TERMUNI_IS_WINDOW (window));
 	g_assert_cmpuint (tab_count (window), ==, 2);
 	g_assert_true (g_file_get_contents (v2, &source, &source_length, NULL));
 	g_assert_cmpmem (source, source_length, g_bytes_get_data (data, NULL), g_bytes_get_size (data));
-	before = g_variant_ref_sink (termac_window_session_state (window, &selected_before));
+	before = g_variant_ref_sink (termuni_window_session_state (window, &selected_before));
 	g_assert_true (g_file_get_contents (v3, &saved_v3, &saved_length, NULL));
 
 	/* Once v3 exists, stale (even invalid) v2 must not overwrite it. */
@@ -1891,7 +1891,7 @@ test_session_v2_migration (void)
 	pump (300);
 	window = main_window ();
 	g_assert_nonnull (window);
-	after = g_variant_ref_sink (termac_window_session_state (window, &selected_after));
+	after = g_variant_ref_sink (termuni_window_session_state (window, &selected_after));
 	g_assert_cmpint (selected_before, ==, selected_after);
 	g_assert_true (g_variant_equal (before, after));
 	g_clear_pointer (&source, g_free);
@@ -1963,9 +1963,9 @@ test_accessibility_labels (void)
 {
 	g_application_activate (G_APPLICATION (app));
 	pump (400);
-	TermacWindow *window = main_window ();
+	TermuniWindow *window = main_window ();
 	audit_button_names (GTK_WIDGET (window));
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	g_assert_cmpint (gtk_accessible_get_accessible_role (GTK_ACCESSIBLE (terminal)), ==, GTK_ACCESSIBLE_ROLE_TERMINAL);
 	g_action_group_activate_action (G_ACTION_GROUP (app), "preferences", NULL);
 	pump (400);
@@ -1976,12 +1976,12 @@ test_accessibility_labels (void)
 }
 
 static void
-assert_grid_fits (TermacTerminal *terminal)
+assert_grid_fits (TermuniTerminal *terminal)
 {
 	guint width, height;
-	termac_terminal_get_cell_size (terminal, &width, &height);
-	g_assert_cmpuint (termac_terminal_get_columns (terminal) * width, <=, gtk_widget_get_width (GTK_WIDGET (terminal)) - 8);
-	g_assert_cmpuint (termac_terminal_get_rows (terminal) * height, <=, gtk_widget_get_height (GTK_WIDGET (terminal)) - 12);
+	termuni_terminal_get_cell_size (terminal, &width, &height);
+	g_assert_cmpuint (termuni_terminal_get_columns (terminal) * width, <=, gtk_widget_get_width (GTK_WIDGET (terminal)) - 8);
+	g_assert_cmpuint (termuni_terminal_get_rows (terminal) * height, <=, gtk_widget_get_height (GTK_WIDGET (terminal)) - 12);
 }
 
 static void
@@ -1989,13 +1989,13 @@ test_grid_fits_widget (void)
 {
 	g_application_activate (G_APPLICATION (app));
 	pump (500);
-	TermacWindow *window = main_window ();
-	TermacTerminal *terminal = find_terminal (GTK_WIDGET (window));
+	TermuniWindow *window = main_window ();
+	TermuniTerminal *terminal = find_terminal (GTK_WIDGET (window));
 	g_assert_cmpint (gtk_widget_get_scale_factor (GTK_WIDGET (terminal)), ==, g_getenv ("GDK_SCALE") != NULL ? MAX (atoi (g_getenv ("GDK_SCALE")), 1) : 1);
 	assert_grid_fits (terminal);
-	guint font_before = termac_terminal_get_font_size (terminal);
-	guint columns = termac_terminal_get_columns (terminal);
-	guint rows = termac_terminal_get_rows (terminal);
+	guint font_before = termuni_terminal_get_font_size (terminal);
+	guint columns = termuni_terminal_get_columns (terminal);
+	guint rows = termuni_terminal_get_rows (terminal);
 	g_autoptr(GPtrArray) buttons = g_ptr_array_new ();
 	collect_buttons_with_data (GTK_WIDGET (window), "zoom-delta", buttons);
 	for (guint i = 0; i < buttons->len; i++)
@@ -2003,9 +2003,9 @@ test_grid_fits_widget (void)
 			g_signal_emit_by_name (g_ptr_array_index (buttons, i), "clicked");
 	pump (500);
 	assert_grid_fits (terminal);
-	g_assert_cmpuint (termac_terminal_get_columns (terminal), <, columns);
-	g_assert_cmpuint (termac_terminal_get_rows (terminal), <, rows);
-	g_settings_set_uint (termac_application_get_settings (app), "font-size", font_before);
+	g_assert_cmpuint (termuni_terminal_get_columns (terminal), <, columns);
+	g_assert_cmpuint (termuni_terminal_get_rows (terminal), <, rows);
+	g_settings_set_uint (termuni_application_get_settings (app), "font-size", font_before);
 }
 
 static AdwComboRow *
@@ -2026,7 +2026,7 @@ test_agent_choice (void)
 {
 	GtkWindow *preferences;
 	AdwComboRow *row;
-	GSettings *settings = termac_application_get_settings (app);
+	GSettings *settings = termuni_application_get_settings (app);
 	g_autofree char *choice = NULL;
 	g_action_group_activate_action (G_ACTION_GROUP (app), "preferences", NULL);
 	pump (400);
@@ -2037,36 +2037,36 @@ test_agent_choice (void)
 	adw_combo_row_set_selected (row, 1);
 	choice = g_settings_get_string (settings, "agent");
 	g_assert_cmpstr (choice, ==, "codex");
-	g_assert_cmpstr (termac_application_get_agent (app)->id, ==, "codex");
+	g_assert_cmpstr (termuni_application_get_agent (app)->id, ==, "codex");
 	g_settings_set_string (settings, "agent", "bogus");
-	g_assert_true (termac_application_get_agent (app) == termac_agent_default ());
+	g_assert_true (termuni_application_get_agent (app) == termuni_agent_default ());
 	pump (100);
 	g_assert_cmpuint (adw_combo_row_get_selected (row), ==, 0);
 	g_settings_reset (settings, "agent");
 	gtk_window_destroy (preferences);
 }
 
-static TermacTerminal *
-selected_terminal (TermacWindow *window)
+static TermuniTerminal *
+selected_terminal (TermuniWindow *window)
 {
 	AdwTabView *view = ADW_TAB_VIEW (find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_VIEW));
-	return TERMAC_TERMINAL (adw_tab_page_get_child (adw_tab_view_get_selected_page (view)));
+	return TERMUNI_TERMINAL (adw_tab_page_get_child (adw_tab_view_get_selected_page (view)));
 }
 
 static void
 test_launch_agent (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-agent-ui-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-agent-ui-XXXXXX", NULL);
 	g_autofree char *path = g_build_filename (dir, "claude", NULL);
 	g_autofree char *previous = g_strdup (g_getenv ("PATH"));
 	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
-	TermacWindow *window;
+	TermuniWindow *window;
 	g_assert_true (g_file_set_contents (path, "#!/bin/sh\nprintf 'AGENT-%s\\n' STARTED\nexec /bin/sleep 30\n", -1, NULL));
 	g_assert_cmpint (g_chmod (path, 0755), ==, 0);
 	g_setenv ("PATH", dir, TRUE);
 	g_setenv ("SHELL", "/bin/sh", TRUE);
-	g_settings_reset (termac_application_get_settings (app), "agent");
-	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	g_settings_reset (termuni_application_get_settings (app), "agent");
+	window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
 	gtk_window_present (GTK_WINDOW (window));
 	pump (200);
 	g_assert_true (g_action_group_has_action (G_ACTION_GROUP (window), "launch-agent"));
@@ -2084,22 +2084,22 @@ test_launch_agent (void)
 static void
 test_launch_agent_quick_menu (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-agent-quick-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-agent-quick-XXXXXX", NULL);
 	g_autofree char *path = g_build_filename (dir, "codex", NULL);
 	g_autofree char *previous = g_strdup (g_getenv ("PATH"));
 	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
-	TermacWindow *window;
+	TermuniWindow *window;
 	GtkMenuButton *button;
 	GMenuModel *model;
 	g_assert_true (g_file_set_contents (path, "#!/bin/sh\nprintf 'CODEX-%s\\n' QUICK\nexec /bin/sleep 30\n", -1, NULL));
 	g_assert_cmpint (g_chmod (path, 0755), ==, 0);
 	g_setenv ("PATH", dir, TRUE);
 	g_setenv ("SHELL", "/bin/sh", TRUE);
-	g_settings_reset (termac_application_get_settings (app), "agent");
-	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	g_settings_reset (termuni_application_get_settings (app), "agent");
+	window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
 	gtk_window_present (GTK_WINDOW (window));
 	pump (200);
-	button = GTK_MENU_BUTTON (gtk_widget_get_template_child (GTK_WIDGET (window), TERMAC_TYPE_WINDOW, "agents_button"));
+	button = GTK_MENU_BUTTON (gtk_widget_get_template_child (GTK_WIDGET (window), TERMUNI_TYPE_WINDOW, "agents_button"));
 	model = gtk_menu_button_get_menu_model (button);
 	g_assert_nonnull (model);
 	g_assert_cmpint (g_menu_model_get_n_items (model), ==, 2);
@@ -2132,7 +2132,7 @@ test_launch_agent_missing (void)
 {
 	g_autofree char *previous = g_strdup (g_getenv ("PATH"));
 	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
-	TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	TermuniWindow *window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
 	gtk_window_present (GTK_WINDOW (window));
 	g_setenv ("PATH", "/nonexistent", TRUE);
 	g_setenv ("SHELL", "/bin/sh", TRUE);
@@ -2158,19 +2158,19 @@ test_launch_agent_missing (void)
 static void
 test_launch_agent_missing_folder (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-agent-folder-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-agent-folder-XXXXXX", NULL);
 	g_autofree char *command = g_strdup_printf ("cd '%s'", dir);
 	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
-	TermacWindow *window;
-	TermacTerminal *terminal;
+	TermuniWindow *window;
+	TermuniTerminal *terminal;
 	g_setenv ("SHELL", "/bin/sh", TRUE);
-	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
 	gtk_window_present (GTK_WINDOW (window));
 	terminal = selected_terminal (window);
 	pump (300);
 	run_in_terminal (window, terminal, command);
 	pump (300);
-	g_assert_cmpstr (termac_terminal_get_cwd (terminal), ==, dir);
+	g_assert_cmpstr (termuni_terminal_get_cwd (terminal), ==, dir);
 	g_assert_cmpint (g_rmdir (dir), ==, 0);
 	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent", NULL);
 	pump (400);
@@ -2181,7 +2181,7 @@ test_launch_agent_missing_folder (void)
 }
 
 static void
-record_command_event (TermacTerminal *terminal, gint status, gpointer data)
+record_command_event (TermuniTerminal *terminal, gint status, gpointer data)
 {
 	g_array_append_val ((GArray *) data, status);
 }
@@ -2194,22 +2194,22 @@ test_bash_command_events (void)
 	g_autofree char *rc = g_build_filename (g_get_user_state_dir (), ".bashrc", NULL);
 	g_autoptr(GArray) events = g_array_new (FALSE, FALSE, sizeof (gint));
 	GtkWidget *window;
-	TermacTerminal *terminal;
+	TermuniTerminal *terminal;
 	g_assert_true (g_file_set_contents (rc, "PROMPT_COMMAND=':'\n", -1, NULL));
 	g_setenv ("SHELL", "/bin/bash", TRUE);
 	g_setenv ("HOME", g_get_user_state_dir (), TRUE);
 	window = gtk_application_window_new (GTK_APPLICATION (app));
-	terminal = TERMAC_TERMINAL (termac_terminal_new (g_get_user_state_dir (), TRUE));
+	terminal = TERMUNI_TERMINAL (termuni_terminal_new (g_get_user_state_dir (), TRUE));
 	g_signal_connect (terminal, "command-finished", G_CALLBACK (record_command_event), events);
 	gtk_window_set_child (GTK_WINDOW (window), GTK_WIDGET (terminal));
 	gtk_window_present (GTK_WINDOW (window));
 	pump (600);
 	g_assert_cmpuint (events->len, ==, 0);
 	focus_terminal (window, GTK_WIDGET (terminal));
-	termac_terminal_insert_text (terminal, "false"); send_keysym (XK_Return, FALSE); pump (400);
+	termuni_terminal_insert_text (terminal, "false"); send_keysym (XK_Return, FALSE); pump (400);
 	g_assert_cmpuint (events->len, ==, 1);
 	g_assert_cmpint (g_array_index (events, gint, 0), ==, 1);
-	termac_terminal_insert_text (terminal, "true"); send_keysym (XK_Return, FALSE); pump (400);
+	termuni_terminal_insert_text (terminal, "true"); send_keysym (XK_Return, FALSE); pump (400);
 	g_assert_cmpuint (events->len, ==, 2);
 	g_assert_cmpint (g_array_index (events, gint, 1), ==, 0);
 	gtk_window_destroy (GTK_WINDOW (window));
@@ -2218,12 +2218,12 @@ test_bash_command_events (void)
 	g_unlink (rc);
 }
 
-typedef struct { gboolean done; TermacAgentAvailability status; GError *error; } UiAgentCheck;
+typedef struct { gboolean done; TermuniAgentAvailability status; GError *error; } UiAgentCheck;
 static void
 ui_agent_checked (GObject *source, GAsyncResult *result, gpointer data)
 {
 	UiAgentCheck *check = data;
-	check->status = termac_agent_check_finish (result, &check->error);
+	check->status = termuni_agent_check_finish (result, &check->error);
 	check->done = TRUE;
 }
 
@@ -2231,33 +2231,33 @@ static void
 test_native_agent_context (void)
 {
 	gsize count;
-	const TermacAgent *const *agents = termac_agent_all (&count);
+	const TermuniAgent *const *agents = termuni_agent_all (&count);
 	GtkWidget *window;
-	TermacTerminal *terminal;
+	TermuniTerminal *terminal;
 	g_autoptr(GArray) events = g_array_new (FALSE, FALSE, sizeof (gint));
-	if (g_getenv ("TERMAC_TEST_NATIVE_AGENTS") == NULL)
+	if (g_getenv ("TERMUNI_TEST_NATIVE_AGENTS") == NULL)
 	{
-		g_test_skip ("set TERMAC_TEST_NATIVE_AGENTS=1 to use installed agent CLIs");
+		g_test_skip ("set TERMUNI_TEST_NATIVE_AGENTS=1 to use installed agent CLIs");
 		return;
 	}
 	for (guint i = 0; i < count; i++)
 	{
 		UiAgentCheck check = { 0 };
-		termac_agent_check_async (agents[i], "/tmp", NULL, ui_agent_checked, &check);
+		termuni_agent_check_async (agents[i], "/tmp", NULL, ui_agent_checked, &check);
 		for (guint tries = 0; !check.done && tries < 80; tries++) pump (100);
 		g_assert_true (check.done);
 		g_assert_no_error (check.error);
-		g_assert_cmpint (check.status, ==, TERMAC_AGENT_AVAILABLE);
+		g_assert_cmpint (check.status, ==, TERMUNI_AGENT_AVAILABLE);
 	}
 	window = gtk_application_window_new (GTK_APPLICATION (app));
-	terminal = TERMAC_TERMINAL (termac_terminal_new_command ("/tmp", FALSE, "printf 'P2%s:%s\\n' AGENT_START \"$PWD\""));
+	terminal = TERMUNI_TERMINAL (termuni_terminal_new_command ("/tmp", FALSE, "printf 'P2%s:%s\\n' AGENT_START \"$PWD\""));
 	g_signal_connect (terminal, "command-finished", G_CALLBACK (record_command_event), events);
 	gtk_window_set_default_size (GTK_WINDOW (window), 800, 650);
 	gtk_window_set_child (GTK_WINDOW (window), GTK_WIDGET (terminal));
 	gtk_window_present (GTK_WINDOW (window));
 	g_assert_true (wait_for_screen (terminal, "P2AGENT_START:/tmp", 5000));
 	focus_terminal (window, GTK_WIDGET (terminal));
-	termac_terminal_insert_text (terminal, "printf 'P2%s\\n' AFTER_RETURN");
+	termuni_terminal_insert_text (terminal, "printf 'P2%s\\n' AFTER_RETURN");
 	send_keysym (XK_Return, FALSE);
 	g_assert_true (wait_for_screen (terminal, "P2AFTER_RETURN", 5000));
 	{
@@ -2265,10 +2265,10 @@ test_native_agent_context (void)
 		g_autofree char *quoted = g_shell_quote (directory);
 		g_autofree char *command = g_strdup_printf ("cd -- %s", quoted);
 		g_assert_cmpint (g_mkdir_with_parents (directory, 0700), ==, 0);
-		termac_terminal_insert_text (terminal, command);
+		termuni_terminal_insert_text (terminal, command);
 		send_keysym (XK_Return, FALSE);
-		for (guint tries = 0; tries < 30 && g_strcmp0 (termac_terminal_get_cwd (terminal), directory) != 0; tries++) pump (100);
-		g_assert_cmpstr (termac_terminal_get_cwd (terminal), ==, directory);
+		for (guint tries = 0; tries < 30 && g_strcmp0 (termuni_terminal_get_cwd (terminal), directory) != 0; tries++) pump (100);
+		g_assert_cmpstr (termuni_terminal_get_cwd (terminal), ==, directory);
 		g_rmdir (directory);
 	}
 	g_assert_cmpuint (events->len, ==, 0); /* cwd reporting must not enable notifications */
@@ -2282,10 +2282,10 @@ test_native_agent_context (void)
 static void
 test_search_highlight (void)
 {
- TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
- TermacTerminal *terminal;
+ TermuniWindow *window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
+ TermuniTerminal *terminal;
  GtkWidget *entry, *bar;
- termac_window_sync_settings (window);
+ termuni_window_sync_settings (window);
  gtk_window_present (GTK_WINDOW (window));
  pump (1000);
  terminal = selected_terminal (window);
@@ -2299,22 +2299,22 @@ test_search_highlight (void)
  g_assert_nonnull (entry);
  gtk_editable_set_text (GTK_EDITABLE (entry), "marker");
  pump (600);
- g_assert_cmpuint (termac_terminal_get_highlight_count (terminal), >=, 2);
+ g_assert_cmpuint (termuni_terminal_get_highlight_count (terminal), >=, 2);
  save_widget_png (GTK_WIDGET (window), "search-highlight.png");
  gtk_editable_set_text (GTK_EDITABLE (entry), "  ");
  pump (600);
- g_assert_cmpuint (termac_terminal_get_highlight_count (terminal), ==, 0);
+ g_assert_cmpuint (termuni_terminal_get_highlight_count (terminal), ==, 0);
  gtk_editable_set_text (GTK_EDITABLE (entry), "marker");
  pump (600);
  gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (bar), FALSE);
  pump (100);
- g_assert_cmpuint (termac_terminal_get_highlight_count (terminal), ==, 0);
+ g_assert_cmpuint (termuni_terminal_get_highlight_count (terminal), ==, 0);
  /* A delayed search-changed signal must not restore a closed highlight. */
  gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (bar), TRUE);
  gtk_editable_set_text (GTK_EDITABLE (entry), "marker marker");
  gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (bar), FALSE);
  pump (700);
- g_assert_cmpuint (termac_terminal_get_highlight_count (terminal), ==, 0);
+ g_assert_cmpuint (termuni_terminal_get_highlight_count (terminal), ==, 0);
  gtk_window_destroy (GTK_WINDOW (window));
  pump (200);
 }
@@ -2346,7 +2346,7 @@ test_shortcut_conflict (void)
  GtkWindow *preferences;
  GtkWidget *stack;
  GtkButton *button;
- GSettings *settings = termac_application_get_settings (app);
+ GSettings *settings = termuni_application_get_settings (app);
  g_autoptr(GVariant) before = NULL;
  const guint keys[] = { GDK_KEY_w, GDK_KEY_W, GDK_KEY_c, GDK_KEY_F3 };
  const GdkModifierType mods[] = { GDK_CONTROL_MASK | GDK_SHIFT_MASK,
@@ -2391,20 +2391,20 @@ test_shortcut_conflict (void)
 static void
 test_show_session_closed_tab (void)
 {
- TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+ TermuniWindow *window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
  AdwTabView *view;
  AdwTabPage *first, *second;
- g_autoptr(TermacTerminal) closed_terminal = NULL;
+ g_autoptr(TermuniTerminal) closed_terminal = NULL;
  g_autofree char *closed_id = NULL, *live_id = NULL;
  gtk_window_present (GTK_WINDOW (window));
  pump (500);
  view = ADW_TAB_VIEW (find_widget_of_type (GTK_WIDGET (window), ADW_TYPE_TAB_VIEW));
  first = adw_tab_view_get_selected_page (view);
- live_id = g_strdup (termac_terminal_get_session_id (selected_terminal (window)));
+ live_id = g_strdup (termuni_terminal_get_session_id (selected_terminal (window)));
  g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
  pump (500);
  closed_terminal = g_object_ref (selected_terminal (window));
- closed_id = g_strdup (termac_terminal_get_session_id (selected_terminal (window)));
+ closed_id = g_strdup (termuni_terminal_get_session_id (selected_terminal (window)));
  g_action_group_activate_action (G_ACTION_GROUP (window), "close-tab", NULL);
  pump (300);
  g_assert_cmpuint (adw_tab_view_get_n_pages (view), ==, 1);
@@ -2424,18 +2424,18 @@ test_show_session_closed_tab (void)
 static void
 test_visual_screens (void)
 {
- TermacWindow *window;
+ TermuniWindow *window;
  GtkWindow *preferences;
  GtkWidget *stack, *bar, *overview, *menu;
- GSettings *settings = termac_application_get_settings (app);
+ GSettings *settings = termuni_application_get_settings (app);
  const char *pages[] = { "behavior", "appearance", "shortcuts", "attachments" };
  const char *schemes[] = { "light", "dark", "system" };
  const char *palettes[] = { "gnome", "dracula", "ubuntu", "nord", "high-contrast" };
  g_autofree char *old_scheme = NULL, *old_palette = NULL;
  guint old_font;
 
- if (g_getenv ("TERMAC_UI_SCREENSHOTS") == NULL) {
-  g_test_skip ("Set TERMAC_UI_SCREENSHOTS to capture the visual review");
+ if (g_getenv ("TERMUNI_UI_SCREENSHOTS") == NULL) {
+  g_test_skip ("Set TERMUNI_UI_SCREENSHOTS to capture the visual review");
   return;
  }
  old_scheme = g_settings_get_string (settings, "color-scheme");
@@ -2446,8 +2446,8 @@ test_visual_screens (void)
  g_settings_set_string (settings, "palette", "gnome");
  g_application_activate (G_APPLICATION (app));
  pump (500);
- window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
- termac_window_sync_settings (window);
+ window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
+ termuni_window_sync_settings (window);
  gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
  gtk_window_present (GTK_WINDOW (window));
  pump (800);
@@ -2525,7 +2525,7 @@ test_visual_screens (void)
 
 /* Sample the blank top pixel of a matched cell, excluding glyph antialiasing. */
 static guint
-highlight_pixel (TermacTerminal *terminal, guint row)
+highlight_pixel (TermuniTerminal *terminal, guint row)
 {
  GtkWidget *widget = GTK_WIDGET (terminal);
  g_autoptr(GdkPaintable) paintable = gtk_widget_paintable_new (widget);
@@ -2535,7 +2535,7 @@ highlight_pixel (TermacTerminal *terminal, guint row)
  g_autofree guchar *pixels = NULL;
  guint cw, ch;
  gsize stride, offset;
- termac_terminal_get_cell_size (terminal, &cw, &ch);
+ termuni_terminal_get_cell_size (terminal, &cw, &ch);
  gdk_paintable_snapshot (paintable, GDK_SNAPSHOT (snapshot), gtk_widget_get_width (widget), gtk_widget_get_height (widget));
  node = gtk_snapshot_free_to_node (snapshot);
  g_assert_nonnull (node);
@@ -2551,23 +2551,23 @@ highlight_pixel (TermacTerminal *terminal, guint row)
 static void
 test_search_current_match (void)
 {
- TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
- TermacTerminal *terminal;
+ TermuniWindow *window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
+ TermuniTerminal *terminal;
  GhosttyTerminal vt;
  const char *text = "\033[2J\033[Hfoo\r\nfoo\r\n";
  gtk_window_present (GTK_WINDOW (window));
  pump (800);
  terminal = selected_terminal (window);
- termac_terminal_set_palette (terminal, "high-contrast");
- vt = termac_terminal_get_vt_handle (terminal);
+ termuni_terminal_set_palette (terminal, "high-contrast");
+ vt = termuni_terminal_get_vt_handle (terminal);
  ghostty_terminal_vt_write (vt, (const uint8_t *) text, strlen (text));
- g_assert_true (termac_terminal_find (terminal, "foo", FALSE));
+ g_assert_true (termuni_terminal_find (terminal, "foo", FALSE));
  pump (200);
  g_assert_cmpuint (highlight_pixel (terminal, 1), >, highlight_pixel (terminal, 0));
- g_assert_true (termac_terminal_find (terminal, "foo", FALSE));
+ g_assert_true (termuni_terminal_find (terminal, "foo", FALSE));
  pump (200);
  g_assert_cmpuint (highlight_pixel (terminal, 0), >, highlight_pixel (terminal, 1));
- g_assert_true (termac_terminal_find (terminal, "foo", TRUE));
+ g_assert_true (termuni_terminal_find (terminal, "foo", TRUE));
  pump (200);
  g_assert_cmpuint (highlight_pixel (terminal, 1), >, highlight_pixel (terminal, 0));
  gtk_window_destroy (GTK_WINDOW (window));
@@ -2577,7 +2577,7 @@ test_search_current_match (void)
 static void
 test_session_migration_write_failure (void)
 {
-	g_autofree char *dir = g_build_filename (g_get_user_state_dir (), "termac", NULL);
+	g_autofree char *dir = g_build_filename (g_get_user_state_dir (), "termuni", NULL);
 	g_autofree char *v2 = g_build_filename (dir, "session-v2.gvariant", NULL);
 	g_autofree char *v3 = session_file ();
 	g_autoptr(GVariant) legacy = g_variant_parse (G_VARIANT_TYPE ("a(ia(ss))"),
@@ -2585,7 +2585,7 @@ test_session_migration_write_failure (void)
 	g_autoptr(GBytes) data = g_variant_get_data_as_bytes (legacy);
 	g_autofree char *contents = NULL;
 	gsize length = 0;
-	TermacWindow *window;
+	TermuniWindow *window;
 
 	destroy_all_windows ();
 	forget_saved_sessions ();
@@ -2601,7 +2601,7 @@ test_session_migration_write_failure (void)
 	window = main_window ();
 	g_assert_nonnull (window);
 	g_assert_cmpuint (tab_count (window), ==, 1);
-	g_assert_cmpstr (termac_terminal_get_cwd (selected_terminal (window)), ==, "/tmp");
+	g_assert_cmpstr (termuni_terminal_get_cwd (selected_terminal (window)), ==, "/tmp");
 	g_assert_true (g_file_test (v3, G_FILE_TEST_IS_DIR));
 	g_assert_true (g_file_get_contents (v2, &contents, &length, NULL));
 	g_assert_cmpmem (contents, length, g_bytes_get_data (data, NULL), g_bytes_get_size (data));
@@ -2615,8 +2615,8 @@ test_session_migration_write_failure (void)
 static void
 test_truecolor_unicode_render (void)
 {
-	TermacWindow *window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
-	TermacTerminal *terminal;
+	TermuniWindow *window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
+	TermuniTerminal *terminal;
 	GhosttyTerminal vt;
 	const char *text = "\033[?2027h\033[2J\033[H日本語 é 👩‍💻 ❤️\r\n"
 	    "\033[38;2;17;83;149;48;2;203;41;7m  \033[0m\033[?25l";
@@ -2633,12 +2633,12 @@ test_truecolor_unicode_render (void)
 	gtk_window_present (GTK_WINDOW (window));
 	pump (700);
 	terminal = selected_terminal (window);
-	termac_terminal_set_font_size (terminal, 11);
-	vt = termac_terminal_get_vt_handle (terminal);
+	termuni_terminal_set_font_size (terminal, 11);
+	vt = termuni_terminal_get_vt_handle (terminal);
 	ghostty_terminal_vt_write (vt, (const uint8_t *) text, strlen (text));
 	gtk_widget_queue_draw (GTK_WIDGET (terminal));
 	pump (300);
-	g_assert_true (termac_vt_viewport_row_text (vt, termac_terminal_get_columns (terminal), 0, &line));
+	g_assert_true (termuni_vt_viewport_row_text (vt, termuni_terminal_get_columns (terminal), 0, &line));
 	g_assert_nonnull (strstr (line, "日本語 é 👩‍💻 ❤️"));
 	paintable = gtk_widget_paintable_new (GTK_WIDGET (terminal));
 	snapshot = gtk_snapshot_new ();
@@ -2649,7 +2649,7 @@ test_truecolor_unicode_render (void)
 	texture = gsk_renderer_render_texture (gtk_native_get_renderer (
 	    gtk_widget_get_native (GTK_WIDGET (terminal))), node, NULL);
 	gsk_render_node_unref (node);
-	termac_terminal_get_cell_size (terminal, &cw, &ch);
+	termuni_terminal_get_cell_size (terminal, &cw, &ch);
 	g_assert_cmpint (gdk_texture_get_width (texture), >, 8);
 	g_assert_cmpint (gdk_texture_get_height (texture), >, 12 + ch + 1);
 	stride = gdk_texture_get_width (texture) * 4;
@@ -2671,14 +2671,14 @@ static void
 test_modern_tui (void)
 {
 	g_autofree char *btop = g_find_program_in_path ("btop");
-	g_autofree char *config = g_build_filename (g_get_user_config_dir (), "termac-btop-test.conf", NULL);
+	g_autofree char *config = g_build_filename (g_get_user_config_dir (), "termuni-btop-test.conf", NULL);
 	g_autofree char *quoted_config = NULL;
 	g_autofree char *quoted_btop = NULL;
 	g_autofree char *command = NULL;
 	g_autofree char *text = NULL;
 	g_autofree char *folded = NULL;
-	TermacWindow *window;
-	TermacTerminal *terminal;
+	TermuniWindow *window;
+	TermuniTerminal *terminal;
 	GhosttyTerminal vt;
 
 	if (btop == NULL)
@@ -2692,17 +2692,17 @@ test_modern_tui (void)
 	quoted_config = g_shell_quote (config);
 	quoted_btop = g_shell_quote (btop);
 	command = g_strdup_printf ("%s --config %s --force-utf --no-tty", quoted_btop, quoted_config);
-	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
 	gtk_window_set_default_size (GTK_WINDOW (window), 1100, 720);
 	gtk_window_present (GTK_WINDOW (window));
 	pump (700);
 	terminal = selected_terminal (window);
-	termac_terminal_set_font_size (terminal, 11);
-	vt = termac_terminal_get_vt_handle (terminal);
+	termuni_terminal_set_font_size (terminal, 11);
+	vt = termuni_terminal_get_vt_handle (terminal);
 	run_in_terminal (window, terminal, command);
 	g_assert_true (wait_for_alternate_screen (vt, TRUE, 6000));
 	pump (1500);
-	g_assert_true (termac_terminal_has_foreground_job (terminal));
+	g_assert_true (termuni_terminal_has_foreground_job (terminal));
 	text = screen_text (terminal);
 	folded = g_utf8_casefold (text, -1);
 	g_assert_nonnull (strstr (folded, "cpu"));
@@ -2710,7 +2710,7 @@ test_modern_tui (void)
 	save_widget_png (GTK_WIDGET (window), "modern-tui-btop.png");
 	gtk_window_set_default_size (GTK_WINDOW (window), 1000, 640);
 	pump (700);
-	g_assert_true (termac_vt_alternate_screen (vt));
+	g_assert_true (termuni_vt_alternate_screen (vt));
 	g_clear_pointer (&text, g_free);
 	g_clear_pointer (&folded, g_free);
 	text = screen_text (terminal);
@@ -2735,7 +2735,7 @@ test_save_empty_session (void)
 	g_autoptr(GVariant) sessions = NULL;
 
 	destroy_all_windows ();
-	termac_application_save_session_now (app);
+	termuni_application_save_session_now (app);
 	g_assert_true (g_file_get_contents (path, &contents, &length, NULL));
 	bytes = g_bytes_new (contents, length);
 	sessions = g_variant_ref_sink (g_variant_new_from_bytes (
@@ -2750,7 +2750,7 @@ test_save_empty_session (void)
 static void
 test_truecolor_environment (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-color-env-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-color-env-XXXXXX", NULL);
 	g_autofree char *file = g_build_filename (dir, "environment", NULL);
 	g_autofree char *quoted = g_shell_quote (file);
 	g_autofree char *command = g_strdup_printf ("printf '%%s' \"$COLORTERM\" > %s", quoted);
@@ -2758,12 +2758,12 @@ test_truecolor_environment (void)
 	g_autofree char *old_env = g_strdup (g_getenv ("ENV"));
 	g_autofree char *old_color = g_strdup (g_getenv ("COLORTERM"));
 	g_autofree char *contents = NULL;
-	TermacTerminal *terminal;
+	TermuniTerminal *terminal;
 	gint64 deadline;
 	g_setenv ("SHELL", "/bin/sh", TRUE);
 	g_setenv ("ENV", "/dev/null", TRUE);
 	g_setenv ("COLORTERM", "incorrect-parent-value", TRUE);
-	terminal = TERMAC_TERMINAL (termac_terminal_new_command ("/tmp", FALSE, command));
+	terminal = TERMUNI_TERMINAL (termuni_terminal_new_command ("/tmp", FALSE, command));
 	g_object_ref_sink (terminal);
 	if (old_shell) g_setenv ("SHELL", old_shell, TRUE); else g_unsetenv ("SHELL");
 	if (old_env) g_setenv ("ENV", old_env, TRUE); else g_unsetenv ("ENV");
@@ -2787,19 +2787,19 @@ main (int argc, char **argv)
 	g_autofree char *root = NULL;
 
 	g_setenv ("LANGUAGE", "C", TRUE);
-	if (g_getenv ("TERMAC_SESSION_PROCESS_ROOT") != NULL)
-		root = g_strdup (g_getenv ("TERMAC_SESSION_PROCESS_ROOT"));
-	else if (g_getenv ("TERMAC_TEST_CACHE_DIR") != NULL)
+	if (g_getenv ("TERMUNI_SESSION_PROCESS_ROOT") != NULL)
+		root = g_strdup (g_getenv ("TERMUNI_SESSION_PROCESS_ROOT"));
+	else if (g_getenv ("TERMUNI_TEST_CACHE_DIR") != NULL)
 	{
 		/* The QA driver binds only its private temporary directory at the
 		 * same path on both sides, so host rc files and images are visible. */
-		const char *cache = g_getenv ("TERMAC_TEST_CACHE_DIR");
+		const char *cache = g_getenv ("TERMUNI_TEST_CACHE_DIR");
 		g_assert_nonnull (cache);
 		g_assert_cmpint (g_mkdir_with_parents (cache, 0700), ==, 0);
-		root = g_build_filename (cache, "termac-ui-XXXXXX", NULL);
+		root = g_build_filename (cache, "termuni-ui-XXXXXX", NULL);
 		g_assert_nonnull (g_mkdtemp (root));
 	}
-	else root = g_dir_make_tmp ("termac-ui-XXXXXX", NULL);
+	else root = g_dir_make_tmp ("termuni-ui-XXXXXX", NULL);
 	g_assert_nonnull (root);
 	g_setenv ("XDG_STATE_HOME", root, TRUE);
 	g_setenv ("XDG_CACHE_HOME", root, TRUE);
@@ -2819,13 +2819,13 @@ main (int argc, char **argv)
 	x_display = gdk_x11_display_get_xdisplay (gdk_display_get_default ());
 	xtest_load ();
 
-	app = termac_application_new (APPLICATION_ID, G_APPLICATION_NON_UNIQUE);
+	app = termuni_application_new (APPLICATION_ID, G_APPLICATION_NON_UNIQUE);
 	g_application_register (G_APPLICATION (app), NULL, NULL);
 
-	if (g_getenv ("TERMAC_SESSION_PROCESS_MODE") != NULL)
+	if (g_getenv ("TERMUNI_SESSION_PROCESS_MODE") != NULL)
 	{
 		int status;
-		g_idle_add (session_process_child, (gpointer) g_getenv ("TERMAC_SESSION_PROCESS_MODE"));
+		g_idle_add (session_process_child, (gpointer) g_getenv ("TERMUNI_SESSION_PROCESS_MODE"));
 		status = g_application_run (G_APPLICATION (app), 0, NULL);
 		g_object_unref (app);
 		return status;

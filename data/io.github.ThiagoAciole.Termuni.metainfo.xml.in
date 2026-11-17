@@ -3,16 +3,16 @@
   <id>@application_id@</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-  <name>Termac</name>
+  <name>Termuni</name>
   <summary>A terminal for GNOME</summary>
   <description>
     <p>Run command-line tools in independent tabs, search terminal history, and customize fonts and color palettes in a GNOME interface.</p>
-    <p>Termac supports image attachments for command-line agents and can restore tabs in their saved folders.</p>
+    <p>Termuni supports image attachments for command-line agents and can restore tabs in their saved folders.</p>
   </description>
   <developer id="thiago.aciole">
     <name>Thiago Aciole</name>
   </developer>
-  <translation type="gettext">termac</translation>
+  <translation type="gettext">termuni</translation>
   <launchable type="desktop-id">@application_id@.desktop</launchable>
   <content_rating type="oars-1.1" />
 </component>

@@ -1,11 +1,11 @@
-project('termac', 'c',
+project('termuni', 'c',
           version: '0.1.0',
     meson_version: '>= 1.0.0',
   default_options: [ 'warning_level=2', 'werror=false', 'c_std=gnu11', ],
 )
 
 profile = get_option('profile')
-application_id = 'thiago.aciole.Termac'
+application_id = 'io.github.ThiagoAciole.Termuni'
 if profile == 'development'
   application_id += '.Devel'
 endif
@@ -22,7 +22,7 @@ cc = meson.get_compiler('c')
 
 config_h = configuration_data()
 config_h.set_quoted('PACKAGE_VERSION', meson.project_version())
-config_h.set_quoted('GETTEXT_PACKAGE', 'termac')
+config_h.set_quoted('GETTEXT_PACKAGE', 'termuni')
 config_h.set_quoted('LOCALEDIR', get_option('prefix') / get_option('localedir'))
 config_h.set_quoted('APPLICATION_ID', application_id)
 config_h.set_quoted('APPLICATION_ICON', application_id)

@@ -4,10 +4,10 @@
 static void
 test_real_agent_driver (void)
 {
-	const char *agent_id = g_getenv ("TERMAC_REAL_AGENT");
-	const char *control = g_getenv ("TERMAC_AGENT_CONTROL");
-	TermacWindow *window;
-	TermacTerminal *terminal;
+	const char *agent_id = g_getenv ("TERMUNI_REAL_AGENT");
+	const char *control = g_getenv ("TERMUNI_AGENT_CONTROL");
+	TermuniWindow *window;
+	TermuniTerminal *terminal;
 	g_autofree char *text_path = NULL;
 	g_autofree char *ack_path = NULL;
 	g_autofree char *image_path = NULL;
@@ -19,18 +19,18 @@ test_real_agent_driver (void)
 		g_test_skip ("opt-in real CLI validation; requires existing authentication");
 		return;
 	}
-	g_assert_nonnull (termac_agent_find (agent_id));
-	g_setenv ("TERMAC_UI_SCREENSHOTS", g_get_user_state_dir (), TRUE);
-	g_settings_set_string (termac_application_get_settings (app), "agent", agent_id);
-	g_settings_set_boolean (termac_application_get_settings (app), "confirm-close", FALSE);
-	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	g_assert_nonnull (termuni_agent_find (agent_id));
+	g_setenv ("TERMUNI_UI_SCREENSHOTS", g_get_user_state_dir (), TRUE);
+	g_settings_set_string (termuni_application_get_settings (app), "agent", agent_id);
+	g_settings_set_boolean (termuni_application_get_settings (app), "confirm-close", FALSE);
+	window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
 	gtk_window_set_default_size (GTK_WINDOW (window), 1100, 820);
 	{
 		GVariantBuilder tabs;
 		g_variant_builder_init (&tabs, G_VARIANT_TYPE ("a(ss)"));
 		g_variant_builder_add (&tabs, "(ss)", g_get_user_state_dir (), "Agent QA");
 		g_autoptr(GVariant) state = g_variant_ref_sink (g_variant_builder_end (&tabs));
-		termac_window_restore_tabs (window, state, 0);
+		termuni_window_restore_tabs (window, state, 0);
 	}
 	gtk_window_present (GTK_WINDOW (window));
 	pump (300);
@@ -53,7 +53,7 @@ test_real_agent_driver (void)
 			if (payload != NULL) *payload++ = '\0';
 			if (g_strcmp0 (command, "quit") == 0) { quit_requested = TRUE; break; }
 			if (g_strcmp0 (command, "type") == 0)
-				termac_terminal_insert_text (terminal, payload != NULL ? payload : "");
+				termuni_terminal_insert_text (terminal, payload != NULL ? payload : "");
 			else if (g_strcmp0 (command, "key") == 0)
 			{
 				gboolean ctrl = payload != NULL && g_str_has_prefix (payload, "Ctrl+");
@@ -66,7 +66,7 @@ test_real_agent_driver (void)
 			{
 				GSList *files = g_slist_append (NULL, g_file_new_for_path (payload));
 				GdkFileList *list = gdk_file_list_new_from_list (files);
-				g_assert_true (termac_window_attach_file_list (window, list));
+				g_assert_true (termuni_window_attach_file_list (window, list));
 				g_boxed_free (GDK_TYPE_FILE_LIST, list);
 				g_slist_free_full (files, g_object_unref);
 			}

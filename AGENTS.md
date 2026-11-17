@@ -1,6 +1,6 @@
 # Orientações para agentes
 
-O Termac é um terminal Linux em C, GTK 4, libadwaita, libghostty-vt e Meson. Preserve o fluxo do GNOME Builder e a execução em Wayland. Trabalhe na raiz que contém este arquivo; a cópia conhecida está em `/home/thiago/Projects/termac`.
+O Termuni é um terminal Linux em C, GTK 4, libadwaita, libghostty-vt e Meson. Preserve o fluxo do GNOME Builder e a execução em Wayland. Trabalhe na raiz que contém este arquivo; a cópia conhecida está em `/home/thiago/Projects/termac`.
 
 ## Comece aqui
 
@@ -15,5 +15,5 @@ O Termac é um terminal Linux em C, GTK 4, libadwaita, libghostty-vt e Meson. Pr
 - Use a revisão e o Zig fixados no Meson/wrap. Confirme o build no ambiente disponível; não trate compilação nativa como prova de execução no GNOME Builder ou de interação visual.
 - Preserve os perfis `development` e `default`, seus IDs, schemas e ícones. A instalação antiga foi removida a pedido do usuário; desenvolvimento deve usar o build do projeto.
 - O widget de terminal reúne PTY, motor, renderização e entrada no arquivo atual. Confira sua semântica antes de separá-lo em módulos ou alterar entrada, redimensionamento e encerramento.
-- A sessão de teste pode conter trabalho do usuário. Antes de reiniciá-la, informe que o shell e suas abas serão encerrados. Para manter o app aberto após o build, inicie `build/src/termac` sem `G_DEBUG=fatal-warnings`: um aviso GDK de apresentação já encerrou o processo com essa variável.
+- A sessão de teste pode conter trabalho do usuário. Antes de reiniciá-la, informe que o shell e suas abas serão encerrados. Para manter o app aberto após o build, inicie `build/src/termuni` sem `G_DEBUG=fatal-warnings`: um aviso GDK de apresentação já encerrou o processo com essa variável.
 - Relate o resultado observado, não somente o código escrito. Se a inspeção visual ou o GNOME Builder estiverem indisponíveis, registre essa limitação.

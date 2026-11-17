@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include "termac-session-store.h"
+#include "termuni-session-store.h"
 #include <glib/gstdio.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 
-struct _TermacSessionStore
+struct _TermuniSessionStore
 {
 	GMutex mutex;
 	GCond changed;
@@ -19,7 +19,7 @@ struct _TermacSessionStore
 };
 
 gboolean
-termac_session_store_write (const char *path, GBytes *bytes)
+termuni_session_store_write (const char *path, GBytes *bytes)
 {
 	g_autofree char *dir = g_path_get_dirname (path);
 	g_autoptr(GError) error = NULL;
@@ -63,7 +63,7 @@ termac_session_store_write (const char *path, GBytes *bytes)
 static gpointer
 session_writer (gpointer data)
 {
-	TermacSessionStore *store = data;
+	TermuniSessionStore *store = data;
 
 	g_mutex_lock (&store->mutex);
 	for (;;)
@@ -77,7 +77,7 @@ session_writer (gpointer data)
 		bytes = g_steal_pointer (&store->pending);
 		sequence = store->requested;
 		g_mutex_unlock (&store->mutex);
-		termac_session_store_write (store->path, bytes);
+		termuni_session_store_write (store->path, bytes);
 		g_bytes_unref (bytes);
 		g_mutex_lock (&store->mutex);
 		store->completed = sequence;
@@ -87,10 +87,10 @@ session_writer (gpointer data)
 	return NULL;
 }
 
-TermacSessionStore *
-termac_session_store_new (const char *path)
+TermuniSessionStore *
+termuni_session_store_new (const char *path)
 {
-	TermacSessionStore *store = g_new0 (TermacSessionStore, 1);
+	TermuniSessionStore *store = g_new0 (TermuniSessionStore, 1);
 	g_mutex_init (&store->mutex);
 	g_cond_init (&store->changed);
 	store->path = g_strdup (path);
@@ -99,7 +99,7 @@ termac_session_store_new (const char *path)
 }
 
 void
-termac_session_store_save (TermacSessionStore *store, GBytes *bytes, gboolean flush)
+termuni_session_store_save (TermuniSessionStore *store, GBytes *bytes, gboolean flush)
 {
 	guint64 sequence;
 	g_mutex_lock (&store->mutex);
@@ -113,7 +113,7 @@ termac_session_store_save (TermacSessionStore *store, GBytes *bytes, gboolean fl
 }
 
 void
-termac_session_store_free (TermacSessionStore *store)
+termuni_session_store_free (TermuniSessionStore *store)
 {
 	if (store == NULL)
 		return;

@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=Termac
+Name=Termuni
 Comment=Use the command line in tabs
-Exec=termac
+Exec=termuni
 Icon=@application_icon@
 Terminal=false
 Type=Application

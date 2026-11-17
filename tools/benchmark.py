@@ -35,9 +35,9 @@ report['environment']['dirty'] = bool(subprocess.check_output(['git', 'status', 
 for tabs in [1, 5, 10]:
     for sample in range(args.samples):
         env = dict(os.environ, GSETTINGS_BACKEND='memory', GDK_BACKEND='x11',
-                   GSK_RENDERER='cairo', TERMAC_BENCHMARK_TABS=str(tabs), TERMAC_BENCHMARK_LINES=str(args.lines))
+                   GSK_RENDERER='cairo', TERMUNI_BENCHMARK_TABS=str(tabs), TERMUNI_BENCHMARK_LINES=str(args.lines))
         # Do not connect measurements to the user's desktop D-Bus.
-        env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=/nonexistent/termac-benchmark-bus'
+        env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=/nonexistent/termuni-benchmark-bus'
         start = time.monotonic()
         run = subprocess.Popen(['xvfb-run', '-a', str(args.binary.resolve()), '-p', '/ui/benchmark'],
                                env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -50,7 +50,7 @@ for tabs in [1, 5, 10]:
             raise
         if run.returncode:
             raise RuntimeError(stdout + stderr)
-        match = re.search(r'^(?:# )?TERMAC_BENCHMARK (.+)$', stdout, re.M)
+        match = re.search(r'^(?:# )?TERMUNI_BENCHMARK (.+)$', stdout, re.M)
         if not match:
             raise RuntimeError('Benchmark did not emit a sample:\n' + stdout + stderr)
         result = json.loads(match.group(1))

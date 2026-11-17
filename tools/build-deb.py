@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a local Ubuntu .deb from the Termac default Meson profile."""
+"""Build a local Ubuntu .deb from the Termuni default Meson profile."""
 import argparse
 import json
 import os
@@ -51,16 +51,16 @@ def main():
     info = json.loads(subprocess.check_output(
         ["meson", "introspect", str(builddir), "--projectinfo"], text=True))
 
-    with tempfile.TemporaryDirectory(prefix="termac-deb-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="termuni-deb-") as temporary:
         package_root = Path(temporary) / "root"
         package_root.mkdir()
         env = os.environ.copy()
         env["DESTDIR"] = str(package_root)
         run(["meson", "install", "-C", str(builddir), "--no-rebuild"], env=env)
 
-        binary = package_root / "usr/bin/termac"
-        icon = package_root / "usr/share/icons/hicolor/scalable/apps/thiago.aciole.Termac.svg"
-        desktop = package_root / "usr/share/applications/thiago.aciole.Termac.desktop"
+        binary = package_root / "usr/bin/termuni"
+        icon = package_root / "usr/share/icons/hicolor/scalable/apps/io.github.ThiagoAciole.Termuni.svg"
+        desktop = package_root / "usr/share/applications/io.github.ThiagoAciole.Termuni.desktop"
         if not all(path.is_file() for path in (binary, icon, desktop)):
             parser.error("staged default profile is missing the binary, desktop entry, or app icon")
 
@@ -68,18 +68,18 @@ def main():
         metadata.mkdir()
         control = metadata / "control"
         control.write_text(
-            "Package: thiago.aciole.termac\n"
+            "Package: io.github.thiagoaciole.termuni\n"
             f"Version: {info['version']}\n"
             "Section: x11\nPriority: optional\n"
             f"Architecture: {subprocess.check_output(['dpkg', '--print-architecture'], text=True).strip()}\n"
-            "Maintainer: Termac Developers <termac@localhost>\n"
-            "Description: Termac terminal emulator\n"
+            "Maintainer: Termuni Developers <termuni@localhost>\n"
+            "Description: Termuni terminal emulator\n"
             " GTK 4 terminal emulator with tabs and libghostty-vt.\n",
             encoding="utf-8")
         debian_dir = package_root / "debian"
         debian_dir.mkdir()
         (debian_dir / "control").write_text(
-            "Source: termac\n" + control.read_text(encoding="utf-8"), encoding="utf-8")
+            "Source: termuni\n" + control.read_text(encoding="utf-8"), encoding="utf-8")
         result = run(["dpkg-shlibdeps", "-O", f"-e{binary}"], cwd=package_root,
                      capture_output=True, text=True)
         depends = next((line.split("=", 1)[1] for line in result.stdout.splitlines()
@@ -102,7 +102,7 @@ exit 0
 
         output.mkdir(parents=True, exist_ok=True)
         architecture = subprocess.check_output(["dpkg", "--print-architecture"], text=True).strip()
-        package = output / f"thiago.aciole.termac_{info['version']}_{architecture}.deb"
+        package = output / f"io.github.thiagoaciole.termuni_{info['version']}_{architecture}.deb"
         run(["dpkg-deb", "--root-owner-group", "--build", str(package_root), str(package)])
 
     run(["dpkg-deb", "--info", str(package)])

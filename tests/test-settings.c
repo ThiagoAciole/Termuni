@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "config.h"
 #include <gio/gio.h>
-#include "termac-settings.h"
+#include "termuni-settings.h"
 
 static void
 check_schema (const char *mode)
@@ -22,7 +22,7 @@ check_schema (const char *mode)
 		}
 		if (missing)
 			g_test_expect_message (NULL, G_LOG_LEVEL_WARNING, "*Could not load settings schema*");
-		settings = termac_settings_new (APPLICATION_ID, installed || missing ? "/nonexistent" : dir);
+		settings = termuni_settings_new (APPLICATION_ID, installed || missing ? "/nonexistent" : dir);
 		if (missing)
 		{
 			g_assert_null (settings);

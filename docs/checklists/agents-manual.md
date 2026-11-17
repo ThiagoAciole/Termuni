@@ -1,7 +1,7 @@
 # P2 — validação real de agentes
 
 Validado em **13/11/2026**. A solicitação do usuário para automatizar a etapa real
-foi atendida com os CLIs autenticados rodando no próprio Termac sob Xvfb.
+foi atendida com os CLIs autenticados rodando no próprio Termuni sob Xvfb.
 O Computer Use desta sessão não disponibilizou desktop nativo; não se declara
 validação dos gestos do compositor Wayland a partir deste teste.
 
@@ -53,10 +53,10 @@ CLIs pessoais para testar ausência: use PATH controlado como nos testes automat
 
 O executável de teste usa display Xvfb próprio, XDG isolado e contas já autenticadas.
 O driver é opt-in e fica **ignorado por padrão** na suíte comum. Não inicia chamadas
-a modelos sem `TERMAC_REAL_AGENT` e `TERMAC_AGENT_CONTROL` explícitos.
+a modelos sem `TERMUNI_REAL_AGENT` e `TERMUNI_AGENT_CONTROL` explícitos.
 
 ```sh
-TERMAC_REAL_AGENT=claude TERMAC_AGENT_CONTROL=/tmp/termac-qa-control \
+TERMUNI_REAL_AGENT=claude TERMUNI_AGENT_CONTROL=/tmp/termuni-qa-control \
   GSETTINGS_BACKEND=memory GDK_BACKEND=x11 \
   xvfb-run -a build/tests/test-ui -p /ui/real-agent-driver
 ```
@@ -64,13 +64,13 @@ TERMAC_REAL_AGENT=claude TERMAC_AGENT_CONTROL=/tmp/termac-qa-control \
 Use `codex` para o segundo adaptador. Em outro terminal:
 
 ```sh
-python3 tools/agent-qa-control.py /tmp/termac-qa-control snapshot
-python3 tools/agent-qa-control.py /tmp/termac-qa-control type /tmp/prompt.txt
-python3 tools/agent-qa-control.py /tmp/termac-qa-control drop "tests/fixtures/agents/ação PNG's image.png"
-python3 tools/agent-qa-control.py /tmp/termac-qa-control key Return
-python3 tools/agent-qa-control.py /tmp/termac-qa-control clipboard tests/fixtures/agents/clipboard.png
-python3 tools/agent-qa-control.py /tmp/termac-qa-control key Ctrl+v
-python3 tools/agent-qa-control.py /tmp/termac-qa-control quit
+python3 tools/agent-qa-control.py /tmp/termuni-qa-control snapshot
+python3 tools/agent-qa-control.py /tmp/termuni-qa-control type /tmp/prompt.txt
+python3 tools/agent-qa-control.py /tmp/termuni-qa-control drop "tests/fixtures/agents/ação PNG's image.png"
+python3 tools/agent-qa-control.py /tmp/termuni-qa-control key Return
+python3 tools/agent-qa-control.py /tmp/termuni-qa-control clipboard tests/fixtures/agents/clipboard.png
+python3 tools/agent-qa-control.py /tmp/termuni-qa-control key Ctrl+v
+python3 tools/agent-qa-control.py /tmp/termuni-qa-control quit
 ```
 
 O arquivo `.screen.txt` traz a grade VT real e o `.ack` aponta para o PNG renderizado

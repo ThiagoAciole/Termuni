@@ -22,23 +22,23 @@
 
 #include <glib/gi18n.h>
 
-#include "termac-application.h"
+#include "termuni-application.h"
 
 int
 main (int   argc,
       char *argv[])
 {
-	g_autoptr(TermacApplication) app = NULL;
+	g_autoptr(TermuniApplication) app = NULL;
 	int ret;
 
-	/* TERMAC_LOCALEDIR lets a development build load translations from the
+	/* TERMUNI_LOCALEDIR lets a development build load translations from the
 	 * build directory; installed builds use LOCALEDIR. */
 	bindtextdomain (GETTEXT_PACKAGE,
-	                g_getenv ("TERMAC_LOCALEDIR") != NULL ? g_getenv ("TERMAC_LOCALEDIR") : LOCALEDIR);
+	                g_getenv ("TERMUNI_LOCALEDIR") != NULL ? g_getenv ("TERMUNI_LOCALEDIR") : LOCALEDIR);
 	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
 	textdomain (GETTEXT_PACKAGE);
 
-	app = termac_application_new (APPLICATION_ID, G_APPLICATION_DEFAULT_FLAGS);
+	app = termuni_application_new (APPLICATION_ID, G_APPLICATION_DEFAULT_FLAGS);
 	ret = g_application_run (G_APPLICATION (app), argc, argv);
 
 	return ret;

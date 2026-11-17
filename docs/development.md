@@ -1,4 +1,4 @@
-# Desenvolvimento do Termac
+# Desenvolvimento do Termuni
 
 Execute comandos na raiz que contém `meson.build` e `AGENTS.md`. Antes de editar, confira `git status --short`, [o quadro vigente](../PLANO_IMPLEMENTACAO.md) e [o roadmap](ROADMAP.md).
 
@@ -20,7 +20,7 @@ Execute comandos na raiz que contém `meson.build` e `AGENTS.md`. Antes de edita
 
 - Zig **0.16.0** é verificado pelo Meson. [O wrap](../subprojects/ghostty.wrap) fixa Ghostty em `f64f4aca2c29b554d111b36c3d946a9bddd159ff`.
 - Dependências declaradas em `meson.build`/`src/meson.build`: C, GTK ≥ 4.22, libadwaita ≥ 1.8, GLib/GIO, PangoCairo e util do sistema. Testes UI também usam X11/XTest via Xvfb.
-- `development`: `thiago.aciole.Termac.Devel`; `default`: `thiago.aciole.Termac`. Ambos têm schema/ícone próprios; o caminho de GResources continua `/thiago/aciole/termac`.
+- `development`: `io.github.ThiagoAciole.Termuni.Devel`; `default`: `io.github.ThiagoAciole.Termuni`. Ambos têm schema/ícone próprios; o caminho de GResources continua `/io/github/thiagoaciole/termuni`.
 
 ```sh
 # Primeira configuração; não repetir setup num diretório já configurado.
@@ -32,7 +32,7 @@ meson setup build-default -Dprofile=default
 meson compile -C build-default
 ```
 
-`tools/dev.sh` compila e inicia somente se o executável development desta raiz ainda não estiver aberto. Confere o perfil e a identidade em `/proc/PID/exe`, preservando instâncias de outros checkouts/perfis. Carrega traduções locais e grava log em `~/.cache/termac/dev.log` (ou `TERMAC_DEV_LOG`). **`--restart` informa os PIDs e encerra somente os shells/abas desse executável**; informe o usuário antes de usá-lo. Não use `G_DEBUG=fatal-warnings` para manter o app pessoal aberto.
+`tools/dev.sh` compila e inicia somente se o executável development desta raiz ainda não estiver aberto. Confere o perfil e a identidade em `/proc/PID/exe`, preservando instâncias de outros checkouts/perfis. Carrega traduções locais e grava log em `~/.cache/termuni/dev.log` (ou `TERMUNI_DEV_LOG`). **`--restart` informa os PIDs e encerra somente os shells/abas desse executável**; informe o usuário antes de usá-lo. Não use `G_DEBUG=fatal-warnings` para manter o app pessoal aberto.
 
 ## Testes e evidência
 
@@ -51,8 +51,8 @@ Alguns casos UI antigos compartilham estado e não funcionam isolados; M01 do [r
 Para capturas reproduzíveis:
 
 ```sh
-mkdir -p /tmp/termac-shots
-TERMAC_UI_SCREENSHOTS=/tmp/termac-shots GSETTINGS_BACKEND=memory \
+mkdir -p /tmp/termuni-shots
+TERMUNI_UI_SCREENSHOTS=/tmp/termuni-shots GSETTINGS_BACKEND=memory \
   GDK_BACKEND=x11 xvfb-run -a build/tests/test-ui -p /ui/visual-screens
 ```
 
@@ -68,7 +68,7 @@ Para compilar o perfil instalável e gerar um `.deb` local:
 
 ```sh
 python3 tools/build-deb.py
-sudo apt install ./dist/thiago.aciole.termac_*.deb
+sudo apt install ./dist/io.github.ThiagoAciole.Termuni_*.deb
 ```
 
 O empacotador configura o perfil `default`, prepara o conteúdo em diretório temporário, calcula dependências dinâmicas e inclui lançador, schema, serviço D-Bus, traduções e ícone.
@@ -77,9 +77,9 @@ O empacotador configura o perfil `default`, prepara o conteúdo em diretório te
 
 ```sh
 # Atualiza o template no diretório po/:
-meson compile -C build termac-pot
-msgmerge --update --backup=none --no-fuzzy-matching po/pt_BR.po po/termac.pot
-msgfmt --check --statistics -o /tmp/termac-pt_BR.mo po/pt_BR.po
+meson compile -C build termuni-pot
+msgmerge --update --backup=none --no-fuzzy-matching po/pt_BR.po po/termuni.pot
+msgfmt --check --statistics -o /tmp/termuni-pt_BR.mo po/pt_BR.po
 ```
 
 Depois de preencher traduções novas, confirme zero fuzzy/pendentes. Mudanças de documentação não exigem refazer toda a suíte gráfica: confira links/caminhos, preservação de arquivos movidos e build quando referências de build mudarem. Para mudanças funcionais, execute os testes correspondentes e a suíte necessária.
@@ -88,7 +88,7 @@ Atualize [PLANO_IMPLEMENTACAO.md](../PLANO_IMPLEMENTACAO.md) e o item do [roadma
 
 ## Consolidação e CI
 
-`bash tools/ci-check.sh development` e `bash tools/ci-check.sh default` executam o mesmo caminho do job nativo: build, suítes normal/HiDPI, traduções e instalação em DESTDIR dentro do próprio build. `TERMAC_CI_BUILD=build` permite usar uma configuração existente. A instalação de teste não modifica `/usr`.
+`bash tools/ci-check.sh development` e `bash tools/ci-check.sh default` executam o mesmo caminho do job nativo: build, suítes normal/HiDPI, traduções e instalação em DESTDIR dentro do próprio build. `TERMUNI_CI_BUILD=build` permite usar uma configuração existente. A instalação de teste não modifica `/usr`.
 
 `.github/workflows/ci.yml` compila e verifica os perfis development/default em Fedora 44 (GTK 4.22+). Zig usa a URL/hash fixados em `tools/zig-toolchain.json`; Ghostty continua no wrap fixado. O workflow publica logs de CI, não releases; a geração do `.deb` ocorre com `tools/build-deb.py`. A execução remota depende de o repositório estar hospedado no GitHub.
 

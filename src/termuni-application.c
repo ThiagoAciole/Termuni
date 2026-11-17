@@ -1,4 +1,4 @@
-/* termac-application.c
+/* termuni-application.c
  *
  * Copyright 2026 Thiago Aciole
  *
@@ -23,15 +23,15 @@
 #include <glib/gstdio.h>
 #include <sys/stat.h>
 
-#include "termac-application.h"
-#include "termac-dialog.h"
-#include "termac-session-store.h"
-#include "termac-settings.h"
-#include "termac-attachments.h"
-#include "termac-window.h"
-#include "termac-terminal.h"
+#include "termuni-application.h"
+#include "termuni-dialog.h"
+#include "termuni-session-store.h"
+#include "termuni-settings.h"
+#include "termuni-attachments.h"
+#include "termuni-window.h"
+#include "termuni-terminal.h"
 
-struct _TermacApplication
+struct _TermuniApplication
 {
 	AdwApplication parent_instance;
 	GSettings *settings;
@@ -40,33 +40,33 @@ struct _TermacApplication
 	gboolean quitting;
 	gboolean quit_dialog_pending;
 	guint session_save_source;
-	TermacSessionStore *session_store;
+	TermuniSessionStore *session_store;
 };
 
-G_DEFINE_FINAL_TYPE (TermacApplication, termac_application, ADW_TYPE_APPLICATION)
+G_DEFINE_FINAL_TYPE (TermuniApplication, termuni_application, ADW_TYPE_APPLICATION)
 
-static void termac_application_finalize (GObject *object);
-static void termac_application_apply_settings (TermacApplication *self);
-static GtkWindow *application_dialog_parent (TermacApplication *self);
+static void termuni_application_finalize (GObject *object);
+static void termuni_application_apply_settings (TermuniApplication *self);
+static GtkWindow *application_dialog_parent (TermuniApplication *self);
 static void style_dark_changed_cb (AdwStyleManager *manager, GParamSpec *pspec, gpointer user_data);
 
-#define TERMAC_SESSION_FILE "session-v3.gvariant"
-#define TERMAC_SESSION_TYPE "a(iiiba(ss))"
-#define TERMAC_SESSION_FILE_V2 "session-v2.gvariant"
-#define TERMAC_SESSION_TYPE_V2 "a(ia(ss))"
-#define TERMAC_SESSION_SAVE_DELAY_MS 800
-#define TERMAC_ATTACHMENT_RETENTION_SECONDS (7 * 24 * 60 * 60)
+#define TERMUNI_SESSION_FILE "session-v3.gvariant"
+#define TERMUNI_SESSION_TYPE "a(iiiba(ss))"
+#define TERMUNI_SESSION_FILE_V2 "session-v2.gvariant"
+#define TERMUNI_SESSION_TYPE_V2 "a(ia(ss))"
+#define TERMUNI_SESSION_SAVE_DELAY_MS 800
+#define TERMUNI_ATTACHMENT_RETENTION_SECONDS (7 * 24 * 60 * 60)
 
 static char *
 session_file_path (void)
 {
-	return g_build_filename (g_get_user_state_dir (), "termac", TERMAC_SESSION_FILE, NULL);
+	return g_build_filename (g_get_user_state_dir (), "termuni", TERMUNI_SESSION_FILE, NULL);
 }
 
 static char *
 session_file_path_v2 (void)
 {
-	return g_build_filename (g_get_user_state_dir (), "termac", TERMAC_SESSION_FILE_V2, NULL);
+	return g_build_filename (g_get_user_state_dir (), "termuni", TERMUNI_SESSION_FILE_V2, NULL);
 }
 
 /* Migration happens before restoring any windows or scheduling writes. */
@@ -76,36 +76,36 @@ write_session_file (GVariant *sessions)
 	g_autofree char *path = session_file_path ();
 	g_autoptr(GVariant) owned = g_variant_take_ref (sessions);
 	g_autoptr(GBytes) bytes = g_variant_get_data_as_bytes (owned);
-	return termac_session_store_write (path, bytes);
+	return termuni_session_store_write (path, bytes);
 }
 
 /* Writes the tabs of every window that still exists. Each window is stored
  * as (selected index, width, height, maximized, tabs); an empty list is saved
  * as an empty session. */
 static void
-save_session (TermacApplication *self, gboolean flush)
+save_session (TermuniApplication *self, gboolean flush)
 {
 	GVariantBuilder builder;
 	GList *windows;
 	GList *iter;
 	GVariant *sessions;
 
-	g_return_if_fail (TERMAC_IS_APPLICATION (self));
+	g_return_if_fail (TERMUNI_IS_APPLICATION (self));
 	if (self->session_save_source != 0)
 	{
 		g_source_remove (self->session_save_source);
 		self->session_save_source = 0;
 	}
-	g_variant_builder_init (&builder, G_VARIANT_TYPE (TERMAC_SESSION_TYPE));
+	g_variant_builder_init (&builder, G_VARIANT_TYPE (TERMUNI_SESSION_TYPE));
 	windows = gtk_application_get_windows (GTK_APPLICATION (self));
 	for (iter = windows; iter != NULL; iter = iter->next)
 	{
 		gint selected = 0;
 		GVariant *tabs;
 
-		if (!TERMAC_IS_WINDOW (iter->data))
+		if (!TERMUNI_IS_WINDOW (iter->data))
 			continue;
-		tabs = termac_window_session_state (TERMAC_WINDOW (iter->data), &selected);
+		tabs = termuni_window_session_state (TERMUNI_WINDOW (iter->data), &selected);
 		if (g_variant_n_children (tabs) == 0)
 		{
 			g_variant_unref (tabs);
@@ -124,16 +124,16 @@ save_session (TermacApplication *self, gboolean flush)
 		if (self->session_store == NULL)
 		{
 			g_autofree char *path = session_file_path ();
-			self->session_store = termac_session_store_new (path);
+			self->session_store = termuni_session_store_new (path);
 		}
-		termac_session_store_save (self->session_store, bytes, flush);
+		termuni_session_store_save (self->session_store, bytes, flush);
 	}
 }
 
 /* Explicit checkpoint: disk attempt finished on return, including older writes.
  * This synchronous API is reserved for explicit saves and application quit. */
 void
-termac_application_save_session_now (TermacApplication *self)
+termuni_application_save_session_now (TermuniApplication *self)
 {
 	save_session (self, TRUE);
 }
@@ -141,7 +141,7 @@ termac_application_save_session_now (TermacApplication *self)
 static gboolean
 session_save_timeout (gpointer user_data)
 {
-	TermacApplication *self = TERMAC_APPLICATION (user_data);
+	TermuniApplication *self = TERMUNI_APPLICATION (user_data);
 
 	self->session_save_source = 0;
 	save_session (self, FALSE);
@@ -151,9 +151,9 @@ session_save_timeout (gpointer user_data)
 /* A window is closing. While the app quits, the session was already saved
  * and closing windows one by one must not overwrite it with partial state. */
 void
-termac_application_window_closing (TermacApplication *self)
+termuni_application_window_closing (TermuniApplication *self)
 {
-	g_return_if_fail (TERMAC_IS_APPLICATION (self));
+	g_return_if_fail (TERMUNI_IS_APPLICATION (self));
 	if (!self->session_frozen)
 		save_session (self, FALSE);
 }
@@ -161,13 +161,13 @@ termac_application_window_closing (TermacApplication *self)
 /* Called after each change in tabs, folders or titles. Saves shortly after
  * the last change, so bursts of changes write the file once. */
 void
-termac_application_request_session_save (TermacApplication *self)
+termuni_application_request_session_save (TermuniApplication *self)
 {
-	g_return_if_fail (TERMAC_IS_APPLICATION (self));
+	g_return_if_fail (TERMUNI_IS_APPLICATION (self));
 	if (self->session_frozen)
 		return;
 	if (self->session_save_source == 0)
-		self->session_save_source = g_timeout_add (TERMAC_SESSION_SAVE_DELAY_MS,
+		self->session_save_source = g_timeout_add (TERMUNI_SESSION_SAVE_DELAY_MS,
 		                                           session_save_timeout, self);
 }
 
@@ -179,7 +179,7 @@ session_from_v2 (GVariant *v2)
 	gsize count = g_variant_n_children (v2);
 	gsize i;
 
-	g_variant_builder_init (&builder, G_VARIANT_TYPE (TERMAC_SESSION_TYPE));
+	g_variant_builder_init (&builder, G_VARIANT_TYPE (TERMUNI_SESSION_TYPE));
 	for (i = 0; i < count; i++)
 	{
 		gint selected = 0;
@@ -206,7 +206,7 @@ migrate_v2_session (void)
 	if (!g_file_get_contents (path, &contents, &length, NULL))
 		return NULL;
 	bytes = g_bytes_new (contents, length);
-	v2 = g_variant_new_from_bytes (G_VARIANT_TYPE (TERMAC_SESSION_TYPE_V2), bytes, FALSE);
+	v2 = g_variant_new_from_bytes (G_VARIANT_TYPE (TERMUNI_SESSION_TYPE_V2), bytes, FALSE);
 	if (v2 == NULL || !g_variant_is_normal_form (v2))
 	{
 		g_warning ("Ignoring an invalid v2 session");
@@ -239,7 +239,7 @@ load_sessions (void)
 		return migrate_v2_session ();
 	}
 	bytes = g_bytes_new (contents, length);
-	sessions = g_variant_new_from_bytes (G_VARIANT_TYPE (TERMAC_SESSION_TYPE), bytes, FALSE);
+	sessions = g_variant_new_from_bytes (G_VARIANT_TYPE (TERMUNI_SESSION_TYPE), bytes, FALSE);
 	g_bytes_unref (bytes);
 	if (sessions == NULL || !g_variant_is_normal_form (sessions))
 	{
@@ -250,22 +250,22 @@ load_sessions (void)
 	return sessions;
 }
 
-static TermacWindow *
-termac_application_new_window (TermacApplication *self)
+static TermuniWindow *
+termuni_application_new_window (TermuniApplication *self)
 {
 	static gboolean pruned = FALSE;
 
 	if (!pruned)
 	{
-		termac_attachments_prune (TERMAC_ATTACHMENT_RETENTION_SECONDS);
+		termuni_attachments_prune (TERMUNI_ATTACHMENT_RETENTION_SECONDS);
 		pruned = TRUE;
 	}
-	return g_object_new (TERMAC_TYPE_WINDOW, "application", self, NULL);
+	return g_object_new (TERMUNI_TYPE_WINDOW, "application", self, NULL);
 }
 
 /* Reopens every saved window. Returns FALSE when nothing was restored. */
 static gboolean
-termac_application_restore_windows (TermacApplication *self)
+termuni_application_restore_windows (TermuniApplication *self)
 {
 	GVariant *sessions;
 	gsize count;
@@ -285,18 +285,18 @@ termac_application_restore_windows (TermacApplication *self)
 		gint height = 0;
 		gboolean maximized = FALSE;
 		GVariant *tabs = NULL;
-		TermacWindow *window;
+		TermuniWindow *window;
 
 		g_variant_get_child (sessions, i, "(iiib@a(ss))", &selected, &width, &height,
 		                     &maximized, &tabs);
 		if (g_variant_n_children (tabs) > 0)
 		{
-			window = termac_application_new_window (self);
+			window = termuni_application_new_window (self);
 			if (width > 0 && height > 0)
 				gtk_window_set_default_size (GTK_WINDOW (window), width, height);
 			if (maximized)
 				gtk_window_maximize (GTK_WINDOW (window));
-			termac_window_restore_tabs (window, tabs, selected);
+			termuni_window_restore_tabs (window, tabs, selected);
 			gtk_window_present (GTK_WINDOW (window));
 			restored = TRUE;
 		}
@@ -307,52 +307,52 @@ termac_application_restore_windows (TermacApplication *self)
 }
 
 GSettings *
-termac_application_get_settings (TermacApplication *self)
+termuni_application_get_settings (TermuniApplication *self)
 {
-	g_return_val_if_fail (TERMAC_IS_APPLICATION (self), NULL);
+	g_return_val_if_fail (TERMUNI_IS_APPLICATION (self), NULL);
 	return self->settings;
 }
 
-TermacApplication *
-termac_application_new (const char        *application_id,
+TermuniApplication *
+termuni_application_new (const char        *application_id,
                         GApplicationFlags  flags)
 {
 	g_return_val_if_fail (application_id != NULL, NULL);
 
-	return g_object_new (TERMAC_TYPE_APPLICATION,
+	return g_object_new (TERMUNI_TYPE_APPLICATION,
 	                     "application-id", application_id,
 	                     "flags", flags,
-	                     "resource-base-path", "/thiago/aciole/termac",
+	                     "resource-base-path", "/io/github/thiagoaciole/termuni",
 	                     NULL);
 }
 
 static void
-termac_application_activate (GApplication *app)
+termuni_application_activate (GApplication *app)
 {
-	if (TERMAC_APPLICATION (app)->quitting) return;
+	if (TERMUNI_APPLICATION (app)->quitting) return;
 	GtkWindow *window;
 
-	g_assert (TERMAC_IS_APPLICATION (app));
-	termac_application_apply_settings (TERMAC_APPLICATION (app));
+	g_assert (TERMUNI_IS_APPLICATION (app));
+	termuni_application_apply_settings (TERMUNI_APPLICATION (app));
 
 	window = gtk_application_get_active_window (GTK_APPLICATION (app));
 
-	if (window == NULL && !termac_application_restore_windows (TERMAC_APPLICATION (app)))
-		window = GTK_WINDOW (termac_application_new_window (TERMAC_APPLICATION (app)));
+	if (window == NULL && !termuni_application_restore_windows (TERMUNI_APPLICATION (app)))
+		window = GTK_WINDOW (termuni_application_new_window (TERMUNI_APPLICATION (app)));
 	if (window == NULL)
 		window = GTK_WINDOW (gtk_application_get_windows (GTK_APPLICATION (app))->data);
-	if (TERMAC_IS_WINDOW (window))
-		termac_window_sync_settings (TERMAC_WINDOW (window));
-	if (!TERMAC_APPLICATION (app)->css_loaded)
+	if (TERMUNI_IS_WINDOW (window))
+		termuni_window_sync_settings (TERMUNI_WINDOW (window));
+	if (!TERMUNI_APPLICATION (app)->css_loaded)
 	{
 		GtkCssProvider *provider = gtk_css_provider_new ();
 		gtk_css_provider_load_from_resource (provider,
-		                                    "/thiago/aciole/termac/termac.css");
+		                                    "/io/github/thiagoaciole/termuni/termuni.css");
 		gtk_style_context_add_provider_for_display (gdk_display_get_default (),
 		                                            GTK_STYLE_PROVIDER (provider),
 		                                            GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 		g_object_unref (provider);
-		TERMAC_APPLICATION (app)->css_loaded = TRUE;
+		TERMUNI_APPLICATION (app)->css_loaded = TRUE;
 		/* The style manager exists only after GTK is initialized. */
 		g_signal_connect (adw_style_manager_get_default (), "notify::dark",
 		                  G_CALLBACK (style_dark_changed_cb), app);
@@ -364,47 +364,47 @@ termac_application_activate (GApplication *app)
 /* No cancellation during normal shutdown: finish the latest snapshot before
  * returning from g_application_run, even if another owner retains the app. */
 static void
-termac_application_shutdown (GApplication *application)
+termuni_application_shutdown (GApplication *application)
 {
-	TermacApplication *self = TERMAC_APPLICATION (application);
+	TermuniApplication *self = TERMUNI_APPLICATION (application);
 	self->session_frozen = TRUE;
 	if (self->session_save_source != 0)
 	{
 		g_source_remove (self->session_save_source);
 		self->session_save_source = 0;
 	}
-	termac_session_store_free (g_steal_pointer (&self->session_store));
-	G_APPLICATION_CLASS (termac_application_parent_class)->shutdown (application);
+	termuni_session_store_free (g_steal_pointer (&self->session_store));
+	G_APPLICATION_CLASS (termuni_application_parent_class)->shutdown (application);
 }
 
 static void
-termac_application_class_init (TermacApplicationClass *klass)
+termuni_application_class_init (TermuniApplicationClass *klass)
 {
 	GApplicationClass *app_class = G_APPLICATION_CLASS (klass);
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-	app_class->activate = termac_application_activate;
-	app_class->shutdown = termac_application_shutdown;
-	object_class->finalize = termac_application_finalize;
+	app_class->activate = termuni_application_activate;
+	app_class->shutdown = termuni_application_shutdown;
+	object_class->finalize = termuni_application_finalize;
 }
 
 static void
-termac_application_about_action (GSimpleAction *action,
+termuni_application_about_action (GSimpleAction *action,
                                  GVariant      *parameter,
                                  gpointer       user_data)
 {
 	static const char *developers[] = {"Thiago Aciole", NULL};
-	TermacApplication *self = user_data;
+	TermuniApplication *self = user_data;
 	GtkWindow *window = NULL;
 	AdwDialog *dialog;
 
-	g_assert (TERMAC_IS_APPLICATION (self));
+	g_assert (TERMUNI_IS_APPLICATION (self));
 
 	window = application_dialog_parent (self);
 
 	dialog = adw_about_dialog_new ();
 	g_object_set (dialog,
-	                       "application-name", "Termac",
+	                       "application-name", "Termuni",
 	                       "application-icon", APPLICATION_ICON,
 	                       "developer-name", "Thiago Aciole",
 	                       "translator-credits", _("translator-credits"),
@@ -412,17 +412,17 @@ termac_application_about_action (GSimpleAction *action,
 	                       "developers", developers,
 	                       "copyright", "© 2026 Thiago Aciole",
 	                       NULL);
-	termac_dialog_present_window (dialog, window);
+	termuni_dialog_present_window (dialog, window);
 }
 
 static void
-application_finish_quit (TermacApplication *self)
+application_finish_quit (TermuniApplication *self)
 {
 	g_autoptr(GPtrArray) windows = g_ptr_array_new_with_free_func (g_object_unref);
 	if (self->quitting) return;
 	self->quitting = TRUE;
 	self->session_frozen = TRUE;
-	termac_application_save_session_now (self);
+	termuni_application_save_session_now (self);
 	for (GList *iter = gtk_application_get_windows (GTK_APPLICATION (self)); iter != NULL; iter = iter->next)
 		g_ptr_array_add (windows, g_object_ref (iter->data));
 	for (guint i = 0; i < windows->len; i++)
@@ -445,7 +445,7 @@ application_finish_quit (TermacApplication *self)
 static void
 application_quit_response (GObject *source, GAsyncResult *result, gpointer data)
 {
-	TermacApplication *self = data;
+	TermuniApplication *self = data;
 	self->quit_dialog_pending = FALSE;
 	if (g_strcmp0 (adw_alert_dialog_choose_finish (ADW_ALERT_DIALOG (source), result), "quit") == 0)
 		application_finish_quit (self);
@@ -453,9 +453,9 @@ application_quit_response (GObject *source, GAsyncResult *result, gpointer data)
 }
 
 static void
-termac_application_quit_action (GSimpleAction *action, GVariant *parameter, gpointer user_data)
+termuni_application_quit_action (GSimpleAction *action, GVariant *parameter, gpointer user_data)
 {
-	TermacApplication *self = user_data;
+	TermuniApplication *self = user_data;
 	guint busy = 0;
 	GtkWindow *parent = gtk_application_get_active_window (GTK_APPLICATION (self));
 	GList *windows = gtk_application_get_windows (GTK_APPLICATION (self));
@@ -464,8 +464,8 @@ termac_application_quit_action (GSimpleAction *action, GVariant *parameter, gpoi
 	if (self->quitting || self->quit_dialog_pending) return;
 	if (self->settings == NULL || g_settings_get_boolean (self->settings, "confirm-close"))
 		for (GList *iter = windows; iter != NULL; iter = iter->next)
-			if (TERMAC_IS_WINDOW (iter->data))
-				busy += termac_window_busy_tabs (TERMAC_WINDOW (iter->data));
+			if (TERMUNI_IS_WINDOW (iter->data))
+				busy += termuni_window_busy_tabs (TERMUNI_WINDOW (iter->data));
 	if (busy == 0)
 	{
 		application_finish_quit (self);
@@ -474,35 +474,35 @@ termac_application_quit_action (GSimpleAction *action, GVariant *parameter, gpoi
 	if (parent == NULL && windows != NULL) parent = windows->data;
 	{
 		g_autofree char *body = g_strdup_printf (ngettext (
-		    "%u tab has a program running. Quitting Termac stops it.",
-		    "%u tabs have programs running. Quitting Termac stops them.", busy), busy);
-		AdwDialog *dialog = adw_alert_dialog_new (_("Quit Termac?"), body);
-		adw_dialog_set_title (dialog, _("Quit Termac?"));
+		    "%u tab has a program running. Quitting Termuni stops it.",
+		    "%u tabs have programs running. Quitting Termuni stops them.", busy), busy);
+		AdwDialog *dialog = adw_alert_dialog_new (_("Quit Termuni?"), body);
+		adw_dialog_set_title (dialog, _("Quit Termuni?"));
 		adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
 		    "cancel", _("Cancel"), "quit", _("Quit"), NULL);
 		adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "quit", ADW_RESPONSE_DESTRUCTIVE);
 		adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "cancel");
 		adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 		self->quit_dialog_pending = TRUE;
-		termac_alert_choose_window (ADW_ALERT_DIALOG (dialog), parent,
+		termuni_alert_choose_window (ADW_ALERT_DIALOG (dialog), parent,
 		    application_quit_response, g_object_ref (self));
 	}
 }
 
 static void
-termac_application_show_session_action (GSimpleAction *action,
+termuni_application_show_session_action (GSimpleAction *action,
                                         GVariant      *parameter,
                                         gpointer       user_data)
 {
-	TermacApplication *self = user_data;
+	TermuniApplication *self = user_data;
 	const char *session_id = g_variant_get_string (parameter, NULL);
 	GList *windows = gtk_application_get_windows (GTK_APPLICATION (self));
 	GList *iter;
 
 	(void) action;
 	for (iter = windows; iter != NULL; iter = iter->next)
-		if (TERMAC_IS_WINDOW (iter->data) &&
-		    termac_window_show_session (TERMAC_WINDOW (iter->data), session_id))
+		if (TERMUNI_IS_WINDOW (iter->data) &&
+		    termuni_window_show_session (TERMUNI_WINDOW (iter->data), session_id))
 			return;
 }
 
@@ -641,19 +641,19 @@ palette_swatch_free (gpointer data)
 }
 
 
-const TermacAgent *
-termac_application_get_agent (TermacApplication *self)
+const TermuniAgent *
+termuni_application_get_agent (TermuniApplication *self)
 {
 	g_autofree char *id = self->settings != NULL ? g_settings_get_string (self->settings, "agent") : NULL;
-	const TermacAgent *agent = termac_agent_find (id);
-	return agent != NULL ? agent : termac_agent_default ();
+	const TermuniAgent *agent = termuni_agent_find (id);
+	return agent != NULL ? agent : termuni_agent_default ();
 }
 
 static void
-agent_selected_cb (AdwComboRow *row, GParamSpec *pspec, TermacApplication *self)
+agent_selected_cb (AdwComboRow *row, GParamSpec *pspec, TermuniApplication *self)
 {
 	gsize count;
-	const TermacAgent *const *agents = termac_agent_all (&count);
+	const TermuniAgent *const *agents = termuni_agent_all (&count);
 	guint selected = adw_combo_row_get_selected (row);
 	if (self->settings != NULL && selected < count)
 		g_settings_set_string (self->settings, "agent", agents[selected]->id);
@@ -662,18 +662,18 @@ agent_selected_cb (AdwComboRow *row, GParamSpec *pspec, TermacApplication *self)
 static void
 agent_row_refresh (GSettings *settings, const char *key, AdwComboRow *row)
 {
-	TermacApplication *self = g_object_get_data (G_OBJECT (row), "termac-application");
-	const TermacAgent *agent = termac_application_get_agent (self);
+	TermuniApplication *self = g_object_get_data (G_OBJECT (row), "termuni-application");
+	const TermuniAgent *agent = termuni_application_get_agent (self);
 	gsize count;
-	const TermacAgent *const *agents = termac_agent_all (&count);
+	const TermuniAgent *const *agents = termuni_agent_all (&count);
 	g_signal_handlers_block_by_func (row, agent_selected_cb, self);
 	for (guint i = 0; i < count; i++)
 		if (agents[i] == agent) adw_combo_row_set_selected (row, i);
 	{
 		const gint *statuses = g_object_get_data (G_OBJECT (row), "agent-statuses");
 		guint selected = adw_combo_row_get_selected (row);
-		gint status = statuses != NULL && selected < count ? statuses[selected] : TERMAC_AGENT_MISSING;
-		adw_action_row_set_subtitle (ADW_ACTION_ROW (row), status == -1 ? _("Checking availability…") : status == -2 ? _("Could not check availability") : status == TERMAC_AGENT_AVAILABLE
+		gint status = statuses != NULL && selected < count ? statuses[selected] : TERMUNI_AGENT_MISSING;
+		adw_action_row_set_subtitle (ADW_ACTION_ROW (row), status == -1 ? _("Checking availability…") : status == -2 ? _("Could not check availability") : status == TERMUNI_AGENT_AVAILABLE
 			? _("Use Open Agent in the main menu to start it in a new tab.") : _("Not installed"));
 	}
 	g_signal_handlers_unblock_by_func (row, agent_selected_cb, self);
@@ -695,13 +695,13 @@ agent_row_checked (GObject *source, GAsyncResult *result, gpointer data)
 	AgentRowCheck *query = data;
 	g_autoptr(AdwComboRow) row = g_weak_ref_get (&query->row);
 	g_autoptr(GError) error = NULL;
-	TermacAgentAvailability status = termac_agent_check_finish (result, &error);
+	TermuniAgentAvailability status = termuni_agent_check_finish (result, &error);
 	if (row != NULL)
 	{
-		TermacApplication *self = g_object_get_data (G_OBJECT (row), "termac-application");
+		TermuniApplication *self = g_object_get_data (G_OBJECT (row), "termuni-application");
 		gint *statuses = g_object_get_data (G_OBJECT (row), "agent-statuses");
-		const TermacAgent *const *agents = termac_agent_all (NULL);
-		g_autofree char *name = status == TERMAC_AGENT_MISSING && error == NULL
+		const TermuniAgent *const *agents = termuni_agent_all (NULL);
+		g_autofree char *name = status == TERMUNI_AGENT_MISSING && error == NULL
 			? g_strdup_printf (_("%s — Not installed"), agents[query->index]->display_name)
 			: g_strdup (agents[query->index]->display_name);
 		const char *added[] = { name, NULL };
@@ -721,7 +721,7 @@ agent_row_checked (GObject *source, GAsyncResult *result, gpointer data)
 static GPtrArray *
 attachments_collect (void)
 {
-	g_autofree char *root = g_build_filename (g_get_user_cache_dir (), "termac", "attachments", NULL);
+	g_autofree char *root = g_build_filename (g_get_user_cache_dir (), "termuni", "attachments", NULL);
 	GPtrArray *paths = g_ptr_array_new_with_free_func (g_free);
 	GDir *sessions = g_dir_open (root, 0, NULL);
 	const char *session;
@@ -792,7 +792,7 @@ static void
 attachment_copy_clicked_cb (GtkButton *button,
                             gpointer   user_data)
 {
-	const char *path = g_object_get_data (G_OBJECT (button), "termac-path");
+	const char *path = g_object_get_data (G_OBJECT (button), "termuni-path");
 	(void) user_data;
 	if (path != NULL)
 		gdk_clipboard_set_text (gtk_widget_get_clipboard (GTK_WIDGET (button)), path);
@@ -802,7 +802,7 @@ static void
 attachment_delete_clicked_cb (GtkButton *button,
                               gpointer   user_data)
 {
-	const char *path = g_object_get_data (G_OBJECT (button), "termac-path");
+	const char *path = g_object_get_data (G_OBJECT (button), "termuni-path");
 	GtkListBox *list = user_data;
 	if (path != NULL)
 		g_unlink (path);
@@ -859,8 +859,8 @@ attachments_list_populate (GtkListBox *list)
 		gtk_widget_set_tooltip_text (delete_button, _("Remove"));
 		gtk_accessible_update_property (GTK_ACCESSIBLE (copy), GTK_ACCESSIBLE_PROPERTY_LABEL, _("Copy path"), -1);
 		gtk_accessible_update_property (GTK_ACCESSIBLE (delete_button), GTK_ACCESSIBLE_PROPERTY_LABEL, _("Remove"), -1);
-		g_object_set_data_full (G_OBJECT (copy), "termac-path", g_strdup (path), g_free);
-		g_object_set_data_full (G_OBJECT (delete_button), "termac-path", g_strdup (path), g_free);
+		g_object_set_data_full (G_OBJECT (copy), "termuni-path", g_strdup (path), g_free);
+		g_object_set_data_full (G_OBJECT (delete_button), "termuni-path", g_strdup (path), g_free);
 		g_signal_connect (copy, "clicked", G_CALLBACK (attachment_copy_clicked_cb), NULL);
 		g_signal_connect (delete_button, "clicked", G_CALLBACK (attachment_delete_clicked_cb), list);
 		adw_action_row_add_suffix (ADW_ACTION_ROW (row_widget), copy);
@@ -871,7 +871,7 @@ attachments_list_populate (GtkListBox *list)
 }
 
 static GtkWidget *
-termac_application_attachments_page (TermacApplication *self)
+termuni_application_attachments_page (TermuniApplication *self)
 {
 	GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 	AdwPreferencesPage *page = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
@@ -885,7 +885,7 @@ termac_application_attachments_page (TermacApplication *self)
 		AdwComboRow *agent_row = ADW_COMBO_ROW (adw_combo_row_new ());
 		GtkStringList *names = gtk_string_list_new (NULL);
 		gsize count;
-		const TermacAgent *const *agents = termac_agent_all (&count);
+		const TermuniAgent *const *agents = termuni_agent_all (&count);
 		gint *statuses = g_new (gint, count);
 		GCancellable *cancel = g_cancellable_new ();
 		g_object_set_data_full (G_OBJECT (agent_row), "agent-statuses", statuses, g_free);
@@ -894,14 +894,14 @@ termac_application_attachments_page (TermacApplication *self)
 		{
 			g_autofree char *name = NULL;
 			statuses[i] = -1;
-			name = statuses[i] != TERMAC_AGENT_MISSING ? g_strdup (agents[i]->display_name)
+			name = statuses[i] != TERMUNI_AGENT_MISSING ? g_strdup (agents[i]->display_name)
 				: g_strdup_printf (_("%s — Not installed"), agents[i]->display_name);
 			gtk_string_list_append (names, name);
 		}
 		adw_preferences_row_set_title (ADW_PREFERENCES_ROW (agent_row), _("Agent"));
 		adw_combo_row_set_model (agent_row, G_LIST_MODEL (names));
 		g_object_unref (names);
-		g_object_set_data_full (G_OBJECT (agent_row), "termac-application", g_object_ref (self), g_object_unref);
+		g_object_set_data_full (G_OBJECT (agent_row), "termuni-application", g_object_ref (self), g_object_unref);
 		g_signal_connect (agent_row, "notify::selected", G_CALLBACK (agent_selected_cb), self);
 		g_signal_connect_object (self->settings, "changed::agent", G_CALLBACK (agent_row_refresh), agent_row, 0);
 		agent_row_refresh (self->settings, "agent", agent_row);
@@ -910,7 +910,7 @@ termac_application_attachments_page (TermacApplication *self)
 				AgentRowCheck *query = g_new0 (AgentRowCheck, 1);
 				g_weak_ref_init (&query->row, agent_row);
 				query->index = i;
-				termac_agent_check_async (agents[i], NULL, cancel, agent_row_checked, query);
+				termuni_agent_check_async (agents[i], NULL, cancel, agent_row_checked, query);
 			}
 		adw_preferences_group_add (agent_group, GTK_WIDGET (agent_row));
 		adw_preferences_page_add (page, agent_group);
@@ -941,7 +941,7 @@ termac_application_attachments_page (TermacApplication *self)
 }
 
 static GtkWindow *
-application_dialog_parent (TermacApplication *self)
+application_dialog_parent (TermuniApplication *self)
 {
 	GtkWindow *parent = gtk_application_get_active_window (GTK_APPLICATION (self));
 	GList *windows;
@@ -998,7 +998,7 @@ shortcut_override_get (GSettings *settings, const char *action)
 }
 
 static const char *
-shortcut_find_conflict (TermacApplication *self, const char *action, const char *accel)
+shortcut_find_conflict (TermuniApplication *self, const char *action, const char *accel)
 {
  guint key;
  GdkModifierType mods;
@@ -1054,7 +1054,7 @@ shortcut_override_set (GSettings *settings, const char *action, const char *acce
 
 /* Registers every editable action with its custom or built-in accelerator. */
 static void
-termac_application_apply_action_shortcuts (TermacApplication *self)
+termuni_application_apply_action_shortcuts (TermuniApplication *self)
 {
 	guint i;
 
@@ -1072,7 +1072,7 @@ termac_application_apply_action_shortcuts (TermacApplication *self)
 }
 
 static void
-shortcut_button_refresh (GtkButton *button, TermacApplication *self)
+shortcut_button_refresh (GtkButton *button, TermuniApplication *self)
 {
 	const char *action = g_object_get_data (G_OBJECT (button), "shortcut-action");
 	const char *fallback = g_object_get_data (G_OBJECT (button), "shortcut-default");
@@ -1091,7 +1091,7 @@ shortcut_button_refresh (GtkButton *button, TermacApplication *self)
 
 typedef struct
 {
-	TermacApplication *app;
+	TermuniApplication *app;
 	GtkButton *button;
 	AdwDialog *dialog;
 } ShortcutCapture;
@@ -1141,7 +1141,7 @@ shortcut_capture_key_cb (GtkEventControllerKey *controller,
 		}
 	}
 	shortcut_override_set (capture->app->settings, action, accel);
-	termac_application_apply_action_shortcuts (capture->app);
+	termuni_application_apply_action_shortcuts (capture->app);
 	shortcut_button_refresh (capture->button, capture->app);
 	adw_dialog_close (capture->dialog);
 	return GDK_EVENT_STOP;
@@ -1150,7 +1150,7 @@ shortcut_capture_key_cb (GtkEventControllerKey *controller,
 static void
 shortcut_edit_clicked_cb (GtkButton *button, gpointer user_data)
 {
-	TermacApplication *app = user_data;
+	TermuniApplication *app = user_data;
 	/* The capture belongs to the window that holds the button (Preferences), not to
 	 * whichever window is active. */
 	GtkWidget *parent = GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (button)));
@@ -1172,29 +1172,29 @@ shortcut_edit_clicked_cb (GtkButton *button, gpointer user_data)
 	gtk_widget_add_controller (GTK_WIDGET (page), keys);
 	adw_dialog_set_child (dialog, GTK_WIDGET (page));
 	g_object_set_data_full (G_OBJECT (dialog), "shortcut-capture", capture, g_free);
-	termac_dialog_present_window (dialog, GTK_WINDOW (parent));
+	termuni_dialog_present_window (dialog, GTK_WINDOW (parent));
 	gtk_widget_grab_focus (GTK_WIDGET (page));
 }
 
 static void
 shortcut_reset_clicked_cb (GtkButton *button, gpointer user_data)
 {
-	TermacApplication *app = user_data;
+	TermuniApplication *app = user_data;
 	GPtrArray *buttons = g_object_get_data (G_OBJECT (button), "shortcut-buttons");
 	guint i;
 
 	g_settings_reset (app->settings, "action-shortcuts");
-	termac_application_apply_action_shortcuts (app);
+	termuni_application_apply_action_shortcuts (app);
 	for (i = 0; buttons != NULL && i < buttons->len; i++)
 		shortcut_button_refresh (g_ptr_array_index (buttons, i), app);
 }
 
 static void
-termac_application_preferences_action (GSimpleAction *action,
+termuni_application_preferences_action (GSimpleAction *action,
                                        GVariant      *parameter,
                                        gpointer       user_data)
 {
-	TermacApplication *self = user_data;
+	TermuniApplication *self = user_data;
 	GtkWindow *parent = application_dialog_parent (self);
 	AdwWindow *dialog = ADW_WINDOW (adw_window_new ());
 	AdwToolbarView *toolbar = ADW_TOOLBAR_VIEW (adw_toolbar_view_new ());
@@ -1426,7 +1426,7 @@ termac_application_preferences_action (GSimpleAction *action,
 	                                     _("Appearance"), "applications-graphics-symbolic");
 	adw_view_stack_add_titled_with_icon (stack, GTK_WIDGET (shortcuts), "shortcuts",
 	                                     _("Shortcuts"), "input-keyboard-symbolic");
-	adw_view_stack_add_titled_with_icon (stack, termac_application_attachments_page (self),
+	adw_view_stack_add_titled_with_icon (stack, termuni_application_attachments_page (self),
 	                                     "attachments", _("Attachments"), "mail-attachment-symbolic");
 	adw_view_switcher_bar_set_stack (switcher, stack);
 	adw_view_switcher_bar_set_reveal (switcher, TRUE);
@@ -1441,7 +1441,7 @@ termac_application_preferences_action (GSimpleAction *action,
 }
 
 static void
-termac_application_apply_settings (TermacApplication *self)
+termuni_application_apply_settings (TermuniApplication *self)
 {
 	g_autofree char *scheme = self->settings != NULL ? g_settings_get_string (self->settings, "color-scheme") : g_strdup ("system");
 	AdwColorScheme color_scheme = ADW_COLOR_SCHEME_DEFAULT;
@@ -1453,25 +1453,25 @@ termac_application_apply_settings (TermacApplication *self)
 	adw_style_manager_set_color_scheme (adw_style_manager_get_default (), color_scheme);
 	windows = gtk_application_get_windows (GTK_APPLICATION (self));
 	for (iter = windows; iter != NULL; iter = iter->next)
-		if (TERMAC_IS_WINDOW (iter->data))
-			termac_window_sync_settings (TERMAC_WINDOW (iter->data));
+		if (TERMUNI_IS_WINDOW (iter->data))
+			termuni_window_sync_settings (TERMUNI_WINDOW (iter->data));
 }
 
 static void
-termac_application_shortcuts_action (GSimpleAction *action,
+termuni_application_shortcuts_action (GSimpleAction *action,
 	                                 GVariant      *parameter,
 	                                 gpointer       user_data)
 {
-	TermacApplication *self = user_data;
+	TermuniApplication *self = user_data;
 	GtkBuilder *builder = gtk_builder_new_from_resource (
-		"/thiago/aciole/termac/shortcuts-dialog.ui");
+		"/io/github/thiagoaciole/termuni/shortcuts-dialog.ui");
 	GtkWindow *parent = application_dialog_parent (self);
 	AdwDialog *dialog = ADW_DIALOG (gtk_builder_get_object (builder, "shortcuts_dialog"));
 	(void) action;
 	(void) parameter;
 	/* The builder owns the dialog: keep it alive until the dialog is closed. */
 	g_signal_connect_swapped (dialog, "closed", G_CALLBACK (g_object_unref), builder);
-	termac_dialog_present_window (dialog, parent);
+	termuni_dialog_present_window (dialog, parent);
 }
 
 static void
@@ -1479,7 +1479,7 @@ style_dark_changed_cb (AdwStyleManager *manager, GParamSpec *pspec, gpointer use
 {
 	(void) manager;
 	(void) pspec;
-	termac_application_apply_settings (TERMAC_APPLICATION (user_data));
+	termuni_application_apply_settings (TERMUNI_APPLICATION (user_data));
 }
 
 static void
@@ -1487,19 +1487,19 @@ settings_changed_cb (GSettings *settings, const char *key, gpointer user_data)
 {
 	(void) settings;
 	(void) key;
-	termac_application_apply_settings (TERMAC_APPLICATION (user_data));
+	termuni_application_apply_settings (TERMUNI_APPLICATION (user_data));
 }
 
 static const GActionEntry app_actions[] = {
-	{ "quit", termac_application_quit_action },
-	{ "about", termac_application_about_action },
-	{ "preferences", termac_application_preferences_action },
-	{ "shortcuts", termac_application_shortcuts_action },
-	{ "show-session", termac_application_show_session_action, "s" },
+	{ "quit", termuni_application_quit_action },
+	{ "about", termuni_application_about_action },
+	{ "preferences", termuni_application_preferences_action },
+	{ "shortcuts", termuni_application_shortcuts_action },
+	{ "show-session", termuni_application_show_session_action, "s" },
 };
 
 static void
-termac_application_init (TermacApplication *self)
+termuni_application_init (TermuniApplication *self)
 {
 
 	g_action_map_add_action_entries (G_ACTION_MAP (self),
@@ -1511,11 +1511,11 @@ termac_application_init (TermacApplication *self)
 	for (guint i = 0; i < G_N_ELEMENTS (fixed_shortcuts); i++)
 		gtk_application_set_accels_for_action (GTK_APPLICATION (self), fixed_shortcuts[i].action,
 		    (const char *[]) { fixed_shortcuts[i].accel, NULL });
-	self->settings = termac_settings_new (APPLICATION_ID, BUILD_SCHEMA_DIR);
+	self->settings = termuni_settings_new (APPLICATION_ID, BUILD_SCHEMA_DIR);
 	if (self->settings == NULL)
 	{
 		g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (G_ACTION_MAP (self), "preferences")), FALSE);
-		termac_application_apply_action_shortcuts (self);
+		termuni_application_apply_action_shortcuts (self);
 		return;
 	}
 	g_signal_connect (self->settings, "changed::color-scheme",
@@ -1527,20 +1527,20 @@ termac_application_init (TermacApplication *self)
 	g_signal_connect (self->settings, "changed::agent", G_CALLBACK (settings_changed_cb), self);
 	g_signal_connect (self->settings, "changed::scrollback-lines",
 	                  G_CALLBACK (settings_changed_cb), self);
-	termac_application_apply_action_shortcuts (self);
+	termuni_application_apply_action_shortcuts (self);
 
 }
 
 static void
-termac_application_finalize (GObject *object)
+termuni_application_finalize (GObject *object)
 {
-	TermacApplication *self = TERMAC_APPLICATION (object);
+	TermuniApplication *self = TERMUNI_APPLICATION (object);
 	if (self->session_save_source != 0)
 	{
 		g_source_remove (self->session_save_source);
 		self->session_save_source = 0;
 	}
-	termac_session_store_free (self->session_store);
+	termuni_session_store_free (self->session_store);
 	g_clear_object (&self->settings);
-	G_OBJECT_CLASS (termac_application_parent_class)->finalize (object);
+	G_OBJECT_CLASS (termuni_application_parent_class)->finalize (object);
 }

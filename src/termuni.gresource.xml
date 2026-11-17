@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/io/github/thiagoaciole/termuni">
+    <file preprocess="xml-stripblanks">termuni-window.ui</file>
+    <file preprocess="xml-stripblanks">shortcuts-dialog.ui</file>
+    <file>termuni.css</file>
+    <file>tema-claro.svg</file>
+    <file>tema-escuro.svg</file>
+    <file>tema-automatico.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/termuni-agents-symbolic.svg">termuni-agents-symbolic.svg</file>
+  </gresource>
+</gresources>

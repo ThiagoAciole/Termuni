@@ -2,7 +2,7 @@
 static void
 test_async_child_close (void)
 {
-	g_autofree char *dir = g_dir_make_tmp ("termac-child-stop-XXXXXX", NULL);
+	g_autofree char *dir = g_dir_make_tmp ("termuni-child-stop-XXXXXX", NULL);
 	g_autofree char *script = g_build_filename (dir, "ignore-hup.py", NULL);
 	g_autofree char *pidfile = g_build_filename (dir, "pid", NULL);
 	g_autofree char *python = g_find_program_in_path ("python3");
@@ -12,7 +12,7 @@ test_async_child_close (void)
 	g_autofree char *command = g_strdup_printf ("exec %s %s %s", qpython, qscript, qpidfile);
 	g_autofree char *contents = NULL;
 	GtkWindow *window = GTK_WINDOW (gtk_window_new ());
-	TermacTerminal *terminal;
+	TermuniTerminal *terminal;
 	gint64 start, deadline;
 	pid_t pid;
 
@@ -21,7 +21,7 @@ test_async_child_close (void)
 	    "signal.signal(signal.SIGHUP, signal.SIG_IGN)\n"
 	    "Path(sys.argv[1]).write_text(str(os.getpid()))\n"
 	    "while True: time.sleep(1)\n", -1, NULL));
-	terminal = TERMAC_TERMINAL (termac_terminal_new_command ("/tmp", FALSE, command));
+	terminal = TERMUNI_TERMINAL (termuni_terminal_new_command ("/tmp", FALSE, command));
 	gtk_window_set_child (window, GTK_WIDGET (terminal));
 	gtk_window_present (window);
 	deadline = g_get_monotonic_time () + 5 * G_USEC_PER_SEC;
@@ -49,22 +49,22 @@ test_async_child_close (void)
 static void
 test_quit_confirmation (void)
 {
-	TermacWindow *window;
-	TermacTerminal *terminal;
-	GSettings *settings = termac_application_get_settings (app);
+	TermuniWindow *window;
+	TermuniTerminal *terminal;
+	GSettings *settings = termuni_application_get_settings (app);
 	AdwDialog *dialog;
 	AdwDialog *shortcuts;
 	GtkWindow *quit_parent;
 	destroy_all_windows ();
 	forget_saved_sessions ();
 	g_settings_set_boolean (settings, "confirm-close", TRUE);
-	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	window = g_object_new (TERMUNI_TYPE_WINDOW, "application", app, NULL);
 	gtk_window_present (GTK_WINDOW (window));
 	pump (600);
 	terminal = selected_terminal (window);
 	run_in_terminal (window, terminal, "sleep 30");
 	pump (500);
-	g_assert_true (termac_terminal_has_foreground_job (terminal));
+	g_assert_true (termuni_terminal_has_foreground_job (terminal));
 	g_action_group_activate_action (G_ACTION_GROUP (app), "shortcuts", NULL);
 	pump (200);
 	shortcuts = find_window_dialog (GTK_WINDOW (window), ADW_TYPE_SHORTCUTS_DIALOG);
@@ -79,7 +79,7 @@ test_quit_confirmation (void)
 	g_assert_true (ADW_IS_ALERT_DIALOG (dialog));
 	g_signal_emit_by_name (find_button_labelled (GTK_WIDGET (dialog), "Cancel"), "clicked");
 	pump (250);
-	g_assert_true (termac_terminal_has_foreground_job (terminal));
+	g_assert_true (termuni_terminal_has_foreground_job (terminal));
 	g_action_group_activate_action (G_ACTION_GROUP (app), "quit", NULL);
 	pump (100);
 	dialog = find_window_dialog (quit_parent, ADW_TYPE_ALERT_DIALOG);
@@ -96,13 +96,13 @@ test_quit_confirmation (void)
 static void
 test_dialog_windows (void)
 {
-	TermacWindow *window = fresh_test_window ();
-	TermacTerminal *terminal = selected_terminal (window);
+	TermuniWindow *window = fresh_test_window ();
+	TermuniTerminal *terminal = selected_terminal (window);
 	AdwDialog *dialog;
 	GtkWindow *popup;
 	GtkWindow *preferences;
 	AdwTabView *tabs;
-	GSettings *settings = termac_application_get_settings (app);
+	GSettings *settings = termuni_application_get_settings (app);
 	gboolean old_confirm = g_settings_get_boolean (settings, "confirm-close");
 	g_autofree char *old_scheme = g_settings_get_string (settings, "color-scheme");
 
@@ -121,7 +121,7 @@ test_dialog_windows (void)
 	gtk_window_close (popup); /* Window manager close must mean Cancel. */
 	pump (200);
 	g_assert_null (find_window_dialog (GTK_WINDOW (window), ADW_TYPE_ALERT_DIALOG));
-	g_assert_true (termac_terminal_has_foreground_job (terminal));
+	g_assert_true (termuni_terminal_has_foreground_job (terminal));
 
 	g_action_group_activate_action (G_ACTION_GROUP (window), "close-tab", NULL);
 	pump (200);
@@ -180,7 +180,7 @@ test_dialog_windows (void)
 }
 
 static void
-input_problem_cb (TermacTerminal *terminal, const char *message, gpointer data)
+input_problem_cb (TermuniTerminal *terminal, const char *message, gpointer data)
 {
 	guint *count = data;
 	g_assert_nonnull (strstr (message, "connection is closed"));
@@ -190,15 +190,15 @@ input_problem_cb (TermacTerminal *terminal, const char *message, gpointer data)
 static void
 test_closed_input_feedback (void)
 {
-	TermacTerminal *terminal = TERMAC_TERMINAL (termac_terminal_new_command ("/tmp", FALSE, "exec /bin/true"));
+	TermuniTerminal *terminal = TERMUNI_TERMINAL (termuni_terminal_new_command ("/tmp", FALSE, "exec /bin/true"));
 	guint messages = 0;
 	g_object_ref_sink (terminal);
 	pump (500);
 	g_signal_connect (terminal, "message", G_CALLBACK (input_problem_cb), &messages);
-	termac_terminal_insert_text (terminal, "undeliverable input");
+	termuni_terminal_insert_text (terminal, "undeliverable input");
 	pump (100);
 	g_assert_cmpuint (messages, ==, 1);
-	termac_terminal_insert_text (terminal, "more input");
+	termuni_terminal_insert_text (terminal, "more input");
 	pump (100);
 	g_assert_cmpuint (messages, ==, 1);
 	g_object_unref (terminal);

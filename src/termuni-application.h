@@ -1,4 +1,4 @@
-/* termac-application.h
+/* termuni-application.h
  *
  * Copyright 2026 Thiago Aciole
  *
@@ -22,28 +22,28 @@
 
 #include <adwaita.h>
 
-#include "termac-window.h"
-#include "termac-agent.h"
+#include "termuni-window.h"
+#include "termuni-agent.h"
 
 G_BEGIN_DECLS
 
-#define TERMAC_TYPE_APPLICATION (termac_application_get_type())
+#define TERMUNI_TYPE_APPLICATION (termuni_application_get_type())
 
-G_DECLARE_FINAL_TYPE (TermacApplication, termac_application, TERMAC, APPLICATION, AdwApplication)
+G_DECLARE_FINAL_TYPE (TermuniApplication, termuni_application, TERMUNI, APPLICATION, AdwApplication)
 
-TermacApplication *termac_application_new (const char        *application_id,
+TermuniApplication *termuni_application_new (const char        *application_id,
                                            GApplicationFlags  flags);
-GSettings *termac_application_get_settings (TermacApplication *self);
-const TermacAgent *termac_application_get_agent (TermacApplication *self);
+GSettings *termuni_application_get_settings (TermuniApplication *self);
+const TermuniAgent *termuni_application_get_agent (TermuniApplication *self);
 
 /* Explicit synchronous checkpoint of all windows; waits for ordered disk I/O.
  * Failures are logged and preserve the previous consistent file. */
-void termac_application_save_session_now (TermacApplication *self);
+void termuni_application_save_session_now (TermuniApplication *self);
 
 /* Queues an immutable snapshot when a window closes, unless quitting. */
-void termac_application_window_closing (TermacApplication *self);
+void termuni_application_window_closing (TermuniApplication *self);
 
 /* Schedules a save shortly after a change in tabs, folders or titles. */
-void termac_application_request_session_save (TermacApplication *self);
+void termuni_application_request_session_save (TermuniApplication *self);
 
 G_END_DECLS

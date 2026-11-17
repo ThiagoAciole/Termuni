@@ -1,22 +1,22 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include "termac-attachments.h"
+#include "termuni-attachments.h"
 
 #include <gio/gio.h>
 #include <glib/gi18n.h>
 
-#include "termac-util.h"
+#include "termuni-util.h"
 
 static char *
 attachments_root (void)
 {
-	return g_build_filename (g_get_user_cache_dir (), "termac", "attachments", NULL);
+	return g_build_filename (g_get_user_cache_dir (), "termuni", "attachments", NULL);
 }
 
 char *
-termac_attachments_session_dir (const char *session_id)
+termuni_attachments_session_dir (const char *session_id)
 {
 	g_return_val_if_fail (session_id != NULL && *session_id != '\0', NULL);
-	return g_build_filename (g_get_user_cache_dir (), "termac", "attachments", session_id, NULL);
+	return g_build_filename (g_get_user_cache_dir (), "termuni", "attachments", session_id, NULL);
 }
 
 static gboolean
@@ -33,12 +33,12 @@ is_safe_session_id (const char *session_id)
 }
 
 char *
-termac_attachments_store (const char    *session_id,
+termuni_attachments_store (const char    *session_id,
                           const guint8  *data,
                           gsize          length,
                           GError       **error)
 {
-	TermacImageFormat format;
+	TermuniImageFormat format;
 	guint width = 0;
 	guint height = 0;
 	g_autofree char *dir = NULL;
@@ -55,30 +55,30 @@ termac_attachments_store (const char    *session_id,
 		             _("Invalid attachment session"));
 		return NULL;
 	}
-	if (length == 0 || length > TERMAC_ATTACHMENT_MAX_BYTES)
+	if (length == 0 || length > TERMUNI_ATTACHMENT_MAX_BYTES)
 	{
 		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT,
 		             _("Images must be up to 20 MiB"));
 		return NULL;
 	}
-	format = termac_image_probe (data, length, &width, &height);
-	if (format == TERMAC_IMAGE_FORMAT_NONE)
+	format = termuni_image_probe (data, length, &width, &height);
+	if (format == TERMUNI_IMAGE_FORMAT_NONE)
 	{
 		g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
 		             _("Only PNG and JPEG images are accepted"));
 		return NULL;
 	}
 	if (width == 0 || height == 0 ||
-	    width > TERMAC_ATTACHMENT_MAX_DIMENSION || height > TERMAC_ATTACHMENT_MAX_DIMENSION)
+	    width > TERMUNI_ATTACHMENT_MAX_DIMENSION || height > TERMUNI_ATTACHMENT_MAX_DIMENSION)
 	{
 		g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
 		             _("The image is larger than %d px in width or height"),
-		             TERMAC_ATTACHMENT_MAX_DIMENSION);
+		             TERMUNI_ATTACHMENT_MAX_DIMENSION);
 		return NULL;
 	}
 
-	extension = format == TERMAC_IMAGE_FORMAT_PNG ? "png" : "jpg";
-	dir = termac_attachments_session_dir (session_id);
+	extension = format == TERMUNI_IMAGE_FORMAT_PNG ? "png" : "jpg";
+	dir = termuni_attachments_session_dir (session_id);
 	if (g_mkdir_with_parents (dir, 0700) != 0)
 	{
 		g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
@@ -94,7 +94,7 @@ termac_attachments_store (const char    *session_id,
 }
 
 char *
-termac_attachments_import (const char *session_id,
+termuni_attachments_import (const char *session_id,
                            const char *source_path,
                            GError    **error)
 {
@@ -111,7 +111,7 @@ termac_attachments_import (const char *session_id,
 	                          G_FILE_QUERY_INFO_NONE, NULL, error);
 	if (info == NULL)
 		return NULL;
-	if ((gint64) g_file_info_get_size (info) > TERMAC_ATTACHMENT_MAX_BYTES)
+	if ((gint64) g_file_info_get_size (info) > TERMUNI_ATTACHMENT_MAX_BYTES)
 	{
 		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT,
 		             _("Images must be up to 20 MiB"));
@@ -119,18 +119,18 @@ termac_attachments_import (const char *session_id,
 	}
 	if (!g_file_get_contents (source_path, &contents, &length, error))
 		return NULL;
-	return termac_attachments_store (session_id, (const guint8 *) contents, length, error);
+	return termuni_attachments_store (session_id, (const guint8 *) contents, length, error);
 }
 
 void
-termac_attachments_clear_session (const char *session_id)
+termuni_attachments_clear_session (const char *session_id)
 {
 	g_autofree char *dir = NULL;
 	g_autoptr(GFile) folder = NULL;
 
 	if (!is_safe_session_id (session_id))
 		return;
-	dir = termac_attachments_session_dir (session_id);
+	dir = termuni_attachments_session_dir (session_id);
 	folder = g_file_new_for_path (dir);
 	if (g_file_query_exists (folder, NULL))
 	{
@@ -185,7 +185,7 @@ prune_directory (GFile *directory,
 }
 
 void
-termac_attachments_prune (gint64 max_age_seconds)
+termuni_attachments_prune (gint64 max_age_seconds)
 {
 	g_autofree char *root = attachments_root ();
 	g_autoptr(GFile) directory = g_file_new_for_path (root);
@@ -196,7 +196,7 @@ termac_attachments_prune (gint64 max_age_seconds)
 }
 
 char *
-termac_attachments_quote (const char *path)
+termuni_attachments_quote (const char *path)
 {
 	g_return_val_if_fail (path != NULL, NULL);
 	return g_shell_quote (path);

@@ -1,18 +1,18 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "config.h"
-#include "termac-agent.h"
+#include "termuni-agent.h"
 #include <glib/gi18n.h>
-#include "termac-attachments.h"
+#include "termuni-attachments.h"
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-static const TermacAgent registry[] = {
+static const TermuniAgent registry[] = {
 	{ "claude", "Claude Code", "claude" },
 	{ "codex", "Codex CLI", "codex" },
 };
-static const TermacAgent *agents[G_N_ELEMENTS (registry)];
+static const TermuniAgent *agents[G_N_ELEMENTS (registry)];
 static gsize registry_initialized;
 static void
 ensure_registry (void)
@@ -24,8 +24,8 @@ ensure_registry (void)
 	}
 }
 
-const TermacAgent *
-termac_agent_find (const char *id)
+const TermuniAgent *
+termuni_agent_find (const char *id)
 {
 	ensure_registry ();
 	for (guint i = 0; i < G_N_ELEMENTS (agents); i++)
@@ -34,10 +34,10 @@ termac_agent_find (const char *id)
 	return NULL;
 }
 
-const TermacAgent *termac_agent_default (void) { return &registry[0]; }
+const TermuniAgent *termuni_agent_default (void) { return &registry[0]; }
 
-const TermacAgent *const *
-termac_agent_all (gsize *count)
+const TermuniAgent *const *
+termuni_agent_all (gsize *count)
 {
 	ensure_registry ();
 	if (count != NULL) *count = G_N_ELEMENTS (agents);
@@ -45,16 +45,16 @@ termac_agent_all (gsize *count)
 }
 
 char *
-termac_agent_format_attachment (const TermacAgent *agent, const char *path)
+termuni_agent_format_attachment (const TermuniAgent *agent, const char *path)
 {
-	g_autofree char *quoted = termac_attachments_quote (path);
+	g_autofree char *quoted = termuni_attachments_quote (path);
 	/* Both initial adapters accept a quoted path. NULL is the plain-shell case. */
 	(void) agent;
 	return g_strconcat (quoted, " ", NULL);
 }
 
 gboolean
-termac_agent_is_installed (const TermacAgent *agent)
+termuni_agent_is_installed (const TermuniAgent *agent)
 {
 	g_autofree char *program = NULL;
 	if (agent == NULL) return FALSE;
@@ -63,9 +63,9 @@ termac_agent_is_installed (const TermacAgent *agent)
 }
 
 char *
-termac_agent_build_launch_command (const TermacAgent *agent)
+termuni_agent_build_launch_command (const TermuniAgent *agent)
 {
-	return g_shell_quote ((agent != NULL ? agent : termac_agent_default ())->binary);
+	return g_shell_quote ((agent != NULL ? agent : termuni_agent_default ())->binary);
 }
 
 typedef struct {
@@ -184,27 +184,27 @@ agent_check_done (GObject *source, GAsyncResult *result, gpointer data)
 	else
 	{
 		int status = g_subprocess_get_exit_status (check->process);
-		if (status == 0) g_task_return_int (task, TERMAC_AGENT_AVAILABLE);
-		else if (status == 43) g_task_return_int (task, TERMAC_AGENT_MISSING);
-		else if (status == 44) g_task_return_int (task, TERMAC_AGENT_DIRECTORY_MISSING);
+		if (status == 0) g_task_return_int (task, TERMUNI_AGENT_AVAILABLE);
+		else if (status == 43) g_task_return_int (task, TERMUNI_AGENT_MISSING);
+		else if (status == 44) g_task_return_int (task, TERMUNI_AGENT_DIRECTORY_MISSING);
 		else g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, _("Agent availability check failed (status %d)"), status);
 	}
 }
 
 void
-termac_agent_check_async (const TermacAgent *agent, const char *cwd,
+termuni_agent_check_async (const TermuniAgent *agent, const char *cwd,
                          GCancellable *cancellable, GAsyncReadyCallback callback, gpointer user_data)
 {
 	g_autoptr(GTask) task = g_task_new (NULL, cancellable, callback, user_data);
-	g_task_set_source_tag (task, termac_agent_check_async);
+	g_task_set_source_tag (task, termuni_agent_check_async);
 	if (g_task_return_error_if_cancelled (task)) return;
 	if (cwd != NULL && !g_file_test (cwd, G_FILE_TEST_IS_DIR))
 	{
-		g_task_return_int (task, TERMAC_AGENT_DIRECTORY_MISSING);
+		g_task_return_int (task, TERMUNI_AGENT_DIRECTORY_MISSING);
 		return;
 	}
 	{
-		g_autofree char *binary = termac_agent_build_launch_command (agent);
+		g_autofree char *binary = termuni_agent_build_launch_command (agent);
 		g_autofree char *query = g_strdup_printf ("command -v -- %s >/dev/null || exit 43", binary);
 		const char *shell = g_getenv ("SHELL");
 		const char *argv[] = { shell != NULL && *shell != '\0' ? shell : "/bin/sh", "-ic", query, NULL };
@@ -235,10 +235,10 @@ termac_agent_check_async (const TermacAgent *agent, const char *cwd,
 	}
 }
 
-TermacAgentAvailability
-termac_agent_check_finish (GAsyncResult *result, GError **error)
+TermuniAgentAvailability
+termuni_agent_check_finish (GAsyncResult *result, GError **error)
 {
-	g_return_val_if_fail (g_task_is_valid (result, NULL), TERMAC_AGENT_MISSING);
-	g_return_val_if_fail (g_async_result_is_tagged (result, termac_agent_check_async), TERMAC_AGENT_MISSING);
+	g_return_val_if_fail (g_task_is_valid (result, NULL), TERMUNI_AGENT_MISSING);
+	g_return_val_if_fail (g_async_result_is_tagged (result, termuni_agent_check_async), TERMUNI_AGENT_MISSING);
 	return g_task_propagate_int (G_TASK (result), error);
 }

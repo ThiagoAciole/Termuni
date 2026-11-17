@@ -1,12 +1,12 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the termac package.
+# This file is distributed under the same license as the termuni package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: termac\n"
+"Project-Id-Version: termuni\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-11-13 21:32-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -18,128 +18,128 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: data/thiago.aciole.termac.desktop.in:2
-#: data/thiago.aciole.termac.metainfo.xml.in:6 src/termac-window.ui:6
-msgid "Termac"
+#: data/io.github.ThiagoAciole.Termuni.desktop.in:2
+#: data/io.github.ThiagoAciole.Termuni.metainfo.xml.in:6 src/termuni-window.ui:6
+msgid "Termuni"
 msgstr ""
 
-#: data/thiago.aciole.termac.desktop.in:3
+#: data/io.github.ThiagoAciole.Termuni.desktop.in:3
 msgid "Use the command line in tabs"
 msgstr ""
 
-#: data/thiago.aciole.termac.desktop.in:9
+#: data/io.github.ThiagoAciole.Termuni.desktop.in:9
 msgid "shell;prompt;command;terminal;"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:6
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:6
 msgid "Preferred command-line agent"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:7
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:7
 msgid "The agent used to format attachments and open new agent tabs."
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:11 src/termac-application.c:1314
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:11 src/termuni-application.c:1314
 msgid "Color scheme"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:12
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:12
 msgid "Choose the application color scheme."
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:17
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:17
 msgid "Terminal font size"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:18
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:18
 msgid "Font size in points."
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:22
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:22
 msgid "Terminal palette"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:23
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:23
 msgid "Color palette used by terminal sessions."
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:28 src/termac-application.c:1348
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:28 src/termuni-application.c:1348
 msgid "Scrollback lines"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:29
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:29
 msgid ""
 "Number of lines kept above the visible screen in each tab. Applies "
 "immediately to open tabs."
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:33
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:33
 msgid "Confirm closing running programs"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:34
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:34
 msgid ""
 "Ask for confirmation before closing a tab or window whose shell is running a "
 "program."
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:38 src/termac-application.c:1360
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:38 src/termuni-application.c:1360
 msgid "Notify when tasks finish"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:39
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:39
 msgid ""
 "Send a desktop notification when a command or long task finishes in a tab "
 "that is not in focus."
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:43 src/termac-application.c:1356
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:43 src/termuni-application.c:1356
 msgid "Shell integration"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:44
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:44
 msgid ""
-"Report command exit status to Termac. Currently supported for Bash, in new "
+"Report command exit status to Termuni. Currently supported for Bash, in new "
 "tabs."
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:48
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:48
 msgid "Custom accelerators for window and application actions"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:49
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:49
 msgid ""
 "Maps action names such as win.new-tab to accelerators. Actions missing from "
 "this dictionary use the built-in shortcut."
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:53 src/termac-application.c:1341
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:53 src/termuni-application.c:1341
 msgid "Restore tabs at startup"
 msgstr ""
 
-#: data/thiago.aciole.termac.gschema.xml.in:54
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:54
 msgid ""
-"Reopen the tabs of the last window, in their folders, when Termac starts. "
+"Reopen the tabs of the last window, in their folders, when Termuni starts. "
 "Commands are never run again."
 msgstr ""
 
-#: data/thiago.aciole.termac.metainfo.xml.in:7
+#: data/io.github.ThiagoAciole.Termuni.metainfo.xml.in:7
 msgid "A terminal for GNOME"
 msgstr ""
 
-#: data/thiago.aciole.termac.metainfo.xml.in:9
+#: data/io.github.ThiagoAciole.Termuni.metainfo.xml.in:9
 msgid ""
 "Run command-line tools in independent tabs, search terminal history, and "
 "customize fonts and color palettes in a GNOME interface."
 msgstr ""
 
-#: data/thiago.aciole.termac.metainfo.xml.in:10
+#: data/io.github.ThiagoAciole.Termuni.metainfo.xml.in:10
 msgid ""
-"Termac supports image attachments for command-line agents and can restore "
+"Termuni supports image attachments for command-line agents and can restore "
 "tabs in their saved folders."
 msgstr ""
 
-#: data/thiago.aciole.termac.metainfo.xml.in:13
+#: data/io.github.ThiagoAciole.Termuni.metainfo.xml.in:13
 msgid "Thiago Aciole"
 msgstr ""
 
@@ -192,8 +192,8 @@ msgctxt "shortcut window"
 msgid "Toggle full screen"
 msgstr ""
 
-#: src/shortcuts-dialog.ui:65 src/termac-application.c:1313
-#: src/termac-application.c:1347 src/termac-terminal.c:2097
+#: src/shortcuts-dialog.ui:65 src/termuni-application.c:1313
+#: src/termuni-application.c:1347 src/termuni-terminal.c:2097
 msgid "Terminal"
 msgstr ""
 
@@ -270,465 +270,465 @@ msgctxt "shortcut window"
 msgid "Quit"
 msgstr ""
 
-#: src/termac-agent.c:181
+#: src/termuni-agent.c:181
 msgid "Agent availability check timed out"
 msgstr ""
 
-#: src/termac-agent.c:183
+#: src/termuni-agent.c:183
 msgid "Agent availability check was interrupted"
 msgstr ""
 
-#: src/termac-agent.c:190
+#: src/termuni-agent.c:190
 #, c-format
 msgid "Host availability check failed (status %d)"
 msgstr ""
 
-#: src/termac-application.c:406
+#: src/termuni-application.c:406
 msgid "translator-credits"
 msgstr ""
 
-#: src/termac-application.c:461
+#: src/termuni-application.c:461
 #, c-format
-msgid "%u tab has a program running. Quitting Termac stops it."
-msgid_plural "%u tabs have programs running. Quitting Termac stops them."
+msgid "%u tab has a program running. Quitting Termuni stops it."
+msgid_plural "%u tabs have programs running. Quitting Termuni stops them."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/termac-application.c:463
-msgid "Quit Termac?"
+#: src/termuni-application.c:463
+msgid "Quit Termuni?"
 msgstr ""
 
-#: src/termac-application.c:465 src/termac-window.c:190
+#: src/termuni-application.c:465 src/termuni-window.c:190
 msgid "Cancel"
 msgstr ""
 
-#: src/termac-application.c:465 src/termac-application.c:965
+#: src/termuni-application.c:465 src/termuni-application.c:965
 msgid "Quit"
 msgstr ""
 
-#: src/termac-application.c:577
+#: src/termuni-application.c:577
 msgid "Show fewer palettes"
 msgstr ""
 
-#: src/termac-application.c:577 src/termac-application.c:1201
+#: src/termuni-application.c:577 src/termuni-application.c:1201
 msgid "Show all palettes"
 msgstr ""
 
-#: src/termac-application.c:659
+#: src/termuni-application.c:659
 msgid "Checking availability…"
 msgstr ""
 
-#: src/termac-application.c:659
+#: src/termuni-application.c:659
 msgid "Could not check availability"
 msgstr ""
 
-#: src/termac-application.c:660
+#: src/termuni-application.c:660
 msgid "Use Open Agent in the main menu to start it in a new tab."
 msgstr ""
 
-#: src/termac-application.c:660
+#: src/termuni-application.c:660
 msgid "Not installed"
 msgstr ""
 
-#: src/termac-application.c:688 src/termac-application.c:882
+#: src/termuni-application.c:688 src/termuni-application.c:882
 #, c-format
 msgid "%s — Not installed"
 msgstr ""
 
-#: src/termac-application.c:821
+#: src/termuni-application.c:821
 msgid "No attachments"
 msgstr ""
 
-#: src/termac-application.c:841 src/termac-application.c:843
+#: src/termuni-application.c:841 src/termuni-application.c:843
 msgid "Copy path"
 msgstr ""
 
-#: src/termac-application.c:842 src/termac-application.c:844
+#: src/termuni-application.c:842 src/termuni-application.c:844
 msgid "Remove"
 msgstr ""
 
-#: src/termac-application.c:864
+#: src/termuni-application.c:864
 msgid "Clear All"
 msgstr ""
 
-#: src/termac-application.c:885
+#: src/termuni-application.c:885
 msgid "Agent"
 msgstr ""
 
-#: src/termac-application.c:902 src/termac-application.c:1414
+#: src/termuni-application.c:902 src/termuni-application.c:1414
 msgid "Attachments"
 msgstr ""
 
-#: src/termac-application.c:904
+#: src/termuni-application.c:904
 msgid "Images"
 msgstr ""
 
-#: src/termac-application.c:905
+#: src/termuni-application.c:905
 msgid ""
 "Images attached to prompts are kept in the cache. Removing an image does not "
 "change prompts that already contain its path."
 msgstr ""
 
-#: src/termac-application.c:945 src/termac-window.c:361 src/termac-window.ui:57
-#: src/termac-window.ui:58
+#: src/termuni-application.c:945 src/termuni-window.c:361 src/termuni-window.ui:57
+#: src/termuni-window.ui:58
 msgid "New tab"
 msgstr ""
 
-#: src/termac-application.c:946 src/termac-window.c:362
+#: src/termuni-application.c:946 src/termuni-window.c:362
 msgid "New window"
 msgstr ""
 
-#: src/termac-application.c:947 src/termac-window.ui:23 src/termac-window.ui:24
+#: src/termuni-application.c:947 src/termuni-window.ui:23 src/termuni-window.ui:24
 msgid "Show open tabs"
 msgstr ""
 
-#: src/termac-application.c:948
+#: src/termuni-application.c:948
 msgid "Close tab"
 msgstr ""
 
-#: src/termac-application.c:949 src/termac-window.c:365
+#: src/termuni-application.c:949 src/termuni-window.c:365
 msgid "Full screen"
 msgstr ""
 
-#: src/termac-application.c:950 src/termac-window.c:1111
+#: src/termuni-application.c:950 src/termuni-window.c:1111
 msgid "Rename tab"
 msgstr ""
 
-#: src/termac-application.c:951 src/termac-window.ui:32 src/termac-window.ui:33
-#: src/termac-window.ui:85
+#: src/termuni-application.c:951 src/termuni-window.ui:32 src/termuni-window.ui:33
+#: src/termuni-window.ui:85
 msgid "Find in terminal"
 msgstr ""
 
-#: src/termac-application.c:952
+#: src/termuni-application.c:952
 msgid "Copy selection or cancel command"
 msgstr ""
 
-#: src/termac-application.c:953
+#: src/termuni-application.c:953
 msgid "Copy selection"
 msgstr ""
 
-#: src/termac-application.c:954
+#: src/termuni-application.c:954
 msgid "Paste"
 msgstr ""
 
-#: src/termac-application.c:955
+#: src/termuni-application.c:955
 msgid "Paste from clipboard"
 msgstr ""
 
-#: src/termac-application.c:956
+#: src/termuni-application.c:956
 msgid "Start of line"
 msgstr ""
 
-#: src/termac-application.c:957
+#: src/termuni-application.c:957
 msgid "Select all"
 msgstr ""
 
-#: src/termac-application.c:958 src/termac-window.c:364
+#: src/termuni-application.c:958 src/termuni-window.c:364
 msgid "Attach image"
 msgstr ""
 
-#: src/termac-application.c:959 src/termac-window.c:363
+#: src/termuni-application.c:959 src/termuni-window.c:363
 msgid "Open Agent"
 msgstr ""
 
-#: src/termac-application.c:960 src/termac-application.c:1229
-#: src/termac-application.c:1239 src/termac-window.c:367
+#: src/termuni-application.c:960 src/termuni-application.c:1229
+#: src/termuni-application.c:1239 src/termuni-window.c:367
 msgid "Preferences"
 msgstr ""
 
-#: src/termac-application.c:961 src/termac-window.c:368
+#: src/termuni-application.c:961 src/termuni-window.c:368
 msgid "Keyboard shortcuts"
 msgstr ""
 
-#: src/termac-application.c:966
+#: src/termuni-application.c:966
 msgid "Move tab backward"
 msgstr ""
 
-#: src/termac-application.c:967
+#: src/termuni-application.c:967
 msgid "Move tab forward"
 msgstr ""
 
-#: src/termac-application.c:968
+#: src/termuni-application.c:968
 msgid "Next match"
 msgstr ""
 
-#: src/termac-application.c:969
+#: src/termuni-application.c:969
 msgid "Previous match"
 msgstr ""
 
-#: src/termac-application.c:1122
+#: src/termuni-application.c:1122
 #, c-format
 msgid "%s is already used by %s"
 msgstr ""
 
-#: src/termac-application.c:1149
+#: src/termuni-application.c:1149
 msgid "Shortcut"
 msgstr ""
 
-#: src/termac-application.c:1152
+#: src/termuni-application.c:1152
 msgid "Press the new shortcut"
 msgstr ""
 
-#: src/termac-application.c:1153
+#: src/termuni-application.c:1153
 msgid "Use Ctrl, Alt, Shift or Super. Press Escape to cancel."
 msgstr ""
 
-#: src/termac-application.c:1204
+#: src/termuni-application.c:1204
 msgid "System"
 msgstr ""
 
-#: src/termac-application.c:1204 src/termac-window.c:295
+#: src/termuni-application.c:1204 src/termuni-window.c:295
 msgid "Light"
 msgstr ""
 
-#: src/termac-application.c:1204 src/termac-window.c:295
+#: src/termuni-application.c:1204 src/termuni-window.c:295
 msgid "Dark"
 msgstr ""
 
-#: src/termac-application.c:1237
+#: src/termuni-application.c:1237
 msgid "Search palettes"
 msgstr ""
 
-#: src/termac-application.c:1238
+#: src/termuni-application.c:1238
 msgid "Close preferences"
 msgstr ""
 
 #. Appearance: palette grid with expander, then terminal colors and font.
-#: src/termac-application.c:1249 src/termac-application.c:1410
+#: src/termuni-application.c:1249 src/termuni-application.c:1410
 msgid "Appearance"
 msgstr ""
 
-#: src/termac-application.c:1250
+#: src/termuni-application.c:1250
 msgid "Palette"
 msgstr ""
 
-#: src/termac-application.c:1319
+#: src/termuni-application.c:1319
 msgid "Font size"
 msgstr ""
 
-#: src/termac-application.c:1320
+#: src/termuni-application.c:1320
 msgid "Size in points"
 msgstr ""
 
 #. General: startup, terminal, shell integration and safety options.
-#: src/termac-application.c:1329 src/termac-application.c:1408
+#: src/termuni-application.c:1329 src/termuni-application.c:1408
 msgid "General"
 msgstr ""
 
-#: src/termac-application.c:1340
+#: src/termuni-application.c:1340
 msgid "Startup"
 msgstr ""
 
-#: src/termac-application.c:1342
+#: src/termuni-application.c:1342
 msgid "Reopens the tabs in their folders. Commands are not run again"
 msgstr ""
 
-#: src/termac-application.c:1349
+#: src/termuni-application.c:1349
 msgid "Lines kept above the screen in each tab"
 msgstr ""
 
-#: src/termac-application.c:1355
+#: src/termuni-application.c:1355
 msgid "Integration"
 msgstr ""
 
-#: src/termac-application.c:1357
+#: src/termuni-application.c:1357
 msgid "Reports command results. Bash only, for new tabs"
 msgstr ""
 
-#: src/termac-application.c:1361
+#: src/termuni-application.c:1361
 msgid "Only for tabs that are not in focus"
 msgstr ""
 
-#: src/termac-application.c:1366
+#: src/termuni-application.c:1366
 msgid "Safety"
 msgstr ""
 
-#: src/termac-application.c:1367
+#: src/termuni-application.c:1367
 msgid "Confirm before closing"
 msgstr ""
 
-#: src/termac-application.c:1368
+#: src/termuni-application.c:1368
 msgid "Ask when a program is still running"
 msgstr ""
 
 #. Shortcuts: editable window and app actions, then the fixed terminal list.
-#: src/termac-application.c:1375 src/termac-application.c:1412
+#: src/termuni-application.c:1375 src/termuni-application.c:1412
 msgid "Shortcuts"
 msgstr ""
 
-#: src/termac-application.c:1378
+#: src/termuni-application.c:1378
 msgid "Restore defaults"
 msgstr ""
 
-#: src/termac-application.c:1382
+#: src/termuni-application.c:1382
 msgid "Editable shortcuts"
 msgstr ""
 
-#: src/termac-attachments.c:55
+#: src/termuni-attachments.c:55
 #, c-format
 msgid "Invalid attachment session"
 msgstr ""
 
-#: src/termac-attachments.c:61 src/termac-attachments.c:117
+#: src/termuni-attachments.c:61 src/termuni-attachments.c:117
 #, c-format
 msgid "Images must be up to 20 MiB"
 msgstr ""
 
-#: src/termac-attachments.c:68
+#: src/termuni-attachments.c:68
 #, c-format
 msgid "Only PNG and JPEG images are accepted"
 msgstr ""
 
-#: src/termac-attachments.c:75
+#: src/termuni-attachments.c:75
 #, c-format
 msgid "The image is larger than %d px in width or height"
 msgstr ""
 
-#: src/termac-attachments.c:85
+#: src/termuni-attachments.c:85
 #, c-format
 msgid "Could not create the attachments folder"
 msgstr ""
 
-#: src/termac-terminal.c:258 src/termac-terminal.c:276
+#: src/termuni-terminal.c:258 src/termuni-terminal.c:276
 msgid "The terminal connection is closed. Open a new tab to continue."
 msgstr ""
 
-#: src/termac-terminal.c:287
+#: src/termuni-terminal.c:287
 msgid ""
 "The terminal input buffer is full. Wait for the program to read input, then "
 "try again."
 msgstr ""
 
-#: src/termac-terminal.c:593 src/termac-terminal.c:606
+#: src/termuni-terminal.c:593 src/termuni-terminal.c:606
 #, c-format
 msgid "Could not create the terminal: %s"
 msgstr ""
 
-#: src/termac-terminal.c:639
+#: src/termuni-terminal.c:639
 #, c-format
 msgid "Could not start the shell %s: %s"
 msgstr ""
 
-#: src/termac-terminal.c:655
+#: src/termuni-terminal.c:655
 msgid "Could not configure terminal input."
 msgstr ""
 
-#: src/termac-terminal.c:780
+#: src/termuni-terminal.c:780
 #, c-format
 msgid "The terminal engine could not be created (%d)."
 msgstr ""
 
-#: src/termac-terminal.c:832
+#: src/termuni-terminal.c:832
 msgid "Press Enter or click to try again."
 msgstr ""
 
-#: src/termac-terminal.c:1730 src/termac-window.c:976
+#: src/termuni-terminal.c:1730 src/termuni-window.c:976
 msgid "Image attached to the prompt"
 msgstr ""
 
-#: src/termac-window.c:295
+#: src/termuni-window.c:295
 msgid "Follow system theme"
 msgstr ""
 
-#: src/termac-window.c:369
+#: src/termuni-window.c:369
 msgid "About"
 msgstr ""
 
-#: src/termac-window.c:506
+#: src/termuni-window.c:506
 #, c-format
 msgid "Exit status %d"
 msgstr ""
 
 #. Explicit shell completion reports are eligible regardless of duration;
 #. * the process-polling fallback below retains its long-task threshold.
-#: src/termac-window.c:509
+#: src/termuni-window.c:509
 msgid "Command finished"
 msgstr ""
 
-#: src/termac-window.c:510
+#: src/termuni-window.c:510
 msgid "Completed successfully"
 msgstr ""
 
-#: src/termac-window.c:530
+#: src/termuni-window.c:530
 msgid "Task finished"
 msgstr ""
 
-#: src/termac-window.c:530
+#: src/termuni-window.c:530
 msgid "A long-running task in a tab has finished."
 msgstr ""
 
-#: src/termac-window.c:617
+#: src/termuni-window.c:617
 msgid "Could not check agent availability. Try again."
 msgstr ""
 
-#: src/termac-window.c:620
+#: src/termuni-window.c:620
 #, c-format
 msgid "%s is not installed"
 msgstr ""
 
-#: src/termac-window.c:624
+#: src/termuni-window.c:624
 msgid "The folder no longer exists"
 msgstr ""
 
-#: src/termac-window.c:740
+#: src/termuni-window.c:740
 msgid "Close this tab?"
 msgstr ""
 
-#: src/termac-window.c:741
+#: src/termuni-window.c:741
 msgid "A program is still running in this tab. Closing the tab stops it."
 msgstr ""
 
-#: src/termac-window.c:742
+#: src/termuni-window.c:742
 msgid "Close Tab"
 msgstr ""
 
-#: src/termac-window.c:787
+#: src/termuni-window.c:787
 #, c-format
 msgid "%u tab has a program running. Closing the window stops it."
 msgid_plural "%u tabs have programs running. Closing the window stops them."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/termac-window.c:790
+#: src/termuni-window.c:790
 msgid "Close window?"
 msgstr ""
 
-#: src/termac-window.c:790
+#: src/termuni-window.c:790
 msgid "Close Window"
 msgstr ""
 
-#: src/termac-window.c:896
+#: src/termuni-window.c:896
 msgid "No matches"
 msgstr ""
 
-#: src/termac-window.c:989
+#: src/termuni-window.c:989
 msgid "The image could not be attached"
 msgstr ""
 
-#: src/termac-window.c:1020
+#: src/termuni-window.c:1020
 msgid "PNG and JPEG images"
 msgstr ""
 
-#: src/termac-window.c:1112
+#: src/termuni-window.c:1112
 msgid "Leave empty to return to the automatic title."
 msgstr ""
 
-#: src/termac-window.c:1113 src/termac-window.c:1119
+#: src/termuni-window.c:1113 src/termuni-window.c:1119
 msgid "Rename"
 msgstr ""
 
-#: src/termac-window.c:1235
+#: src/termuni-window.c:1235
 msgid "Rename Tab"
 msgstr ""
 
-#: src/termac-window.c:1236
+#: src/termuni-window.c:1236
 msgid "Move to New Window"
 msgstr ""
 
-#: src/termac-window.ui:50 src/termac-window.ui:51
+#: src/termuni-window.ui:50 src/termuni-window.ui:51
 msgid "Main menu"
 msgstr ""
 
-#: src/termac-window.ui:92 src/termac-window.ui:93
+#: src/termuni-window.ui:92 src/termuni-window.ui:93
 msgid "Close search"
 msgstr ""

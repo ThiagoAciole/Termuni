@@ -1,12 +1,12 @@
-# Ferramentas do Termac
+# Ferramentas do Termuni
 
 Executar a partir da raiz. Build, perfis e suíte padrão estão em [docs/development.md](../docs/development.md).
 
 | Ferramenta | Uso | Efeito / limite |
 | --- | --- | --- |
 | `dev.sh` | Compilar e abrir desenvolvimento, com traduções locais | Verifica o executável development desta raiz em `/proc`, preservando outros perfis/checkouts; `--restart` avisa os PIDs e encerra somente suas sessões. Recusa perfil default, partida falha e duplicação após timeout. Não executar esse modo sem informar antes. |
-| `build-deb.py [--builddir DIR] [--output DIR]` | Compilar perfil `default` e gerar pacote Debian instalável | Requer Zig 0.16.0, Meson, Ninja e `dpkg-dev`; saída local em `dist/`. Instale com `sudo apt install ./dist/thiago.aciole.termac_*.deb`. |
-| `inspect_termac.py --root . --json` | Inventário heurístico do frontend e versões locais | Somente leitura. Ignora builds/caches e Ghostty baixado, mas mantém a integração `subprojects/packagefiles/ghostty`. Não comprova ABI/linkagem nem suporte a funcionalidades do motor. |
+| `build-deb.py [--builddir DIR] [--output DIR]` | Compilar perfil `default` e gerar pacote Debian instalável | Requer Zig 0.16.0, Meson, Ninja e `dpkg-dev`; saída local em `dist/`. Instale com `sudo apt install ./dist/io.github.ThiagoAciole.Termuni_*.deb`. |
+| `inspect_termuni.py --root . --json` | Inventário heurístico do frontend e versões locais | Somente leitura. Ignora builds/caches e Ghostty baixado, mas mantém a integração `subprojects/packagefiles/ghostty`. Não comprova ABI/linkagem nem suporte a funcionalidades do motor. |
 | `prepare-icon.py INPUT OUTPUT` | Gerar canvas quadrado para instalação | Chamado pelo Meson; não sobrescrever o SVG fonte. |
 | `check-agent-boundary.py src` | Detectar nomes de CLIs fora dos adaptadores | Já integra `meson test` como `agent-names-contained`. |
 | `valgrind-churn.sh [rounds]` | Abrir/fechar abas sob Valgrind | Cria/usa `build-valgrind` sem SIMD e display Xvfb próprio; consultar o script e `valgrind.supp` antes de interpretar o resultado. |

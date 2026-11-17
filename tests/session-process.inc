@@ -7,7 +7,7 @@ session_process_child (gpointer data)
 	const char *mode = data;
 	g_autofree char *expected_path = g_build_filename (g_get_user_state_dir (), "expected", NULL);
 	g_autofree char *selection_path = g_build_filename (g_get_user_state_dir (), "selection", NULL);
-	TermacWindow *window;
+	TermuniWindow *window;
 	g_autoptr(GVariant) state = NULL;
 	gint selected = 0;
 	g_application_activate (G_APPLICATION (app));
@@ -31,7 +31,7 @@ session_process_child (gpointer data)
 		while (!g_file_test (pidfile, G_FILE_TEST_EXISTS) && g_get_monotonic_time () < deadline)
 			pump (50);
 		g_assert_true (g_file_test (pidfile, G_FILE_TEST_EXISTS));
-		g_settings_set_boolean (termac_application_get_settings (app), "confirm-close", FALSE);
+		g_settings_set_boolean (termuni_application_get_settings (app), "confirm-close", FALSE);
 		g_action_group_activate_action (G_ACTION_GROUP (app), "quit", NULL);
 		return G_SOURCE_REMOVE;
 	}
@@ -43,7 +43,7 @@ session_process_child (gpointer data)
 		g_object_set_data_full (G_OBJECT (terminal_of_page (window, 0)), "manual-title",
 		                        g_strdup ("Build; touch never-execute"), g_free);
 	}
-	state = g_variant_ref_sink (termac_window_session_state (window, &selected));
+	state = g_variant_ref_sink (termuni_window_session_state (window, &selected));
 	if (g_str_equal (mode, "unreadable"))
 	{
 		/* An unreadable current session must never resurrect obsolete v2. */
@@ -76,7 +76,7 @@ session_process_child (gpointer data)
 		g_autoptr(GBytes) bytes = g_variant_get_data_as_bytes (state);
 		g_autofree char *selection = g_strdup_printf ("%d", selected);
 		g_assert_cmpuint (g_variant_n_children (state), ==, 2);
-		termac_application_save_session_now (app);
+		termuni_application_save_session_now (app);
 		g_assert_true (g_file_set_contents (expected_path, g_bytes_get_data (bytes, NULL), g_bytes_get_size (bytes), NULL));
 		g_assert_true (g_file_set_contents (selection_path, selection, -1, NULL));
 	}
@@ -91,10 +91,10 @@ run_session_child (const char *root, const char *mode)
 	g_autoptr(GSubprocessLauncher) launcher = g_subprocess_launcher_new (G_SUBPROCESS_FLAGS_NONE);
 	g_autoptr(GSubprocess) child = NULL;
 	g_autoptr(GError) error = NULL;
-	g_subprocess_launcher_setenv (launcher, "TERMAC_SESSION_PROCESS_ROOT", root, TRUE);
-	g_subprocess_launcher_setenv (launcher, "TERMAC_SESSION_PROCESS_MODE", mode, TRUE);
+	g_subprocess_launcher_setenv (launcher, "TERMUNI_SESSION_PROCESS_ROOT", root, TRUE);
+	g_subprocess_launcher_setenv (launcher, "TERMUNI_SESSION_PROCESS_MODE", mode, TRUE);
 	/* Never use the desktop session bus, even if the runner inherited one. */
-	g_subprocess_launcher_setenv (launcher, "DBUS_SESSION_BUS_ADDRESS", "unix:path=/nonexistent/termac-test-bus", TRUE);
+	g_subprocess_launcher_setenv (launcher, "DBUS_SESSION_BUS_ADDRESS", "unix:path=/nonexistent/termuni-test-bus", TRUE);
 	child = g_subprocess_launcher_spawn (launcher, &error, "/proc/self/exe", NULL);
 	g_assert_no_error (error);
 	g_assert_true (g_subprocess_wait_check (child, NULL, &error));
@@ -104,8 +104,8 @@ run_session_child (const char *root, const char *mode)
 static void
 test_session_cross_process_restart (void)
 {
-	g_autofree char *root = g_dir_make_tmp ("termac-restart-XXXXXX", NULL);
-	g_autofree char *v2 = g_build_filename (root, "termac", "session-v2.gvariant", NULL);
+	g_autofree char *root = g_dir_make_tmp ("termuni-restart-XXXXXX", NULL);
+	g_autofree char *v2 = g_build_filename (root, "termuni", "session-v2.gvariant", NULL);
 	g_autofree char *dir = g_path_get_dirname (v2);
 	g_autofree char *source = NULL;
 	gsize length, source_length;
@@ -135,7 +135,7 @@ test_session_cross_process_restart (void)
 			g_assert_cmpint (g_chmod (v3, 0600), ==, 0);
 		}
 		g_unlink (v3);
-		g_assert_cmpint (symlink ("/nonexistent/termac-unreadable-session", v3), ==, 0);
+		g_assert_cmpint (symlink ("/nonexistent/termuni-unreadable-session", v3), ==, 0);
 		run_session_child (root, "unreadable");
 		g_assert_true (g_file_test (v3, G_FILE_TEST_IS_SYMLINK));
 		g_unlink (v3);
@@ -165,7 +165,7 @@ test_session_cross_process_restart (void)
 static void
 test_process_quit_reaps_resistant_child (void)
 {
-	g_autofree char *root = g_dir_make_tmp ("termac-quit-process-XXXXXX", NULL);
+	g_autofree char *root = g_dir_make_tmp ("termuni-quit-process-XXXXXX", NULL);
 	g_autofree char *pidfile = g_build_filename (root, "resistant.pid", NULL);
 	g_autofree char *contents = NULL;
 	pid_t pid;

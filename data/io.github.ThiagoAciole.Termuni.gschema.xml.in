@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<schemalist gettext-domain="termac">
+<schemalist gettext-domain="termuni">
   <schema id="@application_id@" path="@settings_path@">
     <key name="agent" type="s">
       <default>'claude'</default>
@@ -41,7 +41,7 @@
     <key name="shell-integration" type="b">
       <default>false</default>
       <summary>Shell integration</summary>
-      <description>Report command exit status to Termac. Currently supported for Bash, in new tabs.</description>
+      <description>Report command exit status to Termuni. Currently supported for Bash, in new tabs.</description>
     </key>
     <key name="action-shortcuts" type="a{ss}">
       <default>{}</default>
@@ -51,7 +51,7 @@
     <key name="restore-session" type="b">
       <default>true</default>
       <summary>Restore tabs at startup</summary>
-      <description>Reopen the tabs of the last window, in their folders, when Termac starts. Commands are never run again.</description>
+      <description>Reopen the tabs of the last window, in their folders, when Termuni starts. Commands are never run again.</description>
     </key>
   </schema>
 </schemalist>

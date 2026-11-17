@@ -5,8 +5,8 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 build="$root/build"
-binary="$build/src/termac"
-log="${TERMAC_DEV_LOG:-$HOME/.cache/termac/dev.log}"
+binary="$build/src/termuni"
+log="${TERMUNI_DEV_LOG:-$HOME/.cache/termuni/dev.log}"
 
 restart=0
 case "${1:-}" in
@@ -16,14 +16,14 @@ case "${1:-}" in
 esac
 
 # Serialize two invocations without holding the lock in the launched app.
-exec 9>"$root/.termac-dev.lock"
+exec 9>"$root/.termuni-dev.lock"
 flock -n 9 || { echo "Another development launch is in progress for $root" >&2; exit 1; }
 
 if [ ! -d "$build" ]; then
 	meson setup "$build" "$root" -Dprofile=development
 fi
 # Refuse a default-profile build before compiling or signalling any process.
-if ! grep -qxF '#define APPLICATION_ID "thiago.aciole.Termac.Devel"' "$build/config.h"; then
+if ! grep -qxF '#define APPLICATION_ID "io.github.ThiagoAciole.Termuni.Devel"' "$build/config.h"; then
 	echo "Refusing to launch/restart: $build is not a development-profile build." >&2
 	exit 1
 fi
@@ -41,7 +41,7 @@ matching_pids() {
 		pid="${process##*/}"
 		# Cheap candidate filter; executable identity below decides the scope.
 		IFS= read -r name < "$process/comm" 2>/dev/null || continue
-		[[ "$name" == termac ]] || continue
+		[[ "$name" == termuni ]] || continue
 		if matches_binary "$pid"; then printf '%s\n' "$pid"; fi
 	done
 }
@@ -72,11 +72,11 @@ locale_dir="$build/locale"
 while read -r lang; do
 	case "$lang" in ''|\#*) continue ;; esac
 	mkdir -p "$locale_dir/$lang/LC_MESSAGES"
-	msgfmt -o "$locale_dir/$lang/LC_MESSAGES/termac.mo" "$root/po/$lang.po"
+	msgfmt -o "$locale_dir/$lang/LC_MESSAGES/termuni.mo" "$root/po/$lang.po"
 done < "$root/po/LINGUAS"
 
 mkdir -p "$(dirname "$log")"
-TERMAC_LOCALEDIR="$locale_dir" setsid "$binary" 9>&- >"$log" 2>&1 < /dev/null &
+TERMUNI_LOCALEDIR="$locale_dir" setsid "$binary" 9>&- >"$log" 2>&1 < /dev/null &
 pid=$!
 # Detect startup errors and single-instance handoff instead of claiming success.
 sleep 0.5
@@ -84,4 +84,4 @@ if ! matches_binary "$pid"; then
 	echo "Development binary exited during startup; inspect $log" >&2
 	exit 1
 fi
-echo "Termac dev started (PID: $pid, executable: $binary, log: $log)"
+echo "Termuni dev started (PID: $pid, executable: $binary, log: $log)"

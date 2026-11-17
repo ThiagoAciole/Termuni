@@ -117,7 +117,7 @@ def main():
     if not registry:
         print('SKIP: AT-SPI registry unavailable')
         return 77
-    with tempfile.TemporaryDirectory(prefix='termac-private-atspi-') as directory:
+    with tempfile.TemporaryDirectory(prefix='termuni-private-atspi-') as directory:
         root = Path(directory)
         env = os.environ.copy()
         for key in ['DBUS_SESSION_BUS_ADDRESS', 'AT_SPI_BUS_ADDRESS', 'DBUS_STARTER_ADDRESS',
@@ -128,7 +128,7 @@ def main():
             path.mkdir(mode=0o700)
             env[key] = str(path)
         env.update(GSETTINGS_BACKEND='memory', GIO_USE_VFS='local', GTK_A11Y='atspi',
-                   GDK_BACKEND='x11', TERMAC_ATSPI_FIXTURE=str(root))
+                   GDK_BACKEND='x11', TERMUNI_ATSPI_FIXTURE=str(root))
         config = root / 'bus.conf'
         # No service directories: do not autostart portals/keyrings on this test bus.
         config.write_text('<busconfig><type>session</type><listen>unix:tmpdir=' + str(root) +

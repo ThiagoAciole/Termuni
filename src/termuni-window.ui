@@ -2,8 +2,8 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <requires lib="Adw" version="1.8"/>
-  <template class="TermacWindow" parent="AdwApplicationWindow">
-    <property name="title" translatable="yes">Termac</property>
+  <template class="TermuniWindow" parent="AdwApplicationWindow">
+    <property name="title" translatable="yes">Termuni</property>
     <property name="default-width">800</property>
     <property name="default-height">650</property>
     <property name="content">
@@ -16,7 +16,7 @@
               <object class="AdwToolbarView" id="toolbar_view">
                 <child type="top">
                   <object class="AdwHeaderBar" id="header_bar">
-                    <style><class name="termac-header"/></style>
+                    <style><class name="termuni-header"/></style>
                     <child type="start">
                       <object class="GtkButton" id="overview_button">
                         <property name="icon-name">view-grid-symbolic</property>
@@ -39,7 +39,7 @@
                       <object class="GtkBox">
                         <property name="orientation">vertical</property>
                         <property name="spacing">0</property>
-                        <child><object class="GtkLabel" id="header_title"><property name="label">Termac</property><property name="ellipsize">end</property><property name="max-width-chars">32</property><style><class name="heading"/></style></object></child>
+                        <child><object class="GtkLabel" id="header_title"><property name="label">Termuni</property><property name="ellipsize">end</property><property name="max-width-chars">32</property><style><class name="heading"/></style></object></child>
                         <child><object class="GtkLabel" id="header_subtitle"><property name="label">~</property><property name="ellipsize">middle</property><property name="max-width-chars">40</property><style><class name="caption"/><class name="dim-label"/></style></object></child>
                       </object>
                     </property>
@@ -62,7 +62,7 @@
                     </child>
                     <child type="end">
                       <object class="GtkMenuButton" id="agents_button">
-                        <property name="icon-name">termac-agents-symbolic</property>
+                        <property name="icon-name">termuni-agents-symbolic</property>
                         <property name="tooltip-text" translatable="yes">Open AI agent</property>
                         <accessibility><property name="label" translatable="yes">Open AI agent</property></accessibility>
                         <style><class name="flat"/></style>
@@ -72,14 +72,14 @@
                 </child>
                 <child type="top">
                   <object class="AdwTabBar" id="tab_bar">
-                    <style><class name="termac-tabbar"/></style>
+                    <style><class name="termuni-tabbar"/></style>
                     <property name="autohide">true</property>
                   </object>
                 </child>
 
                 <child type="bottom">
                   <object class="GtkSearchBar" id="find_bar">
-                    <style><class name="termac-searchbar"/></style>
+                    <style><class name="termuni-searchbar"/></style>
                     <property name="visible">false</property>
                     <property name="margin-bottom">8</property>
                     <property name="margin-start">8</property>

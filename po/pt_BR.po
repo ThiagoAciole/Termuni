@@ -1,14 +1,14 @@
-# Brazilian Portuguese translation of Termac.
+# Brazilian Portuguese translation of Termuni.
 # Copyright (C) 2026 Thiago Aciole
-# This file is distributed under the same license as the termac package.
+# This file is distributed under the same license as the termuni package.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: termac\n"
+"Project-Id-Version: termuni\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-11-13 21:32-0300\n"
 "PO-Revision-Date: 2026-11-13 18:06-0300\n"
-"Last-Translator: Termac contributors\n"
+"Last-Translator: Termuni contributors\n"
 "Language-Team: Brazilian Portuguese\n"
 "Language: pt_BR\n"
 "MIME-Version: 1.0\n"
@@ -16,56 +16,56 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: data/thiago.aciole.termac.desktop.in:2
-#: data/thiago.aciole.termac.metainfo.xml.in:6 src/termac-window.ui:6
-msgid "Termac"
-msgstr "Termac"
+#: data/io.github.ThiagoAciole.Termuni.desktop.in:2
+#: data/io.github.ThiagoAciole.Termuni.metainfo.xml.in:6 src/termuni-window.ui:6
+msgid "Termuni"
+msgstr "Termuni"
 
-#: data/thiago.aciole.termac.desktop.in:3
+#: data/io.github.ThiagoAciole.Termuni.desktop.in:3
 msgid "Use the command line in tabs"
 msgstr "Use a linha de comando em abas"
 
-#: data/thiago.aciole.termac.desktop.in:9
+#: data/io.github.ThiagoAciole.Termuni.desktop.in:9
 msgid "shell;prompt;command;terminal;"
 msgstr "shell;prompt;comando;terminal;"
 
-#: data/thiago.aciole.termac.gschema.xml.in:6
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:6
 msgid "Preferred command-line agent"
 msgstr "Agente de linha de comando preferido"
 
-#: data/thiago.aciole.termac.gschema.xml.in:7
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:7
 msgid "The agent used to format attachments and open new agent tabs."
 msgstr "O agente usado para formatar anexos e abrir novas abas de agente."
 
-#: data/thiago.aciole.termac.gschema.xml.in:11 src/termac-application.c:1314
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:11 src/termuni-application.c:1314
 msgid "Color scheme"
 msgstr "Esquema de cores"
 
-#: data/thiago.aciole.termac.gschema.xml.in:12
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:12
 msgid "Choose the application color scheme."
 msgstr "Escolhe o esquema de cores do aplicativo."
 
-#: data/thiago.aciole.termac.gschema.xml.in:17
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:17
 msgid "Terminal font size"
 msgstr "Tamanho da fonte do terminal"
 
-#: data/thiago.aciole.termac.gschema.xml.in:18
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:18
 msgid "Font size in points."
 msgstr "Tamanho da fonte em pontos."
 
-#: data/thiago.aciole.termac.gschema.xml.in:22
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:22
 msgid "Terminal palette"
 msgstr "Paleta do terminal"
 
-#: data/thiago.aciole.termac.gschema.xml.in:23
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:23
 msgid "Color palette used by terminal sessions."
 msgstr "Paleta de cores usada pelas sessões do terminal."
 
-#: data/thiago.aciole.termac.gschema.xml.in:28 src/termac-application.c:1348
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:28 src/termuni-application.c:1348
 msgid "Scrollback lines"
 msgstr "Linhas de histórico"
 
-#: data/thiago.aciole.termac.gschema.xml.in:29
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:29
 msgid ""
 "Number of lines kept above the visible screen in each tab. Applies "
 "immediately to open tabs."
@@ -73,11 +73,11 @@ msgstr ""
 "Número de linhas mantidas acima da tela em cada aba. Vale imediatamente para "
 "as abas abertas."
 
-#: data/thiago.aciole.termac.gschema.xml.in:33
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:33
 msgid "Confirm closing running programs"
 msgstr "Confirmar fechamento de programas em execução"
 
-#: data/thiago.aciole.termac.gschema.xml.in:34
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:34
 msgid ""
 "Ask for confirmation before closing a tab or window whose shell is running a "
 "program."
@@ -85,11 +85,11 @@ msgstr ""
 "Pede confirmação antes de fechar uma aba ou janela cujo shell esteja "
 "executando um programa."
 
-#: data/thiago.aciole.termac.gschema.xml.in:38 src/termac-application.c:1360
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:38 src/termuni-application.c:1360
 msgid "Notify when tasks finish"
 msgstr "Notificar ao concluir tarefas"
 
-#: data/thiago.aciole.termac.gschema.xml.in:39
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:39
 msgid ""
 "Send a desktop notification when a command or long task finishes in a tab "
 "that is not in focus."
@@ -97,23 +97,23 @@ msgstr ""
 "Envia uma notificação do sistema quando um comando ou tarefa longa termina "
 "em uma aba que não está em foco."
 
-#: data/thiago.aciole.termac.gschema.xml.in:43 src/termac-application.c:1356
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:43 src/termuni-application.c:1356
 msgid "Shell integration"
 msgstr "Integração com o shell"
 
-#: data/thiago.aciole.termac.gschema.xml.in:44
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:44
 msgid ""
-"Report command exit status to Termac. Currently supported for Bash, in new "
+"Report command exit status to Termuni. Currently supported for Bash, in new "
 "tabs."
 msgstr ""
-"Informa ao Termac o código de saída dos comandos. Atualmente suportado para "
+"Informa ao Termuni o código de saída dos comandos. Atualmente suportado para "
 "Bash, em novas abas."
 
-#: data/thiago.aciole.termac.gschema.xml.in:48
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:48
 msgid "Custom accelerators for window and application actions"
 msgstr "Atalhos personalizados para ações da janela e do aplicativo"
 
-#: data/thiago.aciole.termac.gschema.xml.in:49
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:49
 msgid ""
 "Maps action names such as win.new-tab to accelerators. Actions missing from "
 "this dictionary use the built-in shortcut."
@@ -121,22 +121,22 @@ msgstr ""
 "Associa ações como win.new-tab a atalhos. Ações ausentes usam o atalho "
 "padrão."
 
-#: data/thiago.aciole.termac.gschema.xml.in:53 src/termac-application.c:1341
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:53 src/termuni-application.c:1341
 msgid "Restore tabs at startup"
 msgstr "Restaurar abas ao iniciar"
 
-#: data/thiago.aciole.termac.gschema.xml.in:54
+#: data/io.github.ThiagoAciole.Termuni.gschema.xml.in:54
 msgid ""
-"Reopen the tabs of the last window, in their folders, when Termac starts. "
+"Reopen the tabs of the last window, in their folders, when Termuni starts. "
 "Commands are never run again."
 msgstr ""
 "Reabre as abas em suas pastas. Os comandos não são executados novamente"
 
-#: data/thiago.aciole.termac.metainfo.xml.in:7
+#: data/io.github.ThiagoAciole.Termuni.metainfo.xml.in:7
 msgid "A terminal for GNOME"
 msgstr "Um terminal para o GNOME"
 
-#: data/thiago.aciole.termac.metainfo.xml.in:9
+#: data/io.github.ThiagoAciole.Termuni.metainfo.xml.in:9
 msgid ""
 "Run command-line tools in independent tabs, search terminal history, and "
 "customize fonts and color palettes in a GNOME interface."
@@ -145,15 +145,15 @@ msgstr ""
 "histórico do terminal e personalize fontes e paletas de cores em uma "
 "interface GNOME."
 
-#: data/thiago.aciole.termac.metainfo.xml.in:10
+#: data/io.github.ThiagoAciole.Termuni.metainfo.xml.in:10
 msgid ""
-"Termac supports image attachments for command-line agents and can restore "
+"Termuni supports image attachments for command-line agents and can restore "
 "tabs in their saved folders."
 msgstr ""
-"O Termac oferece anexos de imagem para agentes de linha de comando e pode "
+"O Termuni oferece anexos de imagem para agentes de linha de comando e pode "
 "restaurar abas nas pastas salvas."
 
-#: data/thiago.aciole.termac.metainfo.xml.in:13
+#: data/io.github.ThiagoAciole.Termuni.metainfo.xml.in:13
 msgid "Thiago Aciole"
 msgstr "Thiago Aciole"
 
@@ -206,8 +206,8 @@ msgctxt "shortcut window"
 msgid "Toggle full screen"
 msgstr "Alternar tela cheia"
 
-#: src/shortcuts-dialog.ui:65 src/termac-application.c:1313
-#: src/termac-application.c:1347 src/termac-terminal.c:2097
+#: src/shortcuts-dialog.ui:65 src/termuni-application.c:1313
+#: src/termuni-application.c:1347 src/termuni-terminal.c:2097
 msgid "Terminal"
 msgstr "Terminal"
 
@@ -284,100 +284,100 @@ msgctxt "shortcut window"
 msgid "Quit"
 msgstr "Sair"
 
-#: src/termac-agent.c:181
+#: src/termuni-agent.c:181
 msgid "Agent availability check timed out"
 msgstr "A verificação de disponibilidade do agente excedeu o tempo limite"
 
-#: src/termac-agent.c:183
+#: src/termuni-agent.c:183
 msgid "Agent availability check was interrupted"
 msgstr "A verificação de disponibilidade do agente foi interrompida"
 
-#: src/termac-agent.c:190
+#: src/termuni-agent.c:190
 #, c-format
 msgid "Host availability check failed (status %d)"
 msgstr "A verificação de disponibilidade no host falhou (código %d)"
 
-#: src/termac-application.c:406
+#: src/termuni-application.c:406
 msgid "translator-credits"
-msgstr "Colaboradores do Termac"
+msgstr "Colaboradores do Termuni"
 
-#: src/termac-application.c:461
+#: src/termuni-application.c:461
 #, c-format
-msgid "%u tab has a program running. Quitting Termac stops it."
-msgid_plural "%u tabs have programs running. Quitting Termac stops them."
-msgstr[0] "%u aba tem um programa em execução. Sair do Termac o interrompe."
-msgstr[1] "%u abas têm programas em execução. Sair do Termac os interrompe."
+msgid "%u tab has a program running. Quitting Termuni stops it."
+msgid_plural "%u tabs have programs running. Quitting Termuni stops them."
+msgstr[0] "%u aba tem um programa em execução. Sair do Termuni o interrompe."
+msgstr[1] "%u abas têm programas em execução. Sair do Termuni os interrompe."
 
-#: src/termac-application.c:463
-msgid "Quit Termac?"
-msgstr "Sair do Termac?"
+#: src/termuni-application.c:463
+msgid "Quit Termuni?"
+msgstr "Sair do Termuni?"
 
-#: src/termac-application.c:465 src/termac-window.c:190
+#: src/termuni-application.c:465 src/termuni-window.c:190
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: src/termac-application.c:465 src/termac-application.c:965
+#: src/termuni-application.c:465 src/termuni-application.c:965
 msgid "Quit"
 msgstr "Sair"
 
-#: src/termac-application.c:577
+#: src/termuni-application.c:577
 msgid "Show fewer palettes"
 msgstr "Mostrar menos paletas"
 
-#: src/termac-application.c:577 src/termac-application.c:1201
+#: src/termuni-application.c:577 src/termuni-application.c:1201
 msgid "Show all palettes"
 msgstr "Mostrar todas as paletas"
 
-#: src/termac-application.c:659
+#: src/termuni-application.c:659
 msgid "Checking availability…"
 msgstr "Verificando disponibilidade…"
 
-#: src/termac-application.c:659
+#: src/termuni-application.c:659
 msgid "Could not check availability"
 msgstr "Não foi possível verificar a disponibilidade"
 
-#: src/termac-application.c:660
+#: src/termuni-application.c:660
 msgid "Use Open Agent in the main menu to start it in a new tab."
 msgstr "Use Abrir agente no menu principal para iniciá-lo em uma nova aba."
 
-#: src/termac-application.c:660
+#: src/termuni-application.c:660
 msgid "Not installed"
 msgstr "Não instalado"
 
-#: src/termac-application.c:688 src/termac-application.c:882
+#: src/termuni-application.c:688 src/termuni-application.c:882
 #, c-format
 msgid "%s — Not installed"
 msgstr "%s — Não instalado"
 
-#: src/termac-application.c:821
+#: src/termuni-application.c:821
 msgid "No attachments"
 msgstr "Nenhum anexo"
 
-#: src/termac-application.c:841 src/termac-application.c:843
+#: src/termuni-application.c:841 src/termuni-application.c:843
 msgid "Copy path"
 msgstr "Copiar caminho"
 
-#: src/termac-application.c:842 src/termac-application.c:844
+#: src/termuni-application.c:842 src/termuni-application.c:844
 msgid "Remove"
 msgstr "Remover"
 
-#: src/termac-application.c:864
+#: src/termuni-application.c:864
 msgid "Clear All"
 msgstr "Limpar tudo"
 
-#: src/termac-application.c:885
+#: src/termuni-application.c:885
 msgid "Agent"
 msgstr "Agente"
 
-#: src/termac-application.c:902 src/termac-application.c:1414
+#: src/termuni-application.c:902 src/termuni-application.c:1414
 msgid "Attachments"
 msgstr "Anexos"
 
-#: src/termac-application.c:904
+#: src/termuni-application.c:904
 msgid "Images"
 msgstr "Imagens"
 
-#: src/termac-application.c:905
+#: src/termuni-application.c:905
 msgid ""
 "Images attached to prompts are kept in the cache. Removing an image does not "
 "change prompts that already contain its path."
@@ -385,369 +385,369 @@ msgstr ""
 "As imagens anexadas aos prompts ficam no cache. Remover uma imagem não "
 "altera os prompts que já contêm o caminho dela."
 
-#: src/termac-application.c:945 src/termac-window.c:361 src/termac-window.ui:57
-#: src/termac-window.ui:58
+#: src/termuni-application.c:945 src/termuni-window.c:361 src/termuni-window.ui:57
+#: src/termuni-window.ui:58
 msgid "New tab"
 msgstr "Nova aba"
 
-#: src/termac-application.c:946 src/termac-window.c:362
+#: src/termuni-application.c:946 src/termuni-window.c:362
 msgid "New window"
 msgstr "Nova janela"
 
-#: src/termac-application.c:947 src/termac-window.ui:23 src/termac-window.ui:24
+#: src/termuni-application.c:947 src/termuni-window.ui:23 src/termuni-window.ui:24
 msgid "Show open tabs"
 msgstr "Mostrar abas abertas"
 
-#: src/termac-application.c:948
+#: src/termuni-application.c:948
 msgid "Close tab"
 msgstr "Fechar aba"
 
-#: src/termac-application.c:949 src/termac-window.c:365
+#: src/termuni-application.c:949 src/termuni-window.c:365
 msgid "Full screen"
 msgstr "Tela cheia"
 
-#: src/termac-application.c:950 src/termac-window.c:1111
+#: src/termuni-application.c:950 src/termuni-window.c:1111
 msgid "Rename tab"
 msgstr "Renomear aba"
 
-#: src/termac-application.c:951 src/termac-window.ui:32 src/termac-window.ui:33
-#: src/termac-window.ui:85
+#: src/termuni-application.c:951 src/termuni-window.ui:32 src/termuni-window.ui:33
+#: src/termuni-window.ui:85
 msgid "Find in terminal"
 msgstr "Buscar no terminal"
 
-#: src/termac-application.c:952
+#: src/termuni-application.c:952
 msgid "Copy selection or cancel command"
 msgstr "Copiar seleção ou cancelar comando"
 
-#: src/termac-application.c:953
+#: src/termuni-application.c:953
 msgid "Copy selection"
 msgstr "Copiar seleção"
 
-#: src/termac-application.c:954
+#: src/termuni-application.c:954
 msgid "Paste"
 msgstr "Colar"
 
-#: src/termac-application.c:955
+#: src/termuni-application.c:955
 msgid "Paste from clipboard"
 msgstr "Colar da área de transferência"
 
-#: src/termac-application.c:956
+#: src/termuni-application.c:956
 msgid "Start of line"
 msgstr "Início da linha"
 
-#: src/termac-application.c:957
+#: src/termuni-application.c:957
 msgid "Select all"
 msgstr "Selecionar tudo"
 
-#: src/termac-application.c:958 src/termac-window.c:364
+#: src/termuni-application.c:958 src/termuni-window.c:364
 msgid "Attach image"
 msgstr "Anexar imagem"
 
-#: src/termac-application.c:959 src/termac-window.c:363
+#: src/termuni-application.c:959 src/termuni-window.c:363
 msgid "Open Agent"
 msgstr "Abrir agente"
 
-#: src/termac-application.c:960 src/termac-application.c:1229
-#: src/termac-application.c:1239 src/termac-window.c:367
+#: src/termuni-application.c:960 src/termuni-application.c:1229
+#: src/termuni-application.c:1239 src/termuni-window.c:367
 msgid "Preferences"
 msgstr "Preferências"
 
-#: src/termac-application.c:961 src/termac-window.c:368
+#: src/termuni-application.c:961 src/termuni-window.c:368
 msgid "Keyboard shortcuts"
 msgstr "Atalhos de teclado"
 
-#: src/termac-application.c:966
+#: src/termuni-application.c:966
 msgid "Move tab backward"
 msgstr "Mover aba para trás"
 
-#: src/termac-application.c:967
+#: src/termuni-application.c:967
 msgid "Move tab forward"
 msgstr "Mover aba para frente"
 
-#: src/termac-application.c:968
+#: src/termuni-application.c:968
 msgid "Next match"
 msgstr "Próxima ocorrência"
 
-#: src/termac-application.c:969
+#: src/termuni-application.c:969
 msgid "Previous match"
 msgstr "Ocorrência anterior"
 
-#: src/termac-application.c:1122
+#: src/termuni-application.c:1122
 #, c-format
 msgid "%s is already used by %s"
 msgstr "%s já está sendo usado por %s"
 
-#: src/termac-application.c:1149
+#: src/termuni-application.c:1149
 msgid "Shortcut"
 msgstr "Atalho"
 
-#: src/termac-application.c:1152
+#: src/termuni-application.c:1152
 msgid "Press the new shortcut"
 msgstr "Pressione o novo atalho"
 
-#: src/termac-application.c:1153
+#: src/termuni-application.c:1153
 msgid "Use Ctrl, Alt, Shift or Super. Press Escape to cancel."
 msgstr "Use Ctrl, Alt, Shift ou Super. Pressione Esc para cancelar."
 
-#: src/termac-application.c:1204
+#: src/termuni-application.c:1204
 msgid "System"
 msgstr "Sistema"
 
-#: src/termac-application.c:1204 src/termac-window.c:295
+#: src/termuni-application.c:1204 src/termuni-window.c:295
 msgid "Light"
 msgstr "Claro"
 
-#: src/termac-application.c:1204 src/termac-window.c:295
+#: src/termuni-application.c:1204 src/termuni-window.c:295
 msgid "Dark"
 msgstr "Escuro"
 
-#: src/termac-application.c:1237
+#: src/termuni-application.c:1237
 msgid "Search palettes"
 msgstr "Buscar paletas"
 
-#: src/termac-application.c:1238
+#: src/termuni-application.c:1238
 msgid "Close preferences"
 msgstr "Fechar preferências"
 
 #. Appearance: palette grid with expander, then terminal colors and font.
-#: src/termac-application.c:1249 src/termac-application.c:1410
+#: src/termuni-application.c:1249 src/termuni-application.c:1410
 msgid "Appearance"
 msgstr "Aparência"
 
-#: src/termac-application.c:1250
+#: src/termuni-application.c:1250
 msgid "Palette"
 msgstr "Paleta"
 
-#: src/termac-application.c:1319
+#: src/termuni-application.c:1319
 msgid "Font size"
 msgstr "Tamanho da fonte"
 
-#: src/termac-application.c:1320
+#: src/termuni-application.c:1320
 msgid "Size in points"
 msgstr "Tamanho em pontos"
 
 #. General: startup, terminal, shell integration and safety options.
-#: src/termac-application.c:1329 src/termac-application.c:1408
+#: src/termuni-application.c:1329 src/termuni-application.c:1408
 msgid "General"
 msgstr "Geral"
 
-#: src/termac-application.c:1340
+#: src/termuni-application.c:1340
 msgid "Startup"
 msgstr "Inicialização"
 
-#: src/termac-application.c:1342
+#: src/termuni-application.c:1342
 msgid "Reopens the tabs in their folders. Commands are not run again"
 msgstr "Reabre as abas nas pastas delas. Comandos não são executados novamente"
 
-#: src/termac-application.c:1349
+#: src/termuni-application.c:1349
 msgid "Lines kept above the screen in each tab"
 msgstr "Linhas mantidas acima da tela em cada aba"
 
-#: src/termac-application.c:1355
+#: src/termuni-application.c:1355
 msgid "Integration"
 msgstr "Integração"
 
-#: src/termac-application.c:1357
+#: src/termuni-application.c:1357
 msgid "Reports command results. Bash only, for new tabs"
 msgstr "Informa o resultado dos comandos. Somente Bash, em novas abas"
 
-#: src/termac-application.c:1361
+#: src/termuni-application.c:1361
 msgid "Only for tabs that are not in focus"
 msgstr "Apenas para abas que não estão em foco"
 
-#: src/termac-application.c:1366
+#: src/termuni-application.c:1366
 msgid "Safety"
 msgstr "Segurança"
 
-#: src/termac-application.c:1367
+#: src/termuni-application.c:1367
 msgid "Confirm before closing"
 msgstr "Confirmar antes de fechar"
 
-#: src/termac-application.c:1368
+#: src/termuni-application.c:1368
 msgid "Ask when a program is still running"
 msgstr "Perguntar quando um programa ainda estiver em execução"
 
 #. Shortcuts: editable window and app actions, then the fixed terminal list.
-#: src/termac-application.c:1375 src/termac-application.c:1412
+#: src/termuni-application.c:1375 src/termuni-application.c:1412
 msgid "Shortcuts"
 msgstr "Atalhos"
 
-#: src/termac-application.c:1378
+#: src/termuni-application.c:1378
 msgid "Restore defaults"
 msgstr "Restaurar padrões"
 
-#: src/termac-application.c:1382
+#: src/termuni-application.c:1382
 msgid "Editable shortcuts"
 msgstr "Atalhos editáveis"
 
-#: src/termac-attachments.c:55
+#: src/termuni-attachments.c:55
 #, c-format
 msgid "Invalid attachment session"
 msgstr "Sessão de anexos inválida"
 
-#: src/termac-attachments.c:61 src/termac-attachments.c:117
+#: src/termuni-attachments.c:61 src/termuni-attachments.c:117
 #, c-format
 msgid "Images must be up to 20 MiB"
 msgstr "As imagens devem ter até 20 MiB"
 
-#: src/termac-attachments.c:68
+#: src/termuni-attachments.c:68
 #, c-format
 msgid "Only PNG and JPEG images are accepted"
 msgstr "Somente imagens PNG e JPEG são aceitas"
 
-#: src/termac-attachments.c:75
+#: src/termuni-attachments.c:75
 #, c-format
 msgid "The image is larger than %d px in width or height"
 msgstr "A imagem tem mais de %d px de largura ou altura"
 
-#: src/termac-attachments.c:85
+#: src/termuni-attachments.c:85
 #, c-format
 msgid "Could not create the attachments folder"
 msgstr "Não foi possível criar a pasta de anexos"
 
-#: src/termac-terminal.c:258 src/termac-terminal.c:276
+#: src/termuni-terminal.c:258 src/termuni-terminal.c:276
 msgid "The terminal connection is closed. Open a new tab to continue."
 msgstr "A conexão do terminal foi encerrada. Abra uma nova aba para continuar."
 
-#: src/termac-terminal.c:287
+#: src/termuni-terminal.c:287
 msgid ""
 "The terminal input buffer is full. Wait for the program to read input, then "
 "try again."
 msgstr "O buffer de entrada do terminal está cheio. Aguarde o programa ler a entrada e tente novamente."
 
-#: src/termac-terminal.c:593 src/termac-terminal.c:606
+#: src/termuni-terminal.c:593 src/termuni-terminal.c:606
 #, c-format
 msgid "Could not create the terminal: %s"
 msgstr "Não foi possível criar o terminal: %s"
 
-#: src/termac-terminal.c:639
+#: src/termuni-terminal.c:639
 #, c-format
 msgid "Could not start the shell %s: %s"
 msgstr "Não foi possível iniciar o shell %s: %s"
 
-#: src/termac-terminal.c:655
+#: src/termuni-terminal.c:655
 msgid "Could not configure terminal input."
 msgstr "Não foi possível configurar a entrada do terminal."
 
-#: src/termac-terminal.c:780
+#: src/termuni-terminal.c:780
 #, c-format
 msgid "The terminal engine could not be created (%d)."
 msgstr "O motor do terminal não pôde ser criado (%d)."
 
-#: src/termac-terminal.c:832
+#: src/termuni-terminal.c:832
 msgid "Press Enter or click to try again."
 msgstr "Pressione Enter ou clique para tentar novamente."
 
-#: src/termac-terminal.c:1730 src/termac-window.c:976
+#: src/termuni-terminal.c:1730 src/termuni-window.c:976
 msgid "Image attached to the prompt"
 msgstr "Imagem anexada ao prompt"
 
-#: src/termac-window.c:295
+#: src/termuni-window.c:295
 msgid "Follow system theme"
 msgstr "Seguir tema do sistema"
 
-#: src/termac-window.c:369
+#: src/termuni-window.c:369
 msgid "About"
 msgstr "Sobre"
 
-#: src/termac-window.c:506
+#: src/termuni-window.c:506
 #, c-format
 msgid "Exit status %d"
 msgstr "Código de saída %d"
 
 #. Explicit shell completion reports are eligible regardless of duration;
 #. * the process-polling fallback below retains its long-task threshold.
-#: src/termac-window.c:509
+#: src/termuni-window.c:509
 msgid "Command finished"
 msgstr "Comando concluído"
 
-#: src/termac-window.c:510
+#: src/termuni-window.c:510
 msgid "Completed successfully"
 msgstr "Concluído com sucesso"
 
-#: src/termac-window.c:530
+#: src/termuni-window.c:530
 msgid "Task finished"
 msgstr "Tarefa concluída"
 
-#: src/termac-window.c:530
+#: src/termuni-window.c:530
 msgid "A long-running task in a tab has finished."
 msgstr "Uma tarefa longa em uma aba foi concluída."
 
-#: src/termac-window.c:617
+#: src/termuni-window.c:617
 msgid "Could not check agent availability. Try again."
 msgstr ""
 "Não foi possível verificar a disponibilidade do agente. Tente novamente."
 
-#: src/termac-window.c:620
+#: src/termuni-window.c:620
 #, c-format
 msgid "%s is not installed"
 msgstr "%s não está instalado"
 
-#: src/termac-window.c:624
+#: src/termuni-window.c:624
 msgid "The folder no longer exists"
 msgstr "A pasta não existe mais"
 
-#: src/termac-window.c:740
+#: src/termuni-window.c:740
 msgid "Close this tab?"
 msgstr "Fechar esta aba?"
 
-#: src/termac-window.c:741
+#: src/termuni-window.c:741
 msgid "A program is still running in this tab. Closing the tab stops it."
 msgstr ""
 "Um programa ainda está em execução nesta aba. Fechar a aba o interrompe."
 
-#: src/termac-window.c:742
+#: src/termuni-window.c:742
 msgid "Close Tab"
 msgstr "Fechar aba"
 
-#: src/termac-window.c:787
+#: src/termuni-window.c:787
 #, c-format
 msgid "%u tab has a program running. Closing the window stops it."
 msgid_plural "%u tabs have programs running. Closing the window stops them."
 msgstr[0] "%u aba tem um programa em execução. Fechar a janela o interrompe."
 msgstr[1] "%u abas têm programas em execução. Fechar a janela os interrompe."
 
-#: src/termac-window.c:790
+#: src/termuni-window.c:790
 msgid "Close window?"
 msgstr "Fechar janela?"
 
-#: src/termac-window.c:790
+#: src/termuni-window.c:790
 msgid "Close Window"
 msgstr "Fechar janela"
 
-#: src/termac-window.c:896
+#: src/termuni-window.c:896
 msgid "No matches"
 msgstr "Nenhum resultado"
 
-#: src/termac-window.c:989
+#: src/termuni-window.c:989
 msgid "The image could not be attached"
 msgstr "Não foi possível anexar a imagem"
 
-#: src/termac-window.c:1020
+#: src/termuni-window.c:1020
 msgid "PNG and JPEG images"
 msgstr "Imagens PNG e JPEG"
 
-#: src/termac-window.c:1112
+#: src/termuni-window.c:1112
 msgid "Leave empty to return to the automatic title."
 msgstr "Deixe vazio para voltar ao título automático."
 
-#: src/termac-window.c:1113 src/termac-window.c:1119
+#: src/termuni-window.c:1113 src/termuni-window.c:1119
 msgid "Rename"
 msgstr "Renomear"
 
-#: src/termac-window.c:1235
+#: src/termuni-window.c:1235
 msgid "Rename Tab"
 msgstr "Renomear aba"
 
-#: src/termac-window.c:1236
+#: src/termuni-window.c:1236
 msgid "Move to New Window"
 msgstr "Mover para nova janela"
 
-#: src/termac-window.ui:50 src/termac-window.ui:51
+#: src/termuni-window.ui:50 src/termuni-window.ui:51
 msgid "Main menu"
 msgstr "Menu principal"
 
-#: src/termac-window.ui:92 src/termac-window.ui:93
+#: src/termuni-window.ui:92 src/termuni-window.ui:93
 msgid "Close search"
 msgstr "Fechar busca"
 

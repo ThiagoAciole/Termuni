@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include "termac-settings.h"
+#include "termuni-settings.h"
 
 GSettings *
-termac_settings_new (const char *application_id, const char *fallback_schema_dir)
+termuni_settings_new (const char *application_id, const char *fallback_schema_dir)
 {
 	GSettingsSchemaSource *source = g_settings_schema_source_get_default ();
 	g_autoptr(GSettingsSchema) schema = source != NULL

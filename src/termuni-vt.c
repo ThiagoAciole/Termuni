@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include "termac-vt.h"
-#include "termac-util.h"
+#include "termuni-vt.h"
+#include "termuni-util.h"
 
 #include <string.h>
 
-struct _TermacVtSelector
+struct _TermuniVtSelector
 {
 	GhosttySelectionGesture gesture;
 	GhosttySelectionGestureEvent events[5];
@@ -21,10 +21,10 @@ static const GhosttySelectionGestureEventType selector_types[] = {
 static const guint64 repeat_interval_ns = 500 * 1000 * 1000;
 static const double repeat_distance = 4.0;
 
-TermacVtSelector *
-termac_vt_selector_new (void)
+TermuniVtSelector *
+termuni_vt_selector_new (void)
 {
-	TermacVtSelector *selector = g_new0 (TermacVtSelector, 1);
+	TermuniVtSelector *selector = g_new0 (TermuniVtSelector, 1);
 	guint i;
 
 	if (ghostty_selection_gesture_new (NULL, &selector->gesture) != GHOSTTY_SUCCESS)
@@ -38,7 +38,7 @@ termac_vt_selector_new (void)
 }
 
 void
-termac_vt_selector_free (TermacVtSelector *selector)
+termuni_vt_selector_free (TermuniVtSelector *selector)
 {
 	guint i;
 
@@ -65,13 +65,13 @@ viewport_ref (GhosttyTerminal terminal,
 }
 
 void
-termac_vt_selection_clear (GhosttyTerminal terminal)
+termuni_vt_selection_clear (GhosttyTerminal terminal)
 {
 	ghostty_terminal_set (terminal, GHOSTTY_TERMINAL_OPT_SELECTION, NULL);
 }
 
 void
-termac_vt_select_all (GhosttyTerminal terminal)
+termuni_vt_select_all (GhosttyTerminal terminal)
 {
 	GhosttySelection selection = GHOSTTY_INIT_SIZED (GhosttySelection);
 
@@ -80,14 +80,14 @@ termac_vt_select_all (GhosttyTerminal terminal)
 }
 
 void
-termac_vt_clear_selection (GhosttyTerminal terminal)
+termuni_vt_clear_selection (GhosttyTerminal terminal)
 {
 	/* A NULL selection clears the active screen selection. */
 	ghostty_terminal_set (terminal, GHOSTTY_TERMINAL_OPT_SELECTION, NULL);
 }
 
 gboolean
-termac_vt_selector_event (TermacVtSelector                  *selector,
+termuni_vt_selector_event (TermuniVtSelector                  *selector,
                           GhosttyTerminal                    terminal,
                           GhosttySelectionGestureEventType   type,
                           guint                              column,
@@ -163,14 +163,14 @@ format_selection (GhosttyTerminal          terminal,
 }
 
 gboolean
-termac_vt_selection_text (GhosttyTerminal terminal,
+termuni_vt_selection_text (GhosttyTerminal terminal,
                           char          **text)
 {
 	return format_selection (terminal, NULL, TRUE, TRUE, text);
 }
 
 gboolean
-termac_vt_viewport_row_text (GhosttyTerminal terminal,
+termuni_vt_viewport_row_text (GhosttyTerminal terminal,
                              guint           columns,
                              guint           row,
                              char          **text)
@@ -184,7 +184,7 @@ termac_vt_viewport_row_text (GhosttyTerminal terminal,
 }
 
 gboolean
-termac_vt_bracketed_paste (GhosttyTerminal terminal)
+termuni_vt_bracketed_paste (GhosttyTerminal terminal)
 {
 	GhosttyTerminalModeConfig config = { GHOSTTY_MODE_BRACKETED_PASTE, FALSE };
 
@@ -194,7 +194,7 @@ termac_vt_bracketed_paste (GhosttyTerminal terminal)
 }
 
 gboolean
-termac_vt_mouse_tracking (GhosttyTerminal terminal)
+termuni_vt_mouse_tracking (GhosttyTerminal terminal)
 {
 	bool enabled = false;
 
@@ -204,7 +204,7 @@ termac_vt_mouse_tracking (GhosttyTerminal terminal)
 }
 
 gboolean
-termac_vt_alternate_screen (GhosttyTerminal terminal)
+termuni_vt_alternate_screen (GhosttyTerminal terminal)
 {
 	GhosttyTerminalScreen screen = GHOSTTY_TERMINAL_SCREEN_PRIMARY;
 
@@ -214,7 +214,7 @@ termac_vt_alternate_screen (GhosttyTerminal terminal)
 }
 
 char *
-termac_vt_encode_paste (const char *text,
+termuni_vt_encode_paste (const char *text,
                         gsize       length,
                         gboolean    bracketed,
                         gsize      *out_length)
@@ -285,7 +285,7 @@ find_rows (GhosttyTerminal  terminal,
 }
 
 gboolean
-termac_vt_find_target (GhosttyTerminal terminal, const char *needle,
+termuni_vt_find_target (GhosttyTerminal terminal, const char *needle,
                         gboolean backwards, const guint64 *after_row,
                         guint64 *target_row)
 {
@@ -344,9 +344,9 @@ termac_vt_find_target (GhosttyTerminal terminal, const char *needle,
 }
 
 gboolean
-termac_vt_find (GhosttyTerminal terminal, const char *needle, gboolean backwards)
+termuni_vt_find (GhosttyTerminal terminal, const char *needle, gboolean backwards)
 {
-	return termac_vt_find_target (terminal, needle, backwards, NULL, NULL);
+	return termuni_vt_find_target (terminal, needle, backwards, NULL, NULL);
 }
 
 /* One byte-to-cell map is shared by search and link hit testing. It reads grid
@@ -448,7 +448,7 @@ link_uri_allowed (const char *uri)
 }
 
 char *
-termac_vt_link_at (GhosttyTerminal terminal, guint columns, guint row, guint column,
+termuni_vt_link_at (GhosttyTerminal terminal, guint columns, guint row, guint column,
                    guint *first_column, guint *last_column)
 {
 	g_autofree char *uri = NULL;
@@ -493,7 +493,7 @@ termac_vt_link_at (GhosttyTerminal terminal, guint columns, guint row, guint col
 			hit = TRUE;
 			break;
 		}
-	if (!hit || !termac_url_span_at_column (text->str, g_utf8_strlen (text->str, hit_byte),
+	if (!hit || !termuni_url_span_at_column (text->str, g_utf8_strlen (text->str, hit_byte),
 	    &first_byte, &last_byte, NULL, NULL))
 		return NULL;
 	uri = g_strndup (text->str + first_byte, last_byte - first_byte);
@@ -507,10 +507,10 @@ termac_vt_link_at (GhosttyTerminal terminal, guint columns, guint row, guint col
 /* Read the grid without updating a render state: Ghostty render updates
  * consume dirty flags owned by the terminal's persistent renderer. */
 GArray *
-termac_vt_find_matches (GhosttyTerminal terminal, guint columns,
+termuni_vt_find_matches (GhosttyTerminal terminal, guint columns,
                         guint rows, const char *needle)
 {
-	GArray *matches = g_array_new (FALSE, FALSE, sizeof (TermacVtMatch));
+	GArray *matches = g_array_new (FALSE, FALSE, sizeof (TermuniVtMatch));
 	g_autofree char *query = NULL;
 	gboolean nonspace = FALSE;
 	if (terminal == NULL || needle == NULL || !g_utf8_validate (needle, -1, NULL))
@@ -528,11 +528,11 @@ termac_vt_find_matches (GhosttyTerminal terminal, guint columns,
 		for (const char *p = text->str; (p = strstr (p, query)) != NULL; p += strlen (query))
 		{
 			gsize start = p - text->str, last = start + strlen (query) - 1;
-			TermacVtMatch match = { row, g_array_index (starts, guint, start), 0 };
+			TermuniVtMatch match = { row, g_array_index (starts, guint, start), 0 };
 			match.cells = g_array_index (ends, guint, last) - match.column;
 			if (matches->len == 0 ||
-			    g_array_index (matches, TermacVtMatch, matches->len - 1).row != row ||
-			    g_array_index (matches, TermacVtMatch, matches->len - 1).column != match.column)
+			    g_array_index (matches, TermuniVtMatch, matches->len - 1).row != row ||
+			    g_array_index (matches, TermuniVtMatch, matches->len - 1).column != match.column)
 				g_array_append_val (matches, match);
 		}
 	}

@@ -1,4 +1,4 @@
-# Documentação do Termac
+# Documentação do Termuni
 
 ## Estado e decisões
 

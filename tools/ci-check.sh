@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")/.."
 profile="${1:-development}"
 case "$profile" in development|default) ;; *) echo 'profile: development or default' >&2; exit 2;; esac
-build="${TERMAC_CI_BUILD:-build-ci-$profile}"
+build="${TERMUNI_CI_BUILD:-build-ci-$profile}"
 setup=()
 if [ -f "$build/meson-private/coredata.dat" ]; then setup+=(--reconfigure); fi
 meson setup "$build" --buildtype=debugoptimized -Dprofile="$profile" --prefix=/usr "${setup[@]}"
@@ -14,7 +14,7 @@ for catalog in po/*.po; do msgfmt --check --check-format -o /dev/null "$catalog"
 python3 tools/check-agent-boundary.py src
 stage_root="$(realpath "$build")/ci-install"
 meson install -C "$build" --no-rebuild --destdir "$stage_root"
-id=thiago.aciole.Termac
+id=io.github.ThiagoAciole.Termuni
 if [ "$profile" = development ]; then id+=.Devel; fi
 stage="$stage_root/usr/share"
 test -f "$stage/applications/$id.desktop"

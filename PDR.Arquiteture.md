@@ -1,10 +1,10 @@
-# Termac — requisitos e arquitetura
+# Termuni — requisitos e arquitetura
 
 Atualizado em 14/11/2026. O estado dos marcos e suas evidências ficam no quadro **Estado atual** de [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md); consulte-o antes de continuar a implementação.
 
 ## Produto
 
-O Termac é primeiro um terminal nativo GNOME para Linux, com sessões em abas e suporte a aplicações TUI. Shell, PTY, entrada, seleção, colagem, Unicode/emoji e cores True Color são parte do terminal. Claude Code/Codex são integrações opcionais: sua ausência não deve comprometer o emulador. A aparência e as interações previstas estão em [DESIGN.md](DESIGN.md).
+O Termuni é primeiro um terminal nativo GNOME para Linux, com sessões em abas e suporte a aplicações TUI. Shell, PTY, entrada, seleção, colagem, Unicode/emoji e cores True Color são parte do terminal. Claude Code/Codex são integrações opcionais: sua ausência não deve comprometer o emulador. A aparência e as interações previstas estão em [DESIGN.md](DESIGN.md).
 
 A implementação atual inclui seleção, copiar e colar, scrollback, visão geral de abas, preferências, busca com realce, anexação de imagens para Claude Code/Codex e persistência de organização. Acessibilidade do conteúdo do terminal permanece incompleta. O [roadmap](docs/ROADMAP.md) separa código ausente, correções e aceite manual; a presença de uma ação ou tela não garante sua validação.
 
@@ -26,11 +26,11 @@ A matriz distingue o que já foi implementado de validação pendente. TUI moder
 ## Decisões técnicas
 
 - C com GTK 4 e libadwaita; Meson como build e projeto aberto no GNOME Builder. O formato de instalação escolhido é pacote `.deb` nativo para Ubuntu; ambiente principal: Ubuntu 26.10 em Wayland.
-- libghostty-vt faz parsing VT e fornece estado, células, estilos, cores e codificação de teclas. O Termac fornece janela, PTY, entrada e desenho.
+- libghostty-vt faz parsing VT e fornece estado, células, estilos, cores e codificação de teclas. O Termuni fornece janela, PTY, entrada e desenho.
 - [subprojects/ghostty.wrap](subprojects/ghostty.wrap) fixa Ghostty em `f64f4aca2c29b554d111b36c3d946a9bddd159ff`. O build exige Zig `0.16.0`; URL e SHA-256 ficam fixados em `tools/zig-toolchain.json`. A API C deve ser conferida na revisão fixada ao alterá-la. O exemplo oficial Ghostling foi a referência inicial para uso da API.
 - O desenho atual usa `GtkDrawingArea`, Cairo e PangoCairo. Medições devem orientar qualquer mudança para GSK, OpenGL ou outro renderer.
-- `development` usa `thiago.aciole.Termac.Devel`, schema e ícone próprios; `default` usa `thiago.aciole.Termac`. Recursos GtkBuilder mantêm o caminho `/thiago/aciole/termac`.
-- A cópia de referência `/home/thiago/Downloads/termac.old` deriva do Ptyxis e usa `VteTerminal` e CMake. Serve como referência de estrutura e interface, com detalhes em [DESIGN.md](DESIGN.md); a sessão, entrada, renderização e recursos VTE precisam de adaptação para libghostty-vt. A cópia examinada não contém histórico Git.
+- `development` usa `io.github.ThiagoAciole.Termuni.Devel`, schema e ícone próprios; `default` usa `io.github.ThiagoAciole.Termuni`. Recursos GtkBuilder mantêm o caminho `/io/github/thiagoaciole/termuni`.
+- A cópia de referência `/home/thiago/Downloads/termuni.old` deriva do Ptyxis e usa `VteTerminal` e CMake. Serve como referência de estrutura e interface, com detalhes em [DESIGN.md](DESIGN.md); a sessão, entrada, renderização e recursos VTE precisam de adaptação para libghostty-vt. A cópia examinada não contém histórico Git.
 
 - Distribuição: pacote Debian local gerado pelo perfil `default` com `tools/build-deb.py`. O pacote instala o binário, lançador, schema GSettings, serviço D-Bus, traduções e ícone no sistema; dependências são obtidas do executável com `dpkg-shlibdeps`.
 - Cada sessão usa `forkpty` para executar o shell local do usuário. O PTY fornece o controle de tarefas, Ctrl+C, resize e grupos de processos usados pela confirmação de fechamento. Bash recebe integração opt-in por rc gerado; outros shells conservam a inicialização normal e podem informar CWD com OSC 7.
@@ -41,24 +41,24 @@ A matriz distingue o que já foi implementado de validação pendente. TUI moder
 | Local | Responsabilidade atual |
 | --- | --- |
 | [src/main.c](src/main.c) | Inicializa tradução e aplicação com o ID gerado pelo Meson. |
-| [src/termac-application.c](src/termac-application.c) | Ciclo da aplicação, ações globais, preferências, paletas e GSettings. |
-| [src/termac-agent.c](src/termac-agent.c) | Registro de agentes, citação de anexo, comando inicial e consultas assíncronas no contexto real do shell/pasta. |
-| [src/termac-window.c](src/termac-window.c) e [src/termac-window.ui](src/termac-window.ui) | Janela, cabeçalho, menu, abas, overview e ações de janela. |
-| [src/termac-terminal.c](src/termac-terminal.c) | Widget, PTY e shell, I/O GLib, estado Ghostty, renderer Cairo/Pango e entrada/IME. As camadas de sessão e renderer ainda não são módulos separados. |
-| [src/termac-vt.c](src/termac-vt.c) | Seleção, paste e busca/geometria sobre a API fixada, sem dependência de GTK. Consultas à grade preservam dirty flags do renderizador. |
-| [src/termac-settings.c](src/termac-settings.c) | Schema instalado com fallback de desenvolvimento. |
-| [src/termac-util.c](src/termac-util.c) e [src/termac-attachments.c](src/termac-attachments.c) | Helpers de paths/shell/imagens/política e armazenamento/pruning de anexos. |
-| [src/termac.css](src/termac.css) e [src/termac.gresource.xml](src/termac.gresource.xml) | Estilos e recursos incorporados. |
+| [src/termuni-application.c](src/termuni-application.c) | Ciclo da aplicação, ações globais, preferências, paletas e GSettings. |
+| [src/termuni-agent.c](src/termuni-agent.c) | Registro de agentes, citação de anexo, comando inicial e consultas assíncronas no contexto real do shell/pasta. |
+| [src/termuni-window.c](src/termuni-window.c) e [src/termuni-window.ui](src/termuni-window.ui) | Janela, cabeçalho, menu, abas, overview e ações de janela. |
+| [src/termuni-terminal.c](src/termuni-terminal.c) | Widget, PTY e shell, I/O GLib, estado Ghostty, renderer Cairo/Pango e entrada/IME. As camadas de sessão e renderer ainda não são módulos separados. |
+| [src/termuni-vt.c](src/termuni-vt.c) | Seleção, paste e busca/geometria sobre a API fixada, sem dependência de GTK. Consultas à grade preservam dirty flags do renderizador. |
+| [src/termuni-settings.c](src/termuni-settings.c) | Schema instalado com fallback de desenvolvimento. |
+| [src/termuni-util.c](src/termuni-util.c) e [src/termuni-attachments.c](src/termuni-attachments.c) | Helpers de paths/shell/imagens/política e armazenamento/pruning de anexos. |
+| [src/termuni.css](src/termuni.css) e [src/termuni.gresource.xml](src/termuni.gresource.xml) | Estilos e recursos incorporados. |
 | [data/meson.build](data/meson.build) e [data/icons/meson.build](data/icons/meson.build) | Arquivos desktop, schema, serviço, metadados e ícones por perfil. |
 | [subprojects/packagefiles/ghostty/meson.build](subprojects/packagefiles/ghostty/meson.build) | Integração Meson do build estático da biblioteca via Zig. |
 | [tools/build-deb.py](tools/build-deb.py) | Gera o pacote Debian de produção a partir do perfil `default`. |
 
 ```mermaid
 flowchart TD
-    App[TermacApplication] --> Window[TermacWindow / abas]
+    App[TermuniApplication] --> Window[TermuniWindow / abas]
     App --> Settings[GSettings / preferências]
     App --> Session[session-v3.gvariant / organização]
-    Window --> Terminal[TermacTerminal]
+    Window --> Terminal[TermuniTerminal]
     Window --> Agent[Adaptadores / consultas assíncronas]
     Terminal --> PTY[PTY / shell local]
     Terminal --> VT[libghostty-vt / estado e codificação]
@@ -67,7 +67,7 @@ flowchart TD
 
 ## Fluxo de uma sessão
 
-Cada `TermacTerminal` cria um shell via `forkpty`, integra o descritor não bloqueante ao main loop da GLib e alimenta libghostty-vt com a saída. A fila envia entrada e respostas VT ao PTY. O render state é lido no desenho GTK; redimensionamento atualiza a grade e o PTY. O evento de título atualiza a aba e o cabeçalho. O código limita trabalho por iteração, mantém fila ativa de 1 MiB e backlog ordenado de até 256 MiB; exceder o backlog rejeita a entrada com warning. O render state persistente deve ser atualizado apenas pelo caminho de desenho: atualizações temporárias consomem dirty flags e podem esconder saída pendente. A busca usa leitura não mutante da grade. A robustez de carga e feedback de pressão têm itens específicos no roadmap.
+Cada `TermuniTerminal` cria um shell via `forkpty`, integra o descritor não bloqueante ao main loop da GLib e alimenta libghostty-vt com a saída. A fila envia entrada e respostas VT ao PTY. O render state é lido no desenho GTK; redimensionamento atualiza a grade e o PTY. O evento de título atualiza a aba e o cabeçalho. O código limita trabalho por iteração, mantém fila ativa de 1 MiB e backlog ordenado de até 256 MiB; exceder o backlog rejeita a entrada com warning. O render state persistente deve ser atualizado apenas pelo caminho de desenho: atualizações temporárias consomem dirty flags e podem esconder saída pendente. A busca usa leitura não mutante da grade. A robustez de carga e feedback de pressão têm itens específicos no roadmap.
 
 ## Build e execução locais
 
@@ -76,7 +76,7 @@ Zig `0.16.0`, Meson, compilador C, GTK 4, libadwaita, PangoCairo e dependências
 ```sh
 meson setup build -Dprofile=development  # somente se build/ ainda não existir
 meson compile -C build
-./build/src/termac
+./build/src/termuni
 ```
 
 Use o Zig 0.16.0 disponível no PATH e confira `zig version`; caminhos antigos em `/tmp` não são instruções de build atuais. Para o perfil normal, configure um diretório separado com `-Dprofile=default`. O Builder configura o projeto Meson nativo com `development`; a execução pela interface da IDE continua pendente. Comandos e procedimentos completos em [docs/development.md](docs/development.md).
