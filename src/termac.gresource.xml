@@ -7,5 +7,6 @@
     <file>tema-claro.svg</file>
     <file>tema-escuro.svg</file>
     <file>tema-automatico.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/termac-agents-symbolic.svg">termac-agents-symbolic.svg</file>
   </gresource>
 </gresources>

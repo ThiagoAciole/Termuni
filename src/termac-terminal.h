@@ -32,6 +32,8 @@ const char *termac_terminal_get_cwd (TermacTerminal *self);
 const char *termac_terminal_get_error (TermacTerminal *self);
 void        termac_terminal_retry (TermacTerminal *self);
 gboolean    termac_terminal_has_foreground_job (TermacTerminal *self);
+/* Types a command line into the shell already running in this terminal. */
+void        termac_terminal_run_command (TermacTerminal *self, const char *command);
 
 gboolean termac_terminal_copy (TermacTerminal *self);
 

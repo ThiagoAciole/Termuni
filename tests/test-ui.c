@@ -2008,75 +2008,6 @@ test_grid_fits_widget (void)
 	g_settings_set_uint (termac_application_get_settings (app), "font-size", font_before);
 }
 
-/* Run explicitly against the SDK-built test executable inside flatpak build.
- * Its host PIDs cannot be queried from the sandbox: the external QA driver
- * checks the printed sleep PID after this window is destroyed. */
-static void
-test_flatpak_host_session (void)
-{
-	GtkWidget *window;
-	TermacTerminal *terminal;
-	g_autofree char *text = NULL;
-	char *marker;
-	if (!g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS))
-	{
-		g_test_skip ("requires the Flatpak sandbox and host bridge");
-		return;
-	}
-	window = gtk_application_window_new (GTK_APPLICATION (app));
-	terminal = TERMAC_TERMINAL (termac_terminal_new ("/tmp", FALSE));
-	gtk_window_set_default_size (GTK_WINDOW (window), 800, 650);
-	gtk_window_set_child (GTK_WINDOW (window), GTK_WIDGET (terminal));
-	gtk_window_present (GTK_WINDOW (window));
-	pump (2000);
-	focus_terminal (window, GTK_WIDGET (terminal));
-	termac_terminal_insert_text (terminal, "test ! -e /.flatpak-info && printf 'p1%s:%s:%s\\n' HOST_READY \"$PWD\" \"$SHELL\"\n");
-	send_keysym (XK_Return, FALSE);
-	pump (600);
-	text = screen_text (terminal);
-	for (guint tries = 0; tries < 30 && strstr (text, "p1HOST_READY:/tmp") == NULL; tries++)
-	{
-		pump (100);
-		g_clear_pointer (&text, g_free);
-		text = screen_text (terminal);
-	}
-	if (strstr (text, "p1HOST_READY:/tmp") == NULL) g_test_message ("host terminal: %s", text);
-	g_assert_nonnull (strstr (text, "p1HOST_READY:/tmp"));
-	if (g_getenv ("TERMAC_TEST_HOST_SHELL") != NULL)
-	{
-		g_autofree char *expected = g_strdup_printf ("p1HOST_READY:/tmp:%s", g_getenv ("TERMAC_TEST_HOST_SHELL"));
-		g_assert_nonnull (strstr (text, expected));
-	}
-	g_assert_null (strstr (text, "no job control"));
-	g_clear_pointer (&text, g_free);
-	termac_terminal_insert_text (terminal, "printf 'host-color:%s\\n' \"$COLORTERM\"");
-	send_keysym (XK_Return, FALSE);
-	g_assert_true (wait_for_screen (terminal, "host-color:truecolor", 3000));
-	termac_terminal_insert_text (terminal, "sleep 30\n");
-	send_keysym (XK_Return, FALSE);
-	pump (400);
-	termac_terminal_copy_or_interrupt (terminal);
-	termac_terminal_copy_or_interrupt (terminal);
-	pump (300);
-	termac_terminal_insert_text (terminal, "printf 'p1%s\\n' INTERRUPTED\n");
-	send_keysym (XK_Return, FALSE);
-	pump (500);
-	text = screen_text (terminal);
-	g_assert_nonnull (strstr (text, "p1INTERRUPTED"));
-	g_clear_pointer (&text, g_free);
-	termac_terminal_insert_text (terminal, "sleep 37 & printf 'P1PID=%s\\n' \"$!\"; wait\n");
-	send_keysym (XK_Return, FALSE);
-	pump (500);
-	text = screen_text (terminal);
-	marker = strstr (text, "P1PID=");
-	while (marker != NULL && !g_ascii_isdigit (marker[6]))
-		marker = strstr (marker + 6, "P1PID=");
-	g_assert_nonnull (marker);
-	g_test_message ("host-sleep-pid=%" G_GUINT64_FORMAT, g_ascii_strtoull (marker + 6, NULL, 10));
-	gtk_window_destroy (GTK_WINDOW (window));
-	pump (500);
-}
-
 static AdwComboRow *
 find_agent_row (GtkWidget *root)
 {
@@ -2143,6 +2074,52 @@ test_launch_agent (void)
 	pump (300);
 	g_assert_cmpuint (tab_count (window), ==, 2);
 	g_assert_true (wait_for_screen (selected_terminal (window), "AGENT-STARTED", 5000));
+	gtk_window_destroy (GTK_WINDOW (window));
+	g_setenv ("PATH", previous != NULL ? previous : "", TRUE);
+	g_setenv ("SHELL", old_shell != NULL ? old_shell : "/bin/sh", TRUE);
+	g_unlink (path);
+	g_rmdir (dir);
+}
+
+static void
+test_launch_agent_quick_menu (void)
+{
+	g_autofree char *dir = g_dir_make_tmp ("termac-agent-quick-XXXXXX", NULL);
+	g_autofree char *path = g_build_filename (dir, "codex", NULL);
+	g_autofree char *previous = g_strdup (g_getenv ("PATH"));
+	g_autofree char *old_shell = g_strdup (g_getenv ("SHELL"));
+	TermacWindow *window;
+	GtkMenuButton *button;
+	GMenuModel *model;
+	g_assert_true (g_file_set_contents (path, "#!/bin/sh\nprintf 'CODEX-%s\\n' QUICK\nexec /bin/sleep 30\n", -1, NULL));
+	g_assert_cmpint (g_chmod (path, 0755), ==, 0);
+	g_setenv ("PATH", dir, TRUE);
+	g_setenv ("SHELL", "/bin/sh", TRUE);
+	g_settings_reset (termac_application_get_settings (app), "agent");
+	window = g_object_new (TERMAC_TYPE_WINDOW, "application", app, NULL);
+	gtk_window_present (GTK_WINDOW (window));
+	pump (200);
+	button = GTK_MENU_BUTTON (gtk_widget_get_template_child (GTK_WIDGET (window), TERMAC_TYPE_WINDOW, "agents_button"));
+	model = gtk_menu_button_get_menu_model (button);
+	g_assert_nonnull (model);
+	g_assert_cmpint (g_menu_model_get_n_items (model), ==, 2);
+	/* With a single tab, the quick menu runs the agent in that same shell. */
+	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent-id", g_variant_new_string ("codex"));
+	pump (300);
+	g_assert_cmpuint (tab_count (window), ==, 1);
+	g_assert_true (wait_for_screen (selected_terminal (window), "CODEX-QUICK", 5000));
+	/* With several tabs, it opens the agent in a new tab. */
+	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
+	pump (300);
+	g_assert_cmpuint (tab_count (window), ==, 2);
+	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent-id", g_variant_new_string ("codex"));
+	pump (300);
+	g_assert_cmpuint (tab_count (window), ==, 3);
+	g_assert_true (wait_for_screen (selected_terminal (window), "CODEX-QUICK", 5000));
+	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent-id", g_variant_new_string ("bogus"));
+	pump (100);
+	g_assert_cmpuint (tab_count (window), ==, 3);
+	g_assert_true (label_has_text (GTK_WIDGET (window), "Unknown agent"));
 	gtk_window_destroy (GTK_WINDOW (window));
 	g_setenv ("PATH", previous != NULL ? previous : "", TRUE);
 	g_setenv ("SHELL", old_shell != NULL ? old_shell : "/bin/sh", TRUE);
@@ -2251,22 +2228,22 @@ ui_agent_checked (GObject *source, GAsyncResult *result, gpointer data)
 }
 
 static void
-test_flatpak_agent_context (void)
+test_native_agent_context (void)
 {
 	gsize count;
 	const TermacAgent *const *agents = termac_agent_all (&count);
 	GtkWidget *window;
 	TermacTerminal *terminal;
 	g_autoptr(GArray) events = g_array_new (FALSE, FALSE, sizeof (gint));
-	if (!g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS))
+	if (g_getenv ("TERMAC_TEST_NATIVE_AGENTS") == NULL)
 	{
-		g_test_skip ("requires the host's installed agents and Flatpak sandbox");
+		g_test_skip ("set TERMAC_TEST_NATIVE_AGENTS=1 to use installed agent CLIs");
 		return;
 	}
 	for (guint i = 0; i < count; i++)
 	{
 		UiAgentCheck check = { 0 };
-		termac_agent_check_async (agents[i], "/tmp", TRUE, NULL, ui_agent_checked, &check);
+		termac_agent_check_async (agents[i], "/tmp", NULL, ui_agent_checked, &check);
 		for (guint tries = 0; !check.done && tries < 80; tries++) pump (100);
 		g_assert_true (check.done);
 		g_assert_no_error (check.error);
@@ -2889,13 +2866,13 @@ main (int argc, char **argv)
 	g_test_add_func ("/ui/session-corrupt-file", test_session_corrupt_file);
 	g_test_add_func ("/ui/attach-without-agent-binary", test_attach_without_agent_binary);
 	g_test_add_func ("/ui/launch-agent", test_launch_agent);
+	g_test_add_func ("/ui/launch-agent-quick-menu", test_launch_agent_quick_menu);
 	g_test_add_func ("/ui/launch-agent-missing-folder", test_launch_agent_missing_folder);
 	g_test_add_func ("/ui/launch-agent-missing", test_launch_agent_missing);
+	g_test_add_func ("/ui/native-agent-context", test_native_agent_context);
 	g_test_add_func ("/ui/bash-command-events", test_bash_command_events);
 	g_test_add_func ("/ui/real-agent-driver", test_real_agent_driver);
 	g_test_add_func ("/ui/agent-choice", test_agent_choice);
-	g_test_add_func ("/ui/flatpak-agent-context", test_flatpak_agent_context);
-	g_test_add_func ("/ui/flatpak-host-session", test_flatpak_host_session);
 	g_test_add_func ("/ui/accessibility-labels", test_accessibility_labels);
 	g_test_add_func ("/ui/accessible-text", test_accessible_text);
 	g_test_add_func ("/ui/accessible-text-atspi-fixture", test_accessible_text_atspi_fixture);

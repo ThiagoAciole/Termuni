@@ -24,6 +24,7 @@ struct _TermacWindow
 	GtkLabel *header_title;
 	GtkLabel *header_subtitle;
 	GtkMenuButton *menu_button;
+	GtkMenuButton *agents_button;
 	GtkSearchBar *find_bar;
 	GtkSearchEntry *find_entry;
 	GtkButton *find_close_button;
@@ -373,6 +374,23 @@ termac_window_build_menu (TermacWindow *self)
 	gtk_menu_button_set_popover (self->menu_button, popover);
 }
 
+/* Quick launch: one entry per registered agent, each opening a new tab. */
+static void
+termac_window_build_agents_menu (TermacWindow *self)
+{
+	g_autoptr(GMenu) menu = g_menu_new ();
+	gsize count = 0;
+	const TermacAgent *const *agents = termac_agent_all (&count);
+	gsize i;
+	for (i = 0; i < count; i++)
+	{
+		g_autoptr(GMenuItem) item = g_menu_item_new (agents[i]->display_name, NULL);
+		g_menu_item_set_action_and_target (item, "win.launch-agent-id", "s", agents[i]->id);
+		g_menu_append_item (menu, item);
+	}
+	gtk_menu_button_set_menu_model (self->agents_button, G_MENU_MODEL (menu));
+}
+
 /* ---- titles, header, attention --------------------------------------- */
 
 static void
@@ -603,7 +621,34 @@ termac_window_create_tab (TermacWindow *self, const char *cwd, const char *manua
 	return termac_window_create_tab_with_command (self, cwd, manual_title, NULL);
 }
 
-typedef struct { GWeakRef window; const TermacAgent *agent; char *cwd; } AgentLaunch;
+typedef struct { GWeakRef window; const TermacAgent *agent; char *cwd; gboolean quick; } AgentLaunch;
+
+/* Both launch actions share one availability check at a time. */
+static void
+window_set_agent_actions_enabled (TermacWindow *self, gboolean enabled)
+{
+	static const char *const names[] = { "launch-agent", "launch-agent-id" };
+	guint i;
+	for (i = 0; i < G_N_ELEMENTS (names); i++)
+		g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (G_ACTION_MAP (self), names[i])),
+		                             enabled);
+}
+
+static void
+window_run_agent_in_current_tab (TermacWindow *self, const char *command)
+{
+	TermacTerminal *terminal = window_selected_terminal (self);
+	if (terminal == NULL)
+		return;
+	if (termac_terminal_has_foreground_job (terminal))
+	{
+		/* Typed input would reach the running program instead of the shell. */
+		window_show_toast (self, _("Finish the running program first"));
+		return;
+	}
+	termac_terminal_run_command (terminal, command);
+	gtk_widget_grab_focus (GTK_WIDGET (terminal));
+}
 
 static void
 agent_launch_checked (GObject *source, GAsyncResult *result, gpointer data)
@@ -614,7 +659,7 @@ agent_launch_checked (GObject *source, GAsyncResult *result, gpointer data)
 	TermacAgentAvailability status = termac_agent_check_finish (result, &error);
 	if (self != NULL && gtk_widget_get_visible (GTK_WIDGET (self)))
 	{
-		g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (G_ACTION_MAP (self), "launch-agent")), TRUE);
+		window_set_agent_actions_enabled (self, TRUE);
 		if (error != NULL)
 			window_show_toast (self, _("Could not check agent availability. Try again."));
 		else if (status == TERMAC_AGENT_MISSING)
@@ -627,11 +672,17 @@ agent_launch_checked (GObject *source, GAsyncResult *result, gpointer data)
 		else
 		{
 			g_autofree char *command = termac_agent_build_launch_command (launch->agent);
-			AdwTabPage *page = termac_window_create_tab_with_command (self, launch->cwd, NULL, command);
-			if (page != NULL)
+			/* The quick menu starts the agent in the only open tab; with several tabs it opens a new one. */
+			if (launch->quick && adw_tab_view_get_n_pages (self->tab_view) == 1)
+				window_run_agent_in_current_tab (self, command);
+			else
 			{
-				adw_tab_view_set_selected_page (self->tab_view, page);
-				gtk_widget_grab_focus (adw_tab_page_get_child (page));
+				AdwTabPage *page = termac_window_create_tab_with_command (self, launch->cwd, NULL, command);
+				if (page != NULL)
+				{
+					adw_tab_view_set_selected_page (self->tab_view, page);
+					gtk_widget_grab_focus (adw_tab_page_get_child (page));
+				}
 			}
 		}
 	}
@@ -640,23 +691,45 @@ agent_launch_checked (GObject *source, GAsyncResult *result, gpointer data)
 	g_free (launch);
 }
 
-void
-termac_window_launch_agent (TermacWindow *self)
+static void
+window_launch_agent_in_tab (TermacWindow *self, const TermacAgent *agent, gboolean quick)
 {
 	TermacTerminal *terminal = window_selected_terminal (self);
 	const char *cwd = terminal != NULL ? termac_terminal_get_cwd (terminal) : NULL;
 	AgentLaunch *launch = g_new0 (AgentLaunch, 1);
 	g_weak_ref_init (&launch->window, self);
-	launch->agent = window_agent (self);
+	launch->agent = agent;
+	launch->quick = quick;
 	launch->cwd = g_strdup (cwd != NULL ? cwd : g_get_home_dir ());
-	g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (G_ACTION_MAP (self), "launch-agent")), FALSE);
-	termac_agent_check_async (launch->agent, launch->cwd, g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS), NULL, agent_launch_checked, launch);
+	window_set_agent_actions_enabled (self, FALSE);
+	termac_agent_check_async (launch->agent, launch->cwd, NULL, agent_launch_checked, launch);
+}
+
+void
+termac_window_launch_agent (TermacWindow *self)
+{
+	window_launch_agent_in_tab (self, window_agent (self), FALSE);
 }
 
 static void
 termac_window_launch_agent_action (GSimpleAction *action, GVariant *parameter, gpointer data)
 {
 	termac_window_launch_agent (TERMAC_WINDOW (data));
+}
+
+/* Launches a specific agent, chosen from the header quick-launch menu. */
+static void
+termac_window_launch_agent_id_action (GSimpleAction *action, GVariant *parameter, gpointer data)
+{
+	TermacWindow *self = TERMAC_WINDOW (data);
+	const TermacAgent *agent = termac_agent_find (g_variant_get_string (parameter, NULL));
+	(void) action;
+	if (agent == NULL)
+	{
+		window_show_toast (self, _("Unknown agent"));
+		return;
+	}
+	window_launch_agent_in_tab (self, agent, TRUE);
 }
 
 static void
@@ -1158,6 +1231,7 @@ termac_window_terminal_action (GSimpleAction *action,
 static const GActionEntry window_actions[] = {
 	{ "new-tab", termac_window_add_tab },
 	{ "launch-agent", termac_window_launch_agent_action },
+	{ "launch-agent-id", termac_window_launch_agent_id_action, "s" },
 	{ "new-window", termac_window_new_window },
 	{ "toggle-overview", termac_window_toggle_overview },
 	{ "close-tab", termac_window_close_tab },
@@ -1197,6 +1271,7 @@ termac_window_class_init (TermacWindowClass *klass)
 	gtk_widget_class_bind_template_child (widget_class, TermacWindow, header_title);
 	gtk_widget_class_bind_template_child (widget_class, TermacWindow, header_subtitle);
 	gtk_widget_class_bind_template_child (widget_class, TermacWindow, menu_button);
+	gtk_widget_class_bind_template_child (widget_class, TermacWindow, agents_button);
 	gtk_widget_class_bind_template_child (widget_class, TermacWindow, find_bar);
 	gtk_widget_class_bind_template_child (widget_class, TermacWindow, find_entry);
 	gtk_widget_class_bind_template_child (widget_class, TermacWindow, find_close_button);
@@ -1243,6 +1318,7 @@ termac_window_init (TermacWindow *self)
 	g_signal_connect (drop, "drop", G_CALLBACK (window_drop_files), self);
 	gtk_widget_add_controller (GTK_WIDGET (self->tab_view), GTK_EVENT_CONTROLLER (drop));
 	termac_window_build_menu (self);
+	termac_window_build_agents_menu (self);
 }
 
 /* The first tab is created here, once the application is known, so that it
@@ -1362,7 +1438,7 @@ termac_window_restore_tabs (TermacWindow *self,
 	{
 		g_autofree char *directory = NULL;
 		AdwTabPage *page;
-		directory = termac_session_directory (cwd, g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS));
+		directory = termac_session_directory (cwd);
 		page = termac_window_create_tab (self, directory, manual);
 		if (count == selected)
 			adw_tab_view_set_selected_page (self->tab_view, page);
