@@ -1,5 +1,5 @@
 scalable_dir = 'hicolor' / 'scalable' / 'apps'
-# Flatpak requires a square canvas. Keep the original SVG artwork intact.
+# Install a square canvas while keeping the original SVG artwork intact.
 configure_file(
   input: scalable_dir / ('@0@.svg').format(application_id),
   output: application_id + '.svg',

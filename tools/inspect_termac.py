@@ -16,7 +16,6 @@ SIGNALS={
     'libadwaita': [r'libadwaita',r'adw_application',r'adw-1'],
     'Zig': [r'build\.zig',r'build\.zig\.zon'],
     'Meson': [r'meson\.build'],
-    'Flatpak': [r'flatpak',r'finish-args'],
 }
 NEEDLES={k:[re.compile(p,re.I) for p in pats] for k,pats in SIGNALS.items()}
 SCAN_EXT={'.zig','.zon','.c','.h','.cpp','.hpp','.toml','.json','.yml','.yaml','.xml','.ui','.blp','.sh','.in','.meson'}
@@ -60,8 +59,7 @@ def main():
         'gtk4':version(['pkg-config','--modversion','gtk4']),
         'libadwaita-1':version(['pkg-config','--modversion','libadwaita-1']),
         'zig':version(['zig','version']),
-        'meson':version(['meson','--version']),
-        'flatpak':version(['flatpak','--version'])},'git_revision':git_revision,'errors':errors[:10],
+        'meson':version(['meson','--version'])},'git_revision':git_revision,'errors':errors[:10],
         'warning':'Heuristic content scan only; verify ABI, linked objects, real source paths and pinned revision manually. No files changed.'}
     if args.json: print(json.dumps(info,ensure_ascii=False,indent=2))
     else:
