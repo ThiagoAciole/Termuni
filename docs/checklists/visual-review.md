@@ -5,13 +5,13 @@ Inspeção das capturas GTK feita pelo agente sob Xvfb/X11, GTK 4.24.1 e libadwa
 Reprodução (diretório temporário, preferências e sessões isoladas pelo teste):
 
 ```sh
-meson compile -C build
+meson compile -C build/development
 mkdir -p /tmp/termuni-p3-shots
 TERMUNI_UI_SCREENSHOTS=/tmp/termuni-p3-shots GSETTINGS_BACKEND=memory \
-  GDK_BACKEND=x11 xvfb-run -a build/tests/test-ui
+  GDK_BACKEND=x11 xvfb-run -a build/development/tests/test-ui
 # Apenas as telas principais:
 TERMUNI_UI_SCREENSHOTS=/tmp/termuni-p3-shots GDK_BACKEND=x11 \
-  xvfb-run -a build/tests/test-ui -p /ui/visual-screens
+  xvfb-run -a build/development/tests/test-ui -p /ui/visual-screens
 ```
 
 Os popovers têm superfície nativa própria: `menu-*.png` captura o popover diretamente. Uma captura apenas da janela omitia o menu, por isso essas imagens iniciais foram descartadas. A captura espera a apresentação da janela e o fim da transição do overview; uma tentativa anterior durante a transição não produziu nó de renderização. A ativação normal do aplicativo carrega o CSS antes das capturas.

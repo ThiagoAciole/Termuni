@@ -1,4 +1,4 @@
-> **Arquivo histórico:** quadro e registros anteriores à organização de 13/11/2026. Não usar as pendências antigas como estado atual. Consulte [o quadro vigente](../../PLANO_IMPLEMENTACAO.md) e [o roadmap](../ROADMAP.md). Links relativos ajustados para esta pasta; conteúdo histórico preservado.
+> **Arquivo histórico:** quadro e registros anteriores à organização de 13/11/2026. Não usar as pendências antigas como estado atual. Consulte [o quadro vigente](../PLANO_IMPLEMENTACAO.md) e [o roadmap](../ROADMAP.md). Links relativos ajustados para esta pasta; conteúdo histórico preservado.
 
 # Plano de implementação do Termac
 
@@ -6,7 +6,7 @@ Atualizado em 09/11/2026 para C, GTK 4, libadwaita e libghostty-vt.
 
 ## Estado atual — 13/11/2026
 
-Este quadro é o ponto de retomada. As seções 1–10 preservam o plano e suas condições no momento em que foi escrito; a seção 11 registra observações históricas. Quando divergirem deste quadro ou do código atual, confira a evidência mais recente antes de agir. O detalhamento técnico está em [PDR.Arquiteture.md](../../PDR.Arquiteture.md) e as referências visuais em [DESIGN.md](../../DESIGN.md).
+Este quadro é o ponto de retomada. As seções 1–10 preservam o plano e suas condições no momento em que foi escrito; a seção 11 registra observações históricas. Quando divergirem deste quadro ou do código atual, confira a evidência mais recente antes de agir. O detalhamento técnico está em [PDR.Arquiteture.md](../architecture/PDR.Arquiteture.md) e as referências visuais em [DESIGN.md](../design/DESIGN.md).
 
 | Marco | Situação | Evidência e trabalho pendente |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ Este quadro é o ponto de retomada. As seções 1–10 preservam o plano e suas 
 - Os perfis `development` (`thiago.aciole.Termac.Devel`) e `default` (`thiago.aciole.Termac`) geram IDs, schemas e ícones distintos. Os SVGs originais normal e dev foram copiados para `data/icons`; falta confirmar sua apresentação em todas as superfícies do desktop.
 - O Zig 0.16.0 foi instalado em `~/.local/share/zig/0.16.0` e exposto por link em `~/.local/bin/zig`, já presente no PATH; `meson compile -C build` e `./build/src/termac` funcionam sem ajuste de PATH. O app foi relançado no Wayland e a captura enviada pelo usuário mostrou o prompt e os espaçamentos. Um aviso GDK de apresentação encerrou a instância quando `G_DEBUG=fatal-warnings` estava ativo; execução normal não precisa dessa variável.
 - A instalação antiga em `~/.local` foi removida dos locais ativos e movida para a Lixeira a pedido do usuário. Preferências pessoais foram preservadas. Não foi localizada instalação Flatpak ou em `/usr/local` na consulta feita na sessão.
-- A cópia `/home/thiago/Downloads/termac.old`, derivada do Ptyxis, foi examinada como referência visual e estrutural. Usa VTE/CMake; as medidas e diferenças relevantes estão em [DESIGN.md](../../DESIGN.md). A análise foi de código, sem validação de execução do app antigo.
+- A cópia `/home/thiago/Downloads/termac.old`, derivada do Ptyxis, foi examinada como referência visual e estrutural. Usa VTE/CMake; as medidas e diferenças relevantes estão em [DESIGN.md](../design/DESIGN.md). A análise foi de código, sem validação de execução do app antigo.
 
 - Revisão de erros em 09/11/2026: corrigidas duas leituras de `g_autofree char *percentage` sem inicialização em `src/termac-window.c` (`termac_window_zoom` e `termac_window_sync_settings`), que liberavam ponteiro indefinido ao sair cedo; e o diálogo de atalhos em `src/termac-application.c`, que liberava o builder dono do diálogo antes da apresentação, agora mantido vivo até o sinal `closed`. Verificação: build limpo em diretório temporário e build do projeto com Zig 0.16.0 no PATH sem erros nem warnings; `build/src/termac` iniciado em modo dev no Wayland, permaneceu ativo com log vazio. Não foi feita inspeção visual nem teste de interação; as pendências dos marcos 1–3 continuam em aberto. O validador `tools/validate_skills.py` acusa divergência de `name` em skills de terceiros dentro de `.agents/skills/`, sem relação com o código do app; não foram alteradas.
 

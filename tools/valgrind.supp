@@ -1,6 +1,6 @@
 # Suppressions for tools/valgrind-churn.sh. Every entry is a one-time or cached
 # allocation owned by a library, checked to stay the same size whether the test
-# opens 3 tabs or 15 (see PLANO_IMPLEMENTACAO.md, "Verificação com valgrind").
+# opens 3 tabs or 15 (see docs/PLANO_IMPLEMENTACAO.md, "Verificação com valgrind").
 {
    fontconfig-font-set-cache
    Memcheck:Leak

@@ -12,7 +12,7 @@ import subprocess
 import time
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--binary', type=Path, default=Path('build/tests/test-ui'))
+parser.add_argument('--binary', type=Path, default=Path('build/development/tests/test-ui'))
 parser.add_argument('--samples', type=int, default=3)
 parser.add_argument('--lines', type=int, default=3000)
 parser.add_argument('--output', type=Path, default=Path('build/benchmark.json'))

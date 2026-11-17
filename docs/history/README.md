@@ -1,6 +1,6 @@
 # Histórico preservado
 
-Estes arquivos registram estados anteriores. Não são a configuração ativa nem a lista vigente de pendências: use [PLANO_IMPLEMENTACAO.md](../../PLANO_IMPLEMENTACAO.md) e [ROADMAP.md](../ROADMAP.md).
+Estes arquivos registram estados anteriores. Não são a configuração ativa nem a lista vigente de pendências: use [PLANO_IMPLEMENTACAO.md](../PLANO_IMPLEMENTACAO.md) e [ROADMAP.md](../ROADMAP.md).
 
 | Arquivo | Origem e tratamento |
 | --- | --- |

@@ -4,7 +4,7 @@ Continuação de `3ccef25`, em 13/11/2026. Esta rodada não altera o runtime do 
 
 ## Pacote instalável e atualização — passou em instalação isolada
 
-Gerado `build/termac-0.1.0-x86_64.flatpak` a partir de `build-flatpak-default`: 5.545.624 bytes, SHA-256 `734924b5f00b224825863a95043eff44cf4bce28a10520c9111776f6ce2f8f81`.
+Gerado `build/termac-0.1.0-x86_64.flatpak` a partir de `build-flatpak-default`: 5.545.624 bytes, SHA-256 `734924b5f00b224825863a95043eff44cf4bce28a10520c9111776f6ce2f8f81`. O bundle foi preservado em `build/archive/previous-development/termac-0.1.0-x86_64.flatpak`.
 
 O bundle foi instalado com `FLATPAK_USER_DIR` apontando para `.superpowers/sdd/desktop-acceptance/flatpak-user`. ID `thiago.aciole.Termac`, runtime GNOME 50 e schema do pacote conferidos. A instalação pessoal não foi atualizada.
 

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
-build="$root/build"
+build="$root/build/development"
 binary="$build/src/termuni"
 log="${TERMUNI_DEV_LOG:-$HOME/.cache/termuni/dev.log}"
 

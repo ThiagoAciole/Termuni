@@ -18,11 +18,11 @@ for tool in valgrind xvfb-run; do
 done
 # valgrind cannot run the SIMD code of libghostty-vt, so it gets its own build
 # tree with SIMD off. The first run builds it (a few minutes).
-vbuild="$root/build-valgrind"
+vbuild="$root/build/diagnostics/valgrind"
 if [ ! -d "$vbuild" ]; then
-	(cd "$root" && TERMUNI_GHOSTTY_ZIG_FLAGS=-Dsimd=false meson setup build-valgrind -Dprofile=development)
+	TERMUNI_GHOSTTY_ZIG_FLAGS=-Dsimd=false meson setup "$vbuild" "$root" -Dprofile=development
 fi
-(cd "$root" && TERMUNI_GHOSTTY_ZIG_FLAGS=-Dsimd=false meson compile -C build-valgrind >/dev/null)
+TERMUNI_GHOSTTY_ZIG_FLAGS=-Dsimd=false meson compile -C "$vbuild" >/dev/null
 
 set +e
 GSETTINGS_BACKEND=memory GDK_BACKEND=x11 TERMUNI_CHURN_ROUNDS="$rounds" \

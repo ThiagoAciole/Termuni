@@ -27,7 +27,7 @@ Development e default possuem build e instalação nativa em DESTDIR isolado. Fl
 
 Claude Code 2.1.325 e Codex CLI 0.167.1 repetiram **6/6 anexos reais pelo Flatpak/host**: PNG K7R4, JPEG M2X9 e clipboard/Ctrl+V V8C6, com cores/formas correspondentes. O prompt não continha os códigos e proibia ferramentas/leitura de arquivos. Detalhes em [agentes](../checklists/agents-manual.md). A atualização sugerida pelo Codex foi dispensada; CLIs pessoais não foram atualizados.
 
-O manifesto de release usado localmente foi gerado do manifesto development, alterando apenas ID/perfil e caminho da fonte; ficou no diretório ignorado de trabalho. Os builds estão em `build-flatpak` e `build-flatpak-default`; não houve instalação global ou publicação de release. A instalação/atualização no desktop continua no aceite da distribuição.
+O manifesto de release usado localmente foi gerado do manifesto development, alterando apenas ID/perfil e caminho da fonte; ficou no diretório ignorado de trabalho. As árvores Flatpak foram preservadas em `build/archive/previous-flatpak-development` e `build/archive/previous-flatpak-default`; não houve instalação global ou publicação de release. A instalação/atualização no desktop continua no aceite da distribuição.
 
 ## CI
 
@@ -39,7 +39,7 @@ Fontes da configuração: [flatpak-github-actions](https://github.com/flatpak/fl
 
 ## Memória e desempenho
 
-Valgrind 3 e 15 ciclos: testes passaram e **22.016 bytes/20 blocos definitivos em ambas as execuções**, sem frames do Termac nas perdas definitivas nem acessos inválidos reportados. Logs em `build-valgrind/valgrind-rounds-{3,15}.log`. O residual é de bibliotecas; o exit code diagnóstico do script, sozinho, não é o critério. Uma referência de ícone por aba já havia sido corrigida no P0.
+Valgrind 3 e 15 ciclos: testes passaram e **22.016 bytes/20 blocos definitivos em ambas as execuções**, sem frames do Termac nas perdas definitivas nem acessos inválidos reportados. Logs preservados em `build/archive/previous-valgrind/valgrind-rounds-{3,15}.log`. O residual é de bibliotecas; o exit code diagnóstico do script, sozinho, não é o critério. Uma referência de ícone por aba já havia sido corrigida no P0.
 
 Benchmark: **9 amostras**, 1/5/10 abas, 3.000 linhas por aba comparadas integralmente, Cairo/Xvfb. [JSON com amostras e ambiente](evidence/2026-11-13-benchmark.json).
 

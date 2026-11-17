@@ -27,8 +27,8 @@ def run(command, **kwargs):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--builddir", type=Path, default=Path("build-deb"))
-    parser.add_argument("--output", type=Path, default=Path("dist"))
+    parser.add_argument("--builddir", type=Path, default=Path("build/package"))
+    parser.add_argument("--output", type=Path, default=Path("build/packages"))
     args = parser.parse_args()
     builddir = args.builddir if args.builddir.is_absolute() else ROOT / args.builddir
     output = args.output if args.output.is_absolute() else ROOT / args.output

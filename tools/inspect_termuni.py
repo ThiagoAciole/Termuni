@@ -39,7 +39,7 @@ def main():
                  and not d.startswith('build-')
                  and (Path(base)/d).relative_to(root) not in DEPENDENCY_PATHS]
         for name in names:
-            if name in ('SOURCES.md','SKILLS_INDEX.md','AGENTS.md'): continue
+            if name in ('AGENTS.md',): continue
             f=Path(base)/name
             if f.suffix.lower() not in SCAN_EXT and name not in SCAN_NAMES: continue
             if f.is_symlink(): continue

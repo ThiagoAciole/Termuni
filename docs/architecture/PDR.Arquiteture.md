@@ -1,12 +1,12 @@
 # Termuni — requisitos e arquitetura
 
-Atualizado em 14/11/2026. O estado dos marcos e suas evidências ficam no quadro **Estado atual** de [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md); consulte-o antes de continuar a implementação.
+Atualizado em 14/11/2026. O estado dos marcos e suas evidências ficam no quadro **Estado atual** de [PLANO_IMPLEMENTACAO.md](../PLANO_IMPLEMENTACAO.md); consulte-o antes de continuar a implementação.
 
 ## Produto
 
-O Termuni é primeiro um terminal nativo GNOME para Linux, com sessões em abas e suporte a aplicações TUI. Shell, PTY, entrada, seleção, colagem, Unicode/emoji e cores True Color são parte do terminal. Claude Code/Codex são integrações opcionais: sua ausência não deve comprometer o emulador. A aparência e as interações previstas estão em [DESIGN.md](DESIGN.md).
+O Termuni é primeiro um terminal nativo GNOME para Linux, com sessões em abas e suporte a aplicações TUI. Shell, PTY, entrada, seleção, colagem, Unicode/emoji e cores True Color são parte do terminal. Claude Code/Codex são integrações opcionais: sua ausência não deve comprometer o emulador. A aparência e as interações previstas estão em [DESIGN.md](../design/DESIGN.md).
 
-A implementação atual inclui seleção, copiar e colar, scrollback, visão geral de abas, preferências, busca com realce, anexação de imagens para Claude Code/Codex e persistência de organização. Acessibilidade do conteúdo do terminal permanece incompleta. O [roadmap](docs/ROADMAP.md) separa código ausente, correções e aceite manual; a presença de uma ação ou tela não garante sua validação.
+A implementação atual inclui seleção, copiar e colar, scrollback, visão geral de abas, preferências, busca com realce, anexação de imagens para Claude Code/Codex e persistência de organização. Acessibilidade do conteúdo do terminal permanece incompleta. O [roadmap](../ROADMAP.md) separa código ausente, correções e aceite manual; a presença de uma ação ou tela não garante sua validação.
 
 ## Decisões de produto
 
@@ -19,7 +19,7 @@ A implementação atual inclui seleção, copiar e colar, scrollback, visão ger
 
 ## Critério de estabilidade
 
-Os [critérios da primeira versão estável](docs/checklists/stability.md) são o contrato de aceite: confiabilidade do terminal, restauração, distribuição/Builder, fluxos suportados de anexo, ausência de crescimento contínuo de memória inexplicado, acessibilidade/escalas e consistência visual/documental. O Marco 5 inteiro não é pré-requisito; busca com realce e conflitos já existem. Expansões opcionais não devem adiar correções do emulador, persistência ou distribuição.
+Os [critérios da primeira versão estável](../checklists/stability.md) são o contrato de aceite: confiabilidade do terminal, restauração, distribuição/Builder, fluxos suportados de anexo, ausência de crescimento contínuo de memória inexplicado, acessibilidade/escalas e consistência visual/documental. O Marco 5 inteiro não é pré-requisito; busca com realce e conflitos já existem. Expansões opcionais não devem adiar correções do emulador, persistência ou distribuição.
 
 A matriz distingue o que já foi implementado de validação pendente. TUI moderna, Unicode/emoji e True Color têm cenários explícitos; não se infere compatibilidade com toda aplicação a partir das capacidades do motor.
 
@@ -27,10 +27,10 @@ A matriz distingue o que já foi implementado de validação pendente. TUI moder
 
 - C com GTK 4 e libadwaita; Meson como build e projeto aberto no GNOME Builder. O formato de instalação escolhido é pacote `.deb` nativo para Ubuntu; ambiente principal: Ubuntu 26.10 em Wayland.
 - libghostty-vt faz parsing VT e fornece estado, células, estilos, cores e codificação de teclas. O Termuni fornece janela, PTY, entrada e desenho.
-- [subprojects/ghostty.wrap](subprojects/ghostty.wrap) fixa Ghostty em `f64f4aca2c29b554d111b36c3d946a9bddd159ff`. O build exige Zig `0.16.0`; URL e SHA-256 ficam fixados em `tools/zig-toolchain.json`. A API C deve ser conferida na revisão fixada ao alterá-la. O exemplo oficial Ghostling foi a referência inicial para uso da API.
+- [subprojects/ghostty.wrap](../../subprojects/ghostty.wrap) fixa Ghostty em `f64f4aca2c29b554d111b36c3d946a9bddd159ff`. O build exige Zig `0.16.0`; URL e SHA-256 ficam fixados em `tools/zig-toolchain.json`. A API C deve ser conferida na revisão fixada ao alterá-la. O exemplo oficial Ghostling foi a referência inicial para uso da API.
 - O desenho atual usa `GtkDrawingArea`, Cairo e PangoCairo. Medições devem orientar qualquer mudança para GSK, OpenGL ou outro renderer.
 - `development` usa `io.github.ThiagoAciole.Termuni.Devel`, schema e ícone próprios; `default` usa `io.github.ThiagoAciole.Termuni`. Recursos GtkBuilder mantêm o caminho `/io/github/thiagoaciole/termuni`.
-- A cópia de referência `/home/thiago/Downloads/termuni.old` deriva do Ptyxis e usa `VteTerminal` e CMake. Serve como referência de estrutura e interface, com detalhes em [DESIGN.md](DESIGN.md); a sessão, entrada, renderização e recursos VTE precisam de adaptação para libghostty-vt. A cópia examinada não contém histórico Git.
+- A cópia de referência `/home/thiago/Downloads/termuni.old` deriva do Ptyxis e usa `VteTerminal` e CMake. Serve como referência de estrutura e interface, com detalhes em [DESIGN.md](../design/DESIGN.md); a sessão, entrada, renderização e recursos VTE precisam de adaptação para libghostty-vt. A cópia examinada não contém histórico Git.
 
 - Distribuição: pacote Debian local gerado pelo perfil `default` com `tools/build-deb.py`. O pacote instala o binário, lançador, schema GSettings, serviço D-Bus, traduções e ícone no sistema; dependências são obtidas do executável com `dpkg-shlibdeps`.
 - Cada sessão usa `forkpty` para executar o shell local do usuário. O PTY fornece o controle de tarefas, Ctrl+C, resize e grupos de processos usados pela confirmação de fechamento. Bash recebe integração opt-in por rc gerado; outros shells conservam a inicialização normal e podem informar CWD com OSC 7.
@@ -40,18 +40,18 @@ A matriz distingue o que já foi implementado de validação pendente. TUI moder
 
 | Local | Responsabilidade atual |
 | --- | --- |
-| [src/main.c](src/main.c) | Inicializa tradução e aplicação com o ID gerado pelo Meson. |
-| [src/termuni-application.c](src/termuni-application.c) | Ciclo da aplicação, ações globais, preferências, paletas e GSettings. |
-| [src/termuni-agent.c](src/termuni-agent.c) | Registro de agentes, citação de anexo, comando inicial e consultas assíncronas no contexto real do shell/pasta. |
-| [src/termuni-window.c](src/termuni-window.c) e [src/termuni-window.ui](src/termuni-window.ui) | Janela, cabeçalho, menu, abas, overview e ações de janela. |
-| [src/termuni-terminal.c](src/termuni-terminal.c) | Widget, PTY e shell, I/O GLib, estado Ghostty, renderer Cairo/Pango e entrada/IME. As camadas de sessão e renderer ainda não são módulos separados. |
-| [src/termuni-vt.c](src/termuni-vt.c) | Seleção, paste e busca/geometria sobre a API fixada, sem dependência de GTK. Consultas à grade preservam dirty flags do renderizador. |
-| [src/termuni-settings.c](src/termuni-settings.c) | Schema instalado com fallback de desenvolvimento. |
-| [src/termuni-util.c](src/termuni-util.c) e [src/termuni-attachments.c](src/termuni-attachments.c) | Helpers de paths/shell/imagens/política e armazenamento/pruning de anexos. |
-| [src/termuni.css](src/termuni.css) e [src/termuni.gresource.xml](src/termuni.gresource.xml) | Estilos e recursos incorporados. |
-| [data/meson.build](data/meson.build) e [data/icons/meson.build](data/icons/meson.build) | Arquivos desktop, schema, serviço, metadados e ícones por perfil. |
-| [subprojects/packagefiles/ghostty/meson.build](subprojects/packagefiles/ghostty/meson.build) | Integração Meson do build estático da biblioteca via Zig. |
-| [tools/build-deb.py](tools/build-deb.py) | Gera o pacote Debian de produção a partir do perfil `default`. |
+| [src/main.c](../../src/main.c) | Inicializa tradução e aplicação com o ID gerado pelo Meson. |
+| [src/termuni-application.c](../../src/termuni-application.c) | Ciclo da aplicação, ações globais, preferências, paletas e GSettings. |
+| [src/termuni-agent.c](../../src/termuni-agent.c) | Registro de agentes, citação de anexo, comando inicial e consultas assíncronas no contexto real do shell/pasta. |
+| [src/termuni-window.c](../../src/termuni-window.c) e [src/termuni-window.ui](../../src/termuni-window.ui) | Janela, cabeçalho, menu, abas, overview e ações de janela. |
+| [src/termuni-terminal.c](../../src/termuni-terminal.c) | Widget, PTY e shell, I/O GLib, estado Ghostty, renderer Cairo/Pango e entrada/IME. As camadas de sessão e renderer ainda não são módulos separados. |
+| [src/termuni-vt.c](../../src/termuni-vt.c) | Seleção, paste e busca/geometria sobre a API fixada, sem dependência de GTK. Consultas à grade preservam dirty flags do renderizador. |
+| [src/termuni-settings.c](../../src/termuni-settings.c) | Schema instalado com fallback de desenvolvimento. |
+| [src/termuni-util.c](../../src/termuni-util.c) e [src/termuni-attachments.c](../../src/termuni-attachments.c) | Helpers de paths/shell/imagens/política e armazenamento/pruning de anexos. |
+| [src/termuni.css](../../src/termuni.css) e [src/termuni.gresource.xml](../../src/termuni.gresource.xml) | Estilos e recursos incorporados. |
+| [data/meson.build](../../data/meson.build) e [data/icons/meson.build](../../data/icons/meson.build) | Arquivos desktop, schema, serviço, metadados e ícones por perfil. |
+| [subprojects/packagefiles/ghostty/meson.build](../../subprojects/packagefiles/ghostty/meson.build) | Integração Meson do build estático da biblioteca via Zig. |
+| [tools/build-deb.py](../../tools/build-deb.py) | Gera o pacote Debian de produção a partir do perfil `default`. |
 
 ```mermaid
 flowchart TD
@@ -74,12 +74,12 @@ Cada `TermuniTerminal` cria um shell via `forkpty`, integra o descritor não blo
 Zig `0.16.0`, Meson, compilador C, GTK 4, libadwaita, PangoCairo e dependências do Ghostty são necessários. Com Zig disponível no `PATH`:
 
 ```sh
-meson setup build -Dprofile=development  # somente se build/ ainda não existir
-meson compile -C build
-./build/src/termuni
+meson setup build/development -Dprofile=development  # somente se o build ainda não existir
+meson compile -C build/development
+./build/development/src/termuni
 ```
 
-Use o Zig 0.16.0 disponível no PATH e confira `zig version`; caminhos antigos em `/tmp` não são instruções de build atuais. Para o perfil normal, configure um diretório separado com `-Dprofile=default`. O Builder configura o projeto Meson nativo com `development`; a execução pela interface da IDE continua pendente. Comandos e procedimentos completos em [docs/development.md](docs/development.md).
+Use o Zig 0.16.0 disponível no PATH e confira `zig version`; caminhos antigos em `/tmp` não são instruções de build atuais. Para o perfil normal, configure `build/default` com `-Dprofile=default`. O Builder configura o projeto Meson nativo em `build/development`; a execução pela interface da IDE continua pendente. Comandos e procedimentos completos em [desenvolvimento](../development.md).
 
 ## Riscos e pontos de atenção
 
@@ -89,4 +89,4 @@ Use o Zig 0.16.0 disponível no PATH e confira `zig version`; caminhos antigos e
 - `TERM` é definido como `xterm-256color`; as capacidades anunciadas precisam ser confrontadas com o comportamento realmente implementado.
 - Entrada composta, teclas, TUI, seleção, colagem, scrollback, Unicode complexo e desempenho exigem verificações específicas. A API e o desenho por célula não provam compatibilidade completa.
 - As preferências cobrem Geral, Aparência, Atalhos e Anexos. A comparação das capturas Xvfb foi registrada no P3; aprovação visual no GNOME real continua pendente. Janelas e abas entram em Geral quando tiverem opções.
-- Código e cenários de correção ainda abertos ficam em [docs/ROADMAP.md](docs/ROADMAP.md); a arquitetura não deve manter uma lista concorrente de pendências.
+- Código e cenários de correção ainda abertos ficam em [docs/ROADMAP.md](../ROADMAP.md); a arquitetura não deve manter uma lista concorrente de pendências.

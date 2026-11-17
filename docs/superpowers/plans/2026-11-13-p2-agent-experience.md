@@ -8,7 +8,7 @@
 
 **Tech Stack:** C, GLib (`g_find_program_in_path`, `GSettings`), libadwaita (`AdwComboRow`), existing `termac-attachments`.
 
-**Spec:** [PLANO_IMPLEMENTACAO.md](../../../PLANO_IMPLEMENTACAO.md), "Prioridades — 13/11/2026", item P2. Product decision in [PDR.Arquiteture.md](../../../PDR.Arquiteture.md): Claude Code and Codex CLI first, architecture extensible, OpenCode out of the MVP.
+**Spec:** [PLANO_IMPLEMENTACAO.md](../../PLANO_IMPLEMENTACAO.md), "Prioridades — 13/11/2026", item P2. Product decision in [PDR.Arquiteture.md](../../architecture/PDR.Arquiteture.md): Claude Code and Codex CLI first, architecture extensible, OpenCode out of the MVP.
 
 ## Global Constraints
 
@@ -30,7 +30,7 @@
 
 ## Execution record — 13/11/2026
 
-Implemented on `p2-agent-experience`. See [P2 results](../../../PLANO_IMPLEMENTACAO.md)
+Implemented on `p2-agent-experience`. See [P2 results](../../PLANO_IMPLEMENTACAO.md)
 and [real-agent validation](../../checklists/agents-manual.md).
 
 Execution adjustments: local `is_installed` retains the specified process-PATH API;

@@ -1,6 +1,6 @@
 # Migração para distribuição `.deb`
 
-Em 14/11/2026, o perfil `default` foi compilado para amd64, empacotado localmente como `thiago.aciole.termac` 0.1.0 e instalado via APT. O novo roteiro reproduzível é `python3 tools/build-deb.py`; o `.deb` gerado em `dist/` contém o executável e os arquivos de integração desktop.
+Em 14/11/2026, o perfil `default` foi compilado para amd64, empacotado localmente como `thiago.aciole.termac` 0.1.0 e instalado via APT. O roteiro reproduzível é `python3 tools/build-deb.py`; a saída original foi `dist/`, depois preservada em `build/packages/archive/`. Saídas novas ficam em `build/packages/`.
 
 O Meson instala `/usr/share/icons/hicolor/scalable/apps/thiago.aciole.Termac.svg`, gerado pelo preparador existente a partir de `data/icons/hicolor/scalable/apps/thiago.aciole.Termac.svg`. O desktop entry referencia `Icon=thiago.aciole.Termac` e `Exec=termac`. Binário, schema GSettings e serviço D-Bus também foram conferidos nos caminhos de sistema.
 

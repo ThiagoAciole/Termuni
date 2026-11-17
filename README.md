@@ -1,49 +1,75 @@
 # Termuni
 
-Terminal Linux em C, GTK 4 e libadwaita, com motor **libghostty-vt**, sessões independentes em abas e anexos de imagem para Claude Code e Codex CLI.
+**Um terminal nativo para GNOME, feito para trabalhar com várias sessões.**
 
-O MVP inclui busca com realce, seleção/copiar/colar, overview de abas, paletas, atalhos editáveis, restauração de pastas e organização e notificações opt-in. Está em desenvolvimento: o aceite no GNOME/Wayland real ainda tem itens abertos.
+O Termuni combina GTK 4, libadwaita e `libghostty-vt` em um aplicativo Linux escrito em C. Cada aba mantém sua própria sessão de shell. O projeto também oferece busca no terminal, restauração de abas e envio de imagens para Claude Code e Codex CLI.
 
-## Comece aqui
+> **Estado:** em desenvolvimento. Build e testes automatizados foram executados; validação no GNOME/Wayland real ainda está em andamento. Consulte o [estado atual](docs/PLANO_IMPLEMENTACAO.md) antes de interpretar os recursos como prontos para lançamento.
 
-- [Estado atual e próximo incremento](PLANO_IMPLEMENTACAO.md)
-- [Melhorias priorizadas e critérios de conclusão](docs/ROADMAP.md)
-- [Índice da documentação](docs/README.md)
-- [Desenvolvimento, build e testes](docs/development.md)
-- [Requisitos e arquitetura](PDR.Arquiteture.md), [design](DESIGN.md) e [orientações para agentes](AGENTS.md)
+## O que você encontra
 
-## Build local
+- Sessões de shell independentes em abas, com overview e restauração de pastas.
+- Busca com realce, seleção, copiar e colar.
+- Paletas, fontes e atalhos configuráveis.
+- Anexos de imagem para Claude Code e Codex CLI, quando instalados.
+- Interface GTK 4/libadwaita integrada ao GNOME.
+- Perfis separados para desenvolvimento (`.Devel`) e uso normal.
 
-Pré-requisitos: compilador C, Meson/Ninja, pkg-config, GTK **≥ 4.22**, libadwaita **≥ 1.8**, GLib/GIO, PangoCairo e **Zig 0.16.0** no PATH. A revisão de Ghostty fica fixada em [subprojects/ghostty.wrap](subprojects/ghostty.wrap); o primeiro build baixa o código e pacotes Zig e precisa de rede.
+## Começar a desenvolver
 
-Primeira configuração:
+### Requisitos
+
+Linux com compilador C, Meson, Ninja, pkg-config, GTK **4.22 ou superior**, libadwaita **1.8 ou superior**, GLib/GIO, PangoCairo e **Zig 0.16.0**. A revisão do `libghostty-vt` é fixada pelo wrap do Meson. O primeiro build baixa dependências e precisa de acesso à rede.
+
+### Compilar e executar
 
 ```sh
 zig version
-meson setup build -Dprofile=development
+meson setup build/development -Dprofile=development
+meson compile -C build/development
+build/development/src/termuni
 ```
 
-Compilar e executar um build já configurado:
+Para iniciar com as traduções locais, consulte [`tools/dev.sh`](tools/dev.sh). O perfil de desenvolvimento usa o ID `io.github.ThiagoAciole.Termuni.Devel`; o perfil `default` usa `io.github.ThiagoAciole.Termuni` e deve ser configurado em outro diretório:
 
 ```sh
-meson compile -C build
-build/src/termuni
+meson setup build/default -Dprofile=default
+meson compile -C build/default
 ```
 
-Para usar as traduções locais e evitar abrir outra instância desnecessária, veja [tools/dev.sh](tools/dev.sh). O modo `--restart` encerra shells e abas existentes e exige cuidado com trabalho aberto.
+O projeto também pode ser aberto como projeto Meson no GNOME Builder. Veja [Desenvolvimento](docs/development.md) para dependências, testes, traduções, CI e empacotamento `.deb`.
 
 ## Testes
 
 ```sh
-meson test -C build --print-errorlogs
+meson test -C build/development --print-errorlogs
 ```
 
-As suítes de interface usam Xvfb/X11 quando disponível e cobrem também HiDPI. Testes que precisam de contas reais de agentes ou capturas são opt-in; a suíte comum não chama modelos. Procedimentos e limites em [desenvolvimento](docs/development.md) e nas [checklists](docs/README.md#checklists-de-aceite).
+A suíte inclui testes de GTK em Xvfb e HiDPI. Testes que dependem de contas ou CLIs reais são opt-in. Uma suíte aprovada não substitui a validação manual no GNOME Builder, Wayland, IME, acessibilidade e notificações. Os resultados e pendências ficam no [plano](docs/PLANO_IMPLEMENTACAO.md) e nas [checklists](docs/README.md#checklists-de-aceite).
 
-## GNOME Builder e perfis
+## Mapa do projeto
 
-Abra esta raiz como projeto Meson no GNOME Builder e configure um build nativo `development`, ID `io.github.ThiagoAciole.Termuni.Devel`.
+| Caminho | Conteúdo |
+| --- | --- |
+| [`src/`](src/) | Aplicativo C, interface, terminal, PTY e integração com agentes. |
+| [`data/`](data/) | Ícones, schema GSettings, serviço D-Bus e metadados do aplicativo. |
+| [`tests/`](tests/) | Testes automatizados, fixtures e cenários opt-in. |
+| [`tools/`](tools/) | Scripts de desenvolvimento, CI e empacotamento. |
+| [`docs/`](docs/README.md) | Roadmap, arquitetura, design, checklists e relatórios. [Mapa da estrutura](docs/estrutura.md). |
+| [`subprojects/`](subprojects/) | Wrap e integração Meson da revisão fixada do Ghostty. |
+| [`po/`](po/) | Traduções gettext. |
 
-O perfil `default` usa `io.github.ThiagoAciole.Termuni`; configure-o em outro diretório (`build-default`). Gere o pacote instalável com `python3 tools/build-deb.py`; os detalhes e o aceite de desktop ficam na [checklist GNOME](docs/checklists/gnome-manual.md). Não troque o perfil de um build em uso.
+Builds, pacotes gerados e caches ficam fora do controle de versão. Veja [`.gitignore`](.gitignore) e as [orientações para contribuir](AGENTS.md) antes de alterar a organização ou os arquivos do projeto.
 
-Licença: [GPL-3.0-or-later](COPYING). As artes e avisos existentes são preservados.
+## Documentação
+
+- [Plano e estado atual](docs/PLANO_IMPLEMENTACAO.md)
+- [Roadmap e critérios de conclusão](docs/ROADMAP.md)
+- [Índice de documentação](docs/README.md)
+- [Requisitos e arquitetura](docs/architecture/PDR.Arquiteture.md)
+- [Design e referências visuais](docs/design/DESIGN.md)
+- [Desenvolvimento, testes e CI](docs/development.md)
+
+## Licença
+
+Termuni é distribuído sob a licença [GNU GPL v3 ou posterior](COPYING). Avisos de copyright e proveniência dos recursos devem ser preservados.

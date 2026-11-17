@@ -2,7 +2,7 @@
 
 Atualizado em 13/11/2026. **Termuni é primeiro um terminal nativo GNOME completo; agentes são integrações opcionais.** O shell, PTY, entrada, desenho e restauração não podem depender de Claude Code/Codex instalados, autenticados ou disponíveis na rede.
 
-Esta página é o contrato de aceite da versão estável. O [roadmap](../ROADMAP.md) contém melhorias; não é uma lista de bloqueadores integral. O [quadro vigente](../../PLANO_IMPLEMENTACAO.md) resume implementação e validação.
+Esta página é o contrato de aceite da versão estável. O [roadmap](../ROADMAP.md) contém melhorias; não é uma lista de bloqueadores integral. O [quadro vigente](../PLANO_IMPLEMENTACAO.md) resume implementação e validação.
 
 ## Estados
 

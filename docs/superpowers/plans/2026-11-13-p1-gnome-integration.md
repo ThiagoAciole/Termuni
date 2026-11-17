@@ -8,7 +8,7 @@
 
 **Tech Stack:** Meson, Flatpak (`flatpak-builder`, `org.gnome.Sdk` 50), GSettings, GTK 4 accessibility API, Xvfb.
 
-**Spec:** [PLANO_IMPLEMENTACAO.md](../../../PLANO_IMPLEMENTACAO.md), "Prioridades — 13/11/2026", item P1. Also [PDR.Arquiteture.md](../../../PDR.Arquiteture.md), "Riscos e pontos de atenção".
+**Spec:** [PLANO_IMPLEMENTACAO.md](../../PLANO_IMPLEMENTACAO.md), "Prioridades — 13/11/2026", item P1. Also [PDR.Arquiteture.md](../../architecture/PDR.Arquiteture.md), "Riscos e pontos de atenção".
 
 ## Global Constraints
 
@@ -31,7 +31,7 @@
 ## Execution record — 13/11/2026
 
 Implemented on `p1-gnome-integration`; evidence and explicit limitations are in
-[PLANO_IMPLEMENTACAO.md](../../../PLANO_IMPLEMENTACAO.md), “P1 — resultados”, and
+[PLANO_IMPLEMENTACAO.md](../../PLANO_IMPLEMENTACAO.md), “P1 — resultados”, and
 [the manual checklist](../../checklists/gnome-manual.md). Manual visual acceptance
 remains open. Commits are consolidated at completion and use actual authorship.
 

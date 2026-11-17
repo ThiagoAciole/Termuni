@@ -36,14 +36,14 @@ int main(void) {
             roots = [base / name for name in ("checkout-a", "checkout-b", "default")]
             for root in roots:
                 (root / "tools").mkdir(parents=True)
-                (root / "build/src").mkdir(parents=True)
+                (root / "build/development/src").mkdir(parents=True)
                 (root / "po").mkdir()
                 (root / "po/LINGUAS").write_text("")
-                (root / "build/config.h").write_text(
+                (root / "build/development/config.h").write_text(
                     '#define APPLICATION_ID "io.github.ThiagoAciole.Termuni' +
                     ('' if root.name == 'default' else '.Devel') + '"\n')
                 shutil.copy2(SOURCE / "tools/dev.sh", root / "tools/dev.sh")
-                shutil.copy2(fixture, root / "build/src/termuni")
+                shutil.copy2(fixture, root / "build/development/src/termuni")
             env = dict(os.environ, PATH=str(bindir) + ":" + os.environ["PATH"],
                        TERMUNI_DEV_LOG=str(base / "dev.log"))
             processes = []
@@ -61,7 +61,7 @@ int main(void) {
                         target = os.readlink(proc / 'exe')
                     except OSError:
                         continue
-                    if target in (str(root / 'build/src/termuni'), str(root / 'build/src/termuni') + ' (deleted)'):
+                    if target in (str(root / 'build/development/src/termuni'), str(root / 'build/development/src/termuni') + ' (deleted)'):
                         result.append(int(proc.name))
                 return result
 
@@ -72,7 +72,7 @@ int main(void) {
             try:
                 # Two different development roots and a default binary coexist.
                 for root in roots[1:]:
-                    child = subprocess.Popen([str(root / 'build/src/termuni')])
+                    child = subprocess.Popen([str(root / 'build/development/src/termuni')])
                     children.append(child)
                     processes.append(child.pid)
                 time.sleep(0.1)
@@ -94,9 +94,9 @@ int main(void) {
                 self.assertEqual(pids(roots[0]), first)
 
                 # Simulate Meson replacing the running executable's inode.
-                replacement = roots[0] / 'build/src/replacement'
+                replacement = roots[0] / 'build/development/src/replacement'
                 shutil.copy2(fixture, replacement)
-                replacement.replace(roots[0] / 'build/src/termuni')
+                replacement.replace(roots[0] / 'build/development/src/termuni')
                 result = launch(roots[0], args=['--restart'])
                 self.assertEqual(result.returncode, 0, result.stderr)
                 collect()

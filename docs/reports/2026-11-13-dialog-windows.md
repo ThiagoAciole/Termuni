@@ -20,7 +20,7 @@ Na regressão de renomear foi encontrado um erro existente: o botão respondia c
 - `/ui/quit-confirmation`, `/ui/shortcut-editor` e `/ui/shortcut-conflict` passaram nas execuções direcionadas. Os testes foram adaptados para localizar as novas janelas, preservando as verificações de conflito/cancelamento.
 - `/ui/visual-screens` passou e produziu capturas de Sobre/Atalhos em suas próprias janelas. As imagens foram abertas: conteúdo e combinações de teclas continuam visíveis.
 
-Capturas locais: `build/dialog-windows-shots/close-window-parent.png`, `close-window-native.png`; `build/dialog-windows-visual/about.png` e `shortcuts.png`. Os snapshots da origem e da confirmação foram inspecionados separadamente, sem a camada preta da apresentação embutida. A regra de UX fica em `DESIGN.md`.
+Capturas locais preservadas em `build/archive/previous-development/dialog-windows-shots/close-window-parent.png`, `close-window-native.png`, e `build/archive/previous-development/dialog-windows-visual/about.png` e `shortcuts.png`. Os snapshots da origem e da confirmação foram inspecionados separadamente, sem a camada preta da apresentação embutida. A regra de UX fica em `docs/design/DESIGN.md`.
 
 Documentação primária: [AdwDialog.present](https://gnome.pages.gitlab.gnome.org/libadwaita/doc/main/method.Dialog.present.html), [AdwAlertDialog.choose](https://gnome.pages.gitlab.gnome.org/libadwaita/doc/main/method.AlertDialog.choose.html). A solução usa o caminho público standalone, sem APIs obsoletas ou CSS sobre estruturas internas do Adwaita.
 

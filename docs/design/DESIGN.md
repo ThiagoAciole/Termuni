@@ -1,6 +1,6 @@
 # Termuni — referência visual e comportamento
 
-Atualizado em 13/11/2026. As referências originais estão em `/home/thiago/Documentos/termac/screenshoot/` e os ícones fornecidos em `/home/thiago/Documentos/termac/icons/`. O estado e as verificações de cada marco ficam em [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md).
+Atualizado em 13/11/2026. As referências originais estão em `/home/thiago/Documentos/termac/screenshoot/` e os ícones fornecidos em `/home/thiago/Documentos/termac/icons/`. O estado e as verificações de cada marco ficam em [PLANO_IMPLEMENTACAO.md](../PLANO_IMPLEMENTACAO.md).
 
 ## Telas de referência
 
@@ -25,10 +25,10 @@ As imagens adicionais fornecidas na conversa detalham a grade de paletas, o menu
 
 ## Identidade e recursos
 
-- `icons/icon.svg` é a arte principal; a cópia do projeto é [io.github.ThiagoAciole.Termuni.svg](data/icons/hicolor/scalable/apps/io.github.ThiagoAciole.Termuni.svg).
-- `icons/icon -dev.svg` é a arte de desenvolvimento; a cópia do projeto é [io.github.ThiagoAciole.Termuni.Devel.svg](data/icons/hicolor/scalable/apps/io.github.ThiagoAciole.Termuni.Devel.svg).
+- `icons/icon.svg` é a arte principal; a cópia do projeto é [io.github.ThiagoAciole.Termuni.svg](../../data/icons/hicolor/scalable/apps/io.github.ThiagoAciole.Termuni.svg).
+- `icons/icon -dev.svg` é a arte de desenvolvimento; a cópia do projeto é [io.github.ThiagoAciole.Termuni.Devel.svg](../../data/icons/hicolor/scalable/apps/io.github.ThiagoAciole.Termuni.Devel.svg).
 - As cópias preservam a arte original. Validar a apresentação no lançador, alternador de janelas e Sobre nos dois perfis; o nome correto do arquivo no build não comprova a apresentação visual no desktop.
-- [src/termuni-window.ui](src/termuni-window.ui) define a estrutura principal; [src/termuni-window.c](src/termuni-window.c) constrói o menu e ações; [src/termuni.css](src/termuni.css) contém os estilos dos cartões de paleta. O terminal é desenhado em [src/termuni-terminal.c](src/termuni-terminal.c).
+- [src/termuni-window.ui](../../src/termuni-window.ui) define a estrutura principal; [src/termuni-window.c](../../src/termuni-window.c) constrói o menu e ações; [src/termuni.css](../../src/termuni.css) contém os estilos dos cartões de paleta. O terminal é desenhado em [src/termuni-terminal.c](../../src/termuni-terminal.c).
 
 Ao alterar a interface, compare estados com uma e várias abas, overview e preferências em tamanho lógico comparável às imagens. Registre o que foi observado e o que ainda depende de inspeção visual.
 
@@ -46,4 +46,4 @@ Pontos úteis para refinar a aparência:
 
 Os arquivos antigos preservam avisos de autoria e GPL-3.0-or-later. Ao adaptar trechos, conservar as atribuições e a licença aplicáveis. Não transportar chamadas específicas de VTE para o motor Ghostty sem redesenhar e validar o comportamento.
 
-A comparação P3 de 13/11/2026 está em [docs/checklists/visual-review.md](docs/checklists/visual-review.md), com capturas Xvfb inspecionadas, divergências dos mockups e verificações GNOME/Wayland ainda pendentes.
+A comparação P3 de 13/11/2026 está em [docs/checklists/visual-review.md](../checklists/visual-review.md), com capturas Xvfb inspecionadas, divergências dos mockups e verificações GNOME/Wayland ainda pendentes.

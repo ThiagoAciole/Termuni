@@ -8,7 +8,7 @@
 
 **Tech Stack:** C, GTK 4, libadwaita, libghostty-vt, Meson, GLib `g_test`, X11 XTest, valgrind 3.27.1.
 
-**Spec:** [PLANO_IMPLEMENTACAO.md](../../../PLANO_IMPLEMENTACAO.md), section "Prioridades — 13/11/2026", item P0. P1–P3 get their own plans.
+**Spec:** [PLANO_IMPLEMENTACAO.md](../../PLANO_IMPLEMENTACAO.md), section "Prioridades — 13/11/2026", item P0. P1–P3 get their own plans.
 
 ## Global Constraints
 

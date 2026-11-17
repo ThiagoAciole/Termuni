@@ -4,12 +4,15 @@
 
 | Documento | Uso |
 | --- | --- |
-| [Plano vigente](../PLANO_IMPLEMENTACAO.md) | Estado dos marcos, evidências e próximo incremento. |
+| [Plano vigente](PLANO_IMPLEMENTACAO.md) | Estado dos marcos, evidências e próximo incremento. |
 | [Roadmap](ROADMAP.md) | Melhorias ainda necessárias, prioridade e critério de conclusão. |
-| [Requisitos e arquitetura](../PDR.Arquiteture.md) | Escopo do produto, componentes, persistência e limites técnicos. |
-| [Design](../DESIGN.md) | Regras visuais atuais e referências. |
+| [Requisitos e arquitetura](architecture/PDR.Arquiteture.md) | Escopo do produto, componentes, persistência e limites técnicos. |
+| [Design](design/DESIGN.md) | Regras visuais atuais e referências. |
 | [Desenvolvimento](development.md) | Build, perfis, testes e uso seguro das ferramentas. |
 | [Orientações para agentes](../AGENTS.md) | Regras de trabalho no repositório. |
+| [Estrutura de pastas](estrutura.md) | Mapa das pastas, arquivos de entrada e destinos para novos documentos. |
+| [Fontes técnicas](references/SOURCES.md) | Documentação primária consultada durante o desenvolvimento. |
+| [Índice de skills](references/SKILLS_INDEX.md) | Inventário de skills do projeto. |
 
 O plano vigente e o roadmap orientam a próxima tarefa. Relatórios provam o que foi observado numa execução datada; checklists indicam aceite pendente. Um registro antigo não reabre funcionalidades já entregues.
 
@@ -22,6 +25,8 @@ O plano vigente e o roadmap orientam a próxima tarefa. Relatórios provam o que
 - [Revisão visual](checklists/visual-review.md): capturas inspecionadas, diferenças e limites.
 
 ## Relatórios e planos executados
+
+- [Preparação para GitHub, 17/11/2026](reports/2026-11-17-github-preparation.md).
 
 - [M04 — conteúdo acessível, 13/11/2026](reports/2026-11-13-accessible-text.md).
 
@@ -36,7 +41,7 @@ O plano vigente e o roadmap orientam a próxima tarefa. Relatórios provam o que
 
 ## Referências e histórico
 
-- [Fontes técnicas](../SOURCES.md) e [índice de skills](../SKILLS_INDEX.md).
+- [Fontes técnicas](references/SOURCES.md) e [índice de skills](references/SKILLS_INDEX.md).
 - [Ferramentas do projeto](../tools/README.md).
 - [Histórico e backups preservados](history/README.md).
 

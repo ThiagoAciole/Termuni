@@ -21,7 +21,7 @@ O perfil `default` foi compilado e instalado nesta máquina em 14/11/2026. O reg
 
 ```sh
 python3 tools/build-deb.py
-sudo apt install ./dist/io.github.ThiagoAciole.Termuni_0.1.0_amd64.deb
+sudo apt install ./build/packages/io.github.ThiagoAciole.Termuni_0.1.0_amd64.deb
 ```
 
 | Passo | Resultado / ambiente / data |

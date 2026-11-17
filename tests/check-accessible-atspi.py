@@ -93,7 +93,7 @@ def probe(root, with_orca=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--binary', type=Path, default=Path('build/tests/test-ui'))
+    parser.add_argument('--binary', type=Path, default=Path('build/development/tests/test-ui'))
     parser.add_argument('--dbus-daemon', default=shutil.which('dbus-daemon'))
     parser.add_argument('--probe', type=Path)
     parser.add_argument('--orca', action='store_true', help='Check installed Orca readers and speech generation; no audio playback')

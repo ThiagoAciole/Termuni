@@ -1,6 +1,6 @@
 # Melhorias do Termuni
 
-Auditoria de 13/11/2026 sobre o código até `5a14a91`, após P0–P3. **Este é o backlog vigente**, complementado pela revisão arquitetural/estabilidade sobre `51fa0b4`. A [consolidação posterior](reports/2026-11-13-stable-consolidation.md) atualiza os estados de implementação e evidencia os aceites restantes. Os [critérios de estabilidade](checklists/stability.md) definem bloqueadores de lançamento; o backlog inteiro não define. O [plano atual](../PLANO_IMPLEMENTACAO.md) resume o estado; [evidências anteriores](reports/2026-11-13-p0-p3.md) não são substituídas por esta organização.
+Auditoria de 13/11/2026 sobre o código até `5a14a91`, após P0–P3. **Este é o backlog vigente**, complementado pela revisão arquitetural/estabilidade sobre `51fa0b4`. A [consolidação posterior](reports/2026-11-13-stable-consolidation.md) atualiza os estados de implementação e evidencia os aceites restantes. Os [critérios de estabilidade](checklists/stability.md) definem bloqueadores de lançamento; o backlog inteiro não define. O [plano atual](PLANO_IMPLEMENTACAO.md) resume o estado; [evidências anteriores](reports/2026-11-13-p0-p3.md) não são substituídas por esta organização.
 
 Tipos: **correção** = comportamento inadequado identificado; **implementação** = capacidade ausente; **validação** = código existe, falta comprovar o aceite. “Alta” indica a ordem recomendada de trabalho, não uma declaração de que todas as versões já falham nesses cenários.
 
