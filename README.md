@@ -38,14 +38,12 @@ Para usar as traduções locais e evitar abrir outra instância desnecessária, 
 meson test -C build --print-errorlogs
 ```
 
-As suítes de interface usam Xvfb/X11 quando disponível e cobrem também HiDPI. Testes que precisam de contas reais de agentes, sandbox Flatpak ou capturas são opt-in; a suíte comum não chama modelos. Procedimentos e limites em [desenvolvimento](docs/development.md) e nas [checklists](docs/README.md#checklists-de-aceite).
+As suítes de interface usam Xvfb/X11 quando disponível e cobrem também HiDPI. Testes que precisam de contas reais de agentes ou capturas são opt-in; a suíte comum não chama modelos. Procedimentos e limites em [desenvolvimento](docs/development.md) e nas [checklists](docs/README.md#checklists-de-aceite).
 
 ## GNOME Builder e perfis
 
-Abra esta raiz como projeto Meson e selecione [thiago.aciole.termac.json](thiago.aciole.termac.json). O manifesto usa GNOME 50, Zig 0.16.0 e o perfil `development`, ID `thiago.aciole.Termac.Devel`.
+Abra esta raiz como projeto Meson no GNOME Builder e configure um build nativo `development`, ID `thiago.aciole.Termac.Devel`.
 
-O perfil `default` usa `thiago.aciole.Termac`; configure-o em outro diretório (`build-default`). Não troque o perfil de um build em uso. Compilação/exportação Flatpak CLI já foram registradas; execução pela interface do Builder continua pendente na [checklist GNOME](docs/checklists/gnome-manual.md).
-
-No Flatpak, por decisão do projeto, o shell e os agentes executam no host via `flatpak-spawn`; consulte as [decisões técnicas](PDR.Arquiteture.md#decisões-técnicas).
+O perfil `default` usa `thiago.aciole.Termac`; configure-o em outro diretório (`build-default`). Gere o pacote instalável com `python3 tools/build-deb.py`; os detalhes e o aceite de desktop ficam na [checklist GNOME](docs/checklists/gnome-manual.md). Não troque o perfil de um build em uso.
 
 Licença: [GPL-3.0-or-later](COPYING). As artes e avisos existentes são preservados.

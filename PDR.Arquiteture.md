@@ -1,6 +1,6 @@
 # Termac — requisitos e arquitetura
 
-Atualizado em 13/11/2026. O estado dos marcos e suas evidências ficam no quadro **Estado atual** de [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md); consulte-o antes de continuar a implementação.
+Atualizado em 14/11/2026. O estado dos marcos e suas evidências ficam no quadro **Estado atual** de [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md); consulte-o antes de continuar a implementação.
 
 ## Produto
 
@@ -25,17 +25,16 @@ A matriz distingue o que já foi implementado de validação pendente. TUI moder
 
 ## Decisões técnicas
 
-- C com GTK 4 e libadwaita; Meson como build e projeto aberto no GNOME Builder. Ambiente principal informado: Ubuntu 26.10 em Wayland.
+- C com GTK 4 e libadwaita; Meson como build e projeto aberto no GNOME Builder. O formato de instalação escolhido é pacote `.deb` nativo para Ubuntu; ambiente principal: Ubuntu 26.10 em Wayland.
 - libghostty-vt faz parsing VT e fornece estado, células, estilos, cores e codificação de teclas. O Termac fornece janela, PTY, entrada e desenho.
-- [subprojects/ghostty.wrap](subprojects/ghostty.wrap) fixa Ghostty em `f64f4aca2c29b554d111b36c3d946a9bddd159ff`. O build exige Zig `0.16.0`; o manifesto registra a URL oficial e SHA-256. A API C deve ser conferida na revisão fixada ao alterá-la. O exemplo oficial Ghostling foi a referência inicial para uso da API.
+- [subprojects/ghostty.wrap](subprojects/ghostty.wrap) fixa Ghostty em `f64f4aca2c29b554d111b36c3d946a9bddd159ff`. O build exige Zig `0.16.0`; URL e SHA-256 ficam fixados em `tools/zig-toolchain.json`. A API C deve ser conferida na revisão fixada ao alterá-la. O exemplo oficial Ghostling foi a referência inicial para uso da API.
 - O desenho atual usa `GtkDrawingArea`, Cairo e PangoCairo. Medições devem orientar qualquer mudança para GSK, OpenGL ou outro renderer.
 - `development` usa `thiago.aciole.Termac.Devel`, schema e ícone próprios; `default` usa `thiago.aciole.Termac`. Recursos GtkBuilder mantêm o caminho `/thiago/aciole/termac`.
 - A cópia de referência `/home/thiago/Downloads/termac.old` deriva do Ptyxis e usa `VteTerminal` e CMake. Serve como referência de estrutura e interface, com detalhes em [DESIGN.md](DESIGN.md); a sessão, entrada, renderização e recursos VTE precisam de adaptação para libghostty-vt. A cópia examinada não contém histórico Git.
 
-- Flatpak P1: por escolha explícita do usuário, o shell roda no host via `flatpak-spawn --host --watch-bus`; a permissão `org.freedesktop.Flatpak=talk` permite execução fora do sandbox. O processo gráfico mantém apenas Wayland/fallback-X11, DRI e IPC, sem rede nem acesso geral à home. Os comandos no host têm os acessos normais do usuário.
-- O host precisa de `script` do util-linux: ele cria o PTY no host para preservar controle de tarefas, Ctrl+C e resize. O shell é resolvido pelo ambiente do host; não se usa `$SHELL` do runtime. Diretórios são argumentos/variáveis de ambiente, nunca interpolados em código de shell. A integração Bash opcional conserva o arquivo rc e não é aplicada a outros shells.
-- Grupos de processos host não são visíveis no sandbox: o Flatpak confirma o fechamento de toda sessão host viva. A detecção precisa busy/idle exige um protocolo próprio futuro. O Bash host emite OSC 7 pelo rc gerado do aplicativo, sem ligar notificações de comandos. Outros shells precisam emitir OSC 7 para acompanhar cd; sem isso o diretório conhecido permanece o inicial. Caminhos pessoais restaurados são preservados e validados no host, com fallback para home se removidos.
-- Claude Code e Codex executam no host e usam `wl-paste`/`xclip` do host. Não se inclui módulo de clipboard sem consumidor no sandbox. A anexação multimodal real pelo Flatpak continua na checklist manual.
+- Distribuição: pacote Debian local gerado pelo perfil `default` com `tools/build-deb.py`. O pacote instala o binário, lançador, schema GSettings, serviço D-Bus, traduções e ícone no sistema; dependências são obtidas do executável com `dpkg-shlibdeps`.
+- Cada sessão usa `forkpty` para executar o shell local do usuário. O PTY fornece o controle de tarefas, Ctrl+C, resize e grupos de processos usados pela confirmação de fechamento. Bash recebe integração opt-in por rc gerado; outros shells conservam a inicialização normal e podem informar CWD com OSC 7.
+- Claude Code e Codex são processos locais opcionais. Disponibilidade e inicialização usam o PATH interativo, o CWD da aba e um processo auxiliar isolado; falha/ausência do CLI não bloqueia o terminal.
 
 ## Código existente
 
@@ -52,7 +51,7 @@ A matriz distingue o que já foi implementado de validação pendente. TUI moder
 | [src/termac.css](src/termac.css) e [src/termac.gresource.xml](src/termac.gresource.xml) | Estilos e recursos incorporados. |
 | [data/meson.build](data/meson.build) e [data/icons/meson.build](data/icons/meson.build) | Arquivos desktop, schema, serviço, metadados e ícones por perfil. |
 | [subprojects/packagefiles/ghostty/meson.build](subprojects/packagefiles/ghostty/meson.build) | Integração Meson do build estático da biblioteca via Zig. |
-| [thiago.aciole.termac.json](thiago.aciole.termac.json) | Manifesto Flatpak usado no fluxo de desenvolvimento do Builder; sua execução na IDE ainda precisa ser comprovada. |
+| [tools/build-deb.py](tools/build-deb.py) | Gera o pacote Debian de produção a partir do perfil `default`. |
 
 ```mermaid
 flowchart TD
@@ -61,7 +60,7 @@ flowchart TD
     App --> Session[session-v3.gvariant / organização]
     Window --> Terminal[TermacTerminal]
     Window --> Agent[Adaptadores / consultas assíncronas]
-    Terminal --> PTY[PTY / shell local ou bridge host]
+    Terminal --> PTY[PTY / shell local]
     Terminal --> VT[libghostty-vt / estado e codificação]
     Terminal --> Draw[GTK DrawingArea / Cairo / Pango]
 ```
@@ -80,12 +79,12 @@ meson compile -C build
 ./build/src/termac
 ```
 
-Use o Zig 0.16.0 disponível no PATH e confira `zig version`; caminhos antigos em `/tmp` não são instruções de build atuais. Para o perfil normal, configure um diretório separado com `-Dprofile=default`. O manifesto do Builder usa `development` e o arquivo oficial do Zig; execução pela interface da IDE continua pendente. Comandos e procedimentos completos em [docs/development.md](docs/development.md).
+Use o Zig 0.16.0 disponível no PATH e confira `zig version`; caminhos antigos em `/tmp` não são instruções de build atuais. Para o perfil normal, configure um diretório separado com `-Dprofile=default`. O Builder configura o projeto Meson nativo com `development`; a execução pela interface da IDE continua pendente. Comandos e procedimentos completos em [docs/development.md](docs/development.md).
 
 ## Riscos e pontos de atenção
 
 - O schema é procurado primeiro na fonte instalada do GLib; `BUILD_SCHEMA_DIR` é apenas fallback de desenvolvimento. Ausência de schema mantém defaults e desabilita Preferências, sem chamadas GSettings com NULL. O smoke de instalação sem build passou no P1.
-- O manifesto usa fonte `dir` da árvore atual, GNOME 50 e Zig 0.16.0 fixado. Compilação/exportação CLI foram verificadas no P1; execução pela interface do Builder continua manual.
+- O perfil `default` foi empacotado e instalado via `.deb` local em 14/11/2026. A execução pela interface do GNOME Builder continua manual.
 - O encerramento em `dispose` espera SIGHUP em loop síncrono de até 1 s (`g_usleep`/`waitpid WNOHANG`) antes de SIGKILL e espera final. M03 do roadmap propõe ownership/encerramento assíncrono. A fila ativa de 1 MiB já tem backlog de 256 MiB (P0); feedback e política de excesso são M10, não uma implementação ainda ausente de colagem grande.
 - `TERM` é definido como `xterm-256color`; as capacidades anunciadas precisam ser confrontadas com o comportamento realmente implementado.
 - Entrada composta, teclas, TUI, seleção, colagem, scrollback, Unicode complexo e desempenho exigem verificações específicas. A API e o desenho por célula não provam compatibilidade completa.

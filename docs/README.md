@@ -17,7 +17,7 @@ O plano vigente e o roadmap orientam a próxima tarefa. Relatórios provam o que
 
 - [Critérios de estabilidade e auditoria das recomendações](checklists/stability.md).
 
-- [GNOME/Builder/Flatpak/Orca/escala](checklists/gnome-manual.md).
+- [GNOME Builder, pacote `.deb`, Orca e escala](checklists/gnome-manual.md).
 - [Agentes reais e anexos](checklists/agents-manual.md): matriz observada e reprodução opt-in.
 - [Revisão visual](checklists/visual-review.md): capturas inspecionadas, diferenças e limites.
 
@@ -42,6 +42,6 @@ O plano vigente e o roadmap orientam a próxima tarefa. Relatórios provam o que
 
 Novas evidências datadas vão em `reports/`, procedimentos de aceite em `checklists/` e planos de implementação em `superpowers/plans/`. Atualize o roadmap em vez de criar outra lista concorrente de pendências.
 
-- [Consolidação de estabilidade: implementação, CI, AT-SPI, Flatpak e medições](reports/2026-11-13-stable-consolidation.md).
+- [Consolidação de estabilidade e medições](reports/2026-11-13-stable-consolidation.md) — registro histórico anterior à adoção do `.deb`.
 
 - [Pacote instalável, atualização isolada, Orca e diagnóstico do controle nativo](reports/2026-11-13-desktop-acceptance.md).

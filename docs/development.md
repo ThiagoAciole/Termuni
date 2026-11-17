@@ -14,7 +14,7 @@ Execute comandos na raiz que contém `meson.build` e `AGENTS.md`. Antes de edita
 | `tools/` | [Ferramentas locais](../tools/README.md); use os procedimentos documentados antes de scripts que encerram sessões ou acionam modelos. |
 | `subprojects/` | Wrap/revisão e integração Meson do Ghostty. `ghostty/` e `packagecache/` são dependências baixadas e ignoradas. |
 | `docs/` | Índice, roadmap, checklists, relatórios, planos e histórico. |
-| `build/`, `build-*/`, `.flatpak-builder/`, `.superpowers/` | Artefatos locais ignorados; podem conter evidência de trabalho anterior. Ignorar no Git não autoriza apagar. |
+| `build/`, `build-*/`, `.superpowers/` | Artefatos locais ignorados; podem conter evidência de trabalho anterior. Ignorar no Git não autoriza apagar. |
 
 ## Toolchain e perfis
 
@@ -44,7 +44,7 @@ meson test -C build util vt attachments settings agent agent-names-contained --p
 meson test -C build --print-errorlogs
 ```
 
-A UI usa Xvfb/X11 e diretórios XDG próprios. A execução comum pula os auxiliares de CLIs reais, sandbox Flatpak e capturas. Não comprova GNOME Builder, compositor Wayland, Orca ou recebimento de notificações do desktop. Para esses cenários use as [checklists](README.md#checklists-de-aceite).
+A UI usa Xvfb/X11 e diretórios XDG próprios. A execução comum pula os auxiliares de CLIs reais e capturas. Não comprova GNOME Builder, compositor Wayland, Orca ou recebimento de notificações do desktop. Para esses cenários use as [checklists](README.md#checklists-de-aceite).
 
 Alguns casos UI antigos compartilham estado e não funcionam isolados; M01 do [roadmap](ROADMAP.md) identifica a correção necessária. Mesmo com a suíte verde, não alegue que `large-output.png` prova 30 mil linhas antes de reparar esse cenário.
 
@@ -60,11 +60,18 @@ A busca tem captura própria em `/ui/search-highlight`; use a execução complet
 
 Valgrind: [tools/valgrind-churn.sh](../tools/valgrind-churn.sh) mantém build separado com SIMD desligado, pois o motor fixado gera instruções que o Valgrind instalado não interpreta. Compare tamanhos de churn e frames do app; não chame todo cache de biblioteca de vazamento. As supressões ficam em `tools/valgrind.supp`.
 
-## Flatpak e GNOME Builder
+## GNOME Builder nativo e pacote `.deb`
 
-O manifesto [thiago.aciole.termac.json](../thiago.aciole.termac.json) usa GNOME 50 e development. Abra a raiz no Builder, selecione o manifesto e registre o resultado na [checklist GNOME](checklists/gnome-manual.md). O procedimento CLI e o driver de teste do PTY host estão nessa mesma checklist.
+Abra a raiz no GNOME Builder como projeto Meson e configure um build `development` separado. O app abre sem sandbox: o PTY, o shell e os agentes executam localmente com as permissões normais do usuário. A [checklist GNOME](checklists/gnome-manual.md) registra a validação pela IDE, a instalação Debian e o aceite visual.
 
-O shell roda intencionalmente no host. Não acrescente rede/acesso geral à home ao processo gráfico para resolver diferenças de contexto; confira [as decisões técnicas](../PDR.Arquiteture.md).
+Para compilar o perfil instalável e gerar um `.deb` local:
+
+```sh
+python3 tools/build-deb.py
+sudo apt install ./dist/thiago.aciole.termac_*.deb
+```
+
+O empacotador configura o perfil `default`, prepara o conteúdo em diretório temporário, calcula dependências dinâmicas e inclui lançador, schema, serviço D-Bus, traduções e ícone.
 
 ## Traduções e documentação
 
@@ -83,7 +90,7 @@ Atualize [PLANO_IMPLEMENTACAO.md](../PLANO_IMPLEMENTACAO.md) e o item do [roadma
 
 `bash tools/ci-check.sh development` e `bash tools/ci-check.sh default` executam o mesmo caminho do job nativo: build, suítes normal/HiDPI, traduções e instalação em DESTDIR dentro do próprio build. `TERMAC_CI_BUILD=build` permite usar uma configuração existente. A instalação de teste não modifica `/usr`.
 
-`.github/workflows/ci.yml` tem jobs nativos Fedora 44 (GTK 4.22+) e Flatpak GNOME 50, para ambos os perfis. Zig usa URL/hash do manifesto; Ghostty continua no wrap fixado. Artifacts contêm logs e os Flatpaks. O workflow não publica releases nem exige autenticação nos agentes. A execução remota depende de o repositório estar hospedado no GitHub.
+`.github/workflows/ci.yml` compila e verifica os perfis development/default em Fedora 44 (GTK 4.22+). Zig usa a URL/hash fixados em `tools/zig-toolchain.json`; Ghostty continua no wrap fixado. O workflow publica logs de CI, não releases; a geração do `.deb` ocorre com `tools/build-deb.py`. A execução remota depende de o repositório estar hospedado no GitHub.
 
 A ponte acessível tem teste real com buses D-Bus privados, sem conexão ao bus do desktop:
 

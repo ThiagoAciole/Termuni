@@ -12,7 +12,6 @@
 - [GTK Inspector e Sysprof](https://docs.gtk.org/gtk4/running.html) — diagnóstico de UI.
 - [API libadwaita 1.10](https://gnome.pages.gitlab.gnome.org/libadwaita/doc/1.10/) — consultar se versão existir no runtime.
 - [Libadwaita: migrating to breakpoints](https://gnome.pages.gitlab.gnome.org/libadwaita/doc/1.10/migrating-to-breakpoints.html) — toolbar view e layout adaptativo.
-- [Flatpak permissions](https://docs.flatpak.org/en/latest/sandbox-permissions.html) — sandbox e permissões.
 - [Ghostty overview](https://ghostty.org/docs/about) — arquitetura, GTK/Linux e função de libghostty.
 - [Ghostty source build](https://ghostty.org/docs/install/build) — dependências Linux, Zig e recursos.
 - [Ghostty embedded internal header](https://github.com/ghostty-org/ghostty/blob/main/include/ghostty.h) — API interna, não é API estável de integração para terceiros.
