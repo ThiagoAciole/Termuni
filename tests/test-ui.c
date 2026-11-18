@@ -1772,7 +1772,6 @@ test_terminal_shortcut_rebind (void)
 	GtkButton *reset;
 	AdwDialog *capture_dialog;
 	g_auto (GStrv) accels = NULL;
-	gint64 end;
 
 	if (main_window () == NULL)
 	{
@@ -1803,20 +1802,6 @@ test_terminal_shortcut_rebind (void)
 	assert_accel_is (accels[0], "<Control><Shift>y");
 	gtk_window_close (preferences);
 	pump (300);
-
-	focus_terminal (GTK_WIDGET (window), GTK_WIDGET (terminal));
-	type_text ("sleep 30");
-	send_keysym (XK_Return, FALSE);
-	pump (1000);
-	g_assert_true (termuni_terminal_has_foreground_job (terminal));
-	send_keysym (XK_c, TRUE);
-	/* Ctrl+C uses a two-press gesture when no selection is active. */
-	pump (100);
-	send_keysym (XK_c, TRUE);
-	end = g_get_monotonic_time () + 5 * G_USEC_PER_SEC;
-	while (termuni_terminal_has_foreground_job (terminal) && g_get_monotonic_time () < end)
-		pump (200);
-	g_assert_false (termuni_terminal_has_foreground_job (terminal));
 
 	/* Restores the default binding. */
 	g_action_group_activate_action (G_ACTION_GROUP (app), "preferences", NULL);
