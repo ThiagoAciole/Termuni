@@ -245,6 +245,9 @@ focus_terminal (GtkWidget *window, GtkWidget *terminal)
 	gtk_window_present (GTK_WINDOW (window));
 	gtk_widget_grab_focus (terminal);
 	pump (300);
+	/* Xvfb runs without a window manager, so presenting the GTK window may
+	 * not move X11 keyboard focus away from the previous test's surface. */
+	XSetInputFocus (x_display, gdk_x11_surface_get_xid (surface), RevertToParent, CurrentTime);
 	XWarpPointer (x_display, None, gdk_x11_surface_get_xid (surface), 0, 0, 0, 0, 120 * gtk_widget_get_scale_factor (window), 120 * gtk_widget_get_scale_factor (window));
 	XFlush (x_display);
 	pump (300);
