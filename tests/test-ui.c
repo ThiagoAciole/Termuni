@@ -1280,7 +1280,15 @@ test_vim_session (void)
 	g_assert_true (wait_for_alternate_screen (vt, TRUE, 4000));
 	/* The virtualized HiDPI renderer can take longer to expose the second
 	 * vi frame even after the alternate screen has already been entered. */
-	g_assert_true (wait_for_screen (terminal, "hello-vim", 10000));
+	if (!wait_for_screen (terminal, "hello-vim", 10000))
+	{
+		g_autofree char *visible = screen_text (terminal);
+		g_test_message ("Vim screen timed out (%ux%u, alternate=%d):\n%s",
+		                termuni_terminal_get_columns (terminal),
+		                termuni_terminal_get_rows (terminal),
+		                termuni_vt_alternate_screen (vt), visible);
+		g_assert_not_reached ();
+	}
 	gtk_window_set_default_size (GTK_WINDOW (window), 900, 420);
 	pump (1200);
 	rows_after = termuni_terminal_get_rows (terminal);
@@ -1801,6 +1809,9 @@ test_terminal_shortcut_rebind (void)
 	send_keysym (XK_Return, FALSE);
 	pump (1000);
 	g_assert_true (termuni_terminal_has_foreground_job (terminal));
+	send_keysym (XK_c, TRUE);
+	/* Ctrl+C uses a two-press gesture when no selection is active. */
+	pump (100);
 	send_keysym (XK_c, TRUE);
 	end = g_get_monotonic_time () + 5 * G_USEC_PER_SEC;
 	while (termuni_terminal_has_foreground_job (terminal) && g_get_monotonic_time () < end)
