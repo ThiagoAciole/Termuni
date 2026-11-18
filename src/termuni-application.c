@@ -1094,7 +1094,24 @@ typedef struct
 	TermuniApplication *app;
 	GtkButton *button;
 	AdwDialog *dialog;
+	GtkWidget *controller_widgets[2];
+	GtkEventController *controllers[2];
 } ShortcutCapture;
+
+static void
+shortcut_capture_dialog_closed_cb (AdwDialog *dialog, gpointer user_data)
+{
+	ShortcutCapture *capture = user_data;
+	guint i;
+	(void) dialog;
+	for (i = 0; i < G_N_ELEMENTS (capture->controllers); i++)
+	{
+		if (capture->controller_widgets[i] != NULL && capture->controllers[i] != NULL)
+			gtk_widget_remove_controller (capture->controller_widgets[i], capture->controllers[i]);
+		capture->controller_widgets[i] = NULL;
+		capture->controllers[i] = NULL;
+	}
+}
 
 static gboolean
 shortcut_capture_key_cb (GtkEventControllerKey *controller,
@@ -1154,9 +1171,11 @@ shortcut_edit_clicked_cb (GtkButton *button, gpointer user_data)
 	/* The capture belongs to the window that holds the button (Preferences), not to
 	 * whichever window is active. */
 	GtkWidget *parent = GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (button)));
+	GtkRoot *root;
 	AdwDialog *dialog = adw_dialog_new ();
 	AdwStatusPage *page = ADW_STATUS_PAGE (adw_status_page_new ());
 	GtkEventController *keys = gtk_event_controller_key_new ();
+	GtkEventController *parent_keys = gtk_event_controller_key_new ();
 	ShortcutCapture *capture = g_new0 (ShortcutCapture, 1);
 
 	capture->app = app;
@@ -1168,11 +1187,32 @@ shortcut_edit_clicked_cb (GtkButton *button, gpointer user_data)
 	adw_status_page_set_title (page, _("Press the new shortcut"));
 	adw_status_page_set_description (page, _("Use Ctrl, Alt, Shift or Super. Press Escape to cancel."));
 	gtk_widget_set_focusable (GTK_WIDGET (page), TRUE);
+	gtk_event_controller_set_propagation_phase (keys, GTK_PHASE_CAPTURE);
+	gtk_event_controller_set_propagation_phase (parent_keys, GTK_PHASE_CAPTURE);
 	g_signal_connect (keys, "key-pressed", G_CALLBACK (shortcut_capture_key_cb), capture);
-	gtk_widget_add_controller (GTK_WIDGET (page), keys);
+	g_signal_connect (parent_keys, "key-pressed", G_CALLBACK (shortcut_capture_key_cb), capture);
 	adw_dialog_set_child (dialog, GTK_WIDGET (page));
 	g_object_set_data_full (G_OBJECT (dialog), "shortcut-capture", capture, g_free);
+	g_signal_connect (dialog, "closed", G_CALLBACK (shortcut_capture_dialog_closed_cb), capture);
 	termuni_dialog_present_window (dialog, GTK_WINDOW (parent));
+	root = gtk_widget_get_root (GTK_WIDGET (dialog));
+	if (GTK_IS_WINDOW (root))
+	{
+		capture->controller_widgets[0] = GTK_WIDGET (root);
+		capture->controllers[0] = keys;
+		gtk_widget_add_controller (GTK_WIDGET (root), keys);
+		gtk_window_present (GTK_WINDOW (root));
+		gtk_window_set_focus (GTK_WINDOW (root), GTK_WIDGET (page));
+	}
+	else
+	{
+		capture->controller_widgets[0] = GTK_WIDGET (page);
+		capture->controllers[0] = keys;
+		gtk_widget_add_controller (GTK_WIDGET (page), keys);
+	}
+	capture->controller_widgets[1] = parent;
+	capture->controllers[1] = parent_keys;
+	gtk_widget_add_controller (parent, parent_keys);
 	gtk_widget_grab_focus (GTK_WIDGET (page));
 }
 

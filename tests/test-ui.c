@@ -63,6 +63,20 @@ tab_count (TermuniWindow *window)
 	return count;
 }
 
+static gboolean
+wait_for_tab_count (TermuniWindow *window, guint expected, guint timeout_ms)
+{
+	gint64 end = g_get_monotonic_time () + (gint64) timeout_ms * 1000;
+
+	while (g_get_monotonic_time () < end)
+	{
+		if (tab_count (window) == expected)
+			return TRUE;
+		pump (50);
+	}
+	return tab_count (window) == expected;
+}
+
 /* Saves what GTK draws for a widget as a PNG, so the screen can be inspected
  * without a screenshot tool. Enabled with TERMUNI_UI_SCREENSHOTS=<directory>. */
 static void
@@ -188,7 +202,6 @@ mouse_move (GtkWidget *window, int x, int y)
 	pump (150);
 }
 
-
 static void
 mouse_button (guint button, gboolean press)
 {
@@ -307,6 +320,20 @@ wait_for_job_end (TermuniTerminal *terminal, guint timeout_ms)
 		pump (100);
 	}
 	return !termuni_terminal_has_foreground_job (terminal);
+}
+
+static gboolean
+wait_for_job_start (TermuniTerminal *terminal, guint timeout_ms)
+{
+	gint64 end = g_get_monotonic_time () + (gint64) timeout_ms * 1000;
+
+	while (g_get_monotonic_time () < end)
+	{
+		if (termuni_terminal_has_foreground_job (terminal))
+			return TRUE;
+		pump (100);
+	}
+	return termuni_terminal_has_foreground_job (terminal);
 }
 
 static void
@@ -692,6 +719,8 @@ assert_accel_is (const char *actual, const char *expected)
 	g_assert_cmpuint (actual_mods, ==, expected_mods);
 }
 
+static void capture_shortcut (GtkWindow *preferences, guint key, GdkModifierType mods);
+
 static void
 test_shortcut_editor (void)
 {
@@ -700,6 +729,7 @@ test_shortcut_editor (void)
 	GtkButton *button;
 	GtkButton *reset;
 	GtkWidget *stack;
+	AdwDialog *capture_dialog;
 	g_auto (GStrv) accels = NULL;
 
 	(void) window;
@@ -716,8 +746,9 @@ test_shortcut_editor (void)
 	g_assert_nonnull (button);
 	g_signal_emit_by_name (button, "clicked");
 	pump (800);
-	mouse_move (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (find_window_dialog (preferences, ADW_TYPE_DIALOG)))), 200, 200);
-	send_keysym_full (XK_y, TRUE, TRUE);
+	capture_dialog = find_window_dialog (preferences, ADW_TYPE_DIALOG);
+	g_assert_nonnull (capture_dialog);
+	capture_shortcut (preferences, GDK_KEY_y, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
 	pump (800);
 
 	accels = gtk_application_get_accels_for_action (GTK_APPLICATION (app), "win.new-tab");
@@ -1247,7 +1278,9 @@ test_vim_session (void)
 	rows_before = termuni_terminal_get_rows (terminal);
 	run_in_terminal (window, terminal, command);
 	g_assert_true (wait_for_alternate_screen (vt, TRUE, 4000));
-	g_assert_true (wait_for_screen (terminal, "hello-vim", 4000));
+	/* The virtualized HiDPI renderer can take longer to expose the second
+	 * vi frame even after the alternate screen has already been entered. */
+	g_assert_true (wait_for_screen (terminal, "hello-vim", 10000));
 	gtk_window_set_default_size (GTK_WINDOW (window), 900, 420);
 	pump (1200);
 	rows_after = termuni_terminal_get_rows (terminal);
@@ -1729,6 +1762,7 @@ test_terminal_shortcut_rebind (void)
 	GtkWidget *stack;
 	GtkButton *button;
 	GtkButton *reset;
+	AdwDialog *capture_dialog;
 	g_auto (GStrv) accels = NULL;
 	gint64 end;
 
@@ -1753,8 +1787,9 @@ test_terminal_shortcut_rebind (void)
 	g_assert_nonnull (button);
 	click_button (GTK_WIDGET (button));
 	pump (800);
-	mouse_move (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (find_window_dialog (preferences, ADW_TYPE_DIALOG)))), 200, 200);
-	send_keysym_full (XK_y, TRUE, TRUE);
+	capture_dialog = find_window_dialog (preferences, ADW_TYPE_DIALOG);
+	g_assert_nonnull (capture_dialog);
+	capture_shortcut (preferences, GDK_KEY_y, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
 	pump (800);
 	accels = gtk_application_get_accels_for_action (GTK_APPLICATION (app), "win.terminal-copy");
 	assert_accel_is (accels[0], "<Control><Shift>y");
@@ -2116,18 +2151,14 @@ test_launch_agent_quick_menu (void)
 	pump (300);
 	g_assert_cmpuint (tab_count (window), ==, 2);
 	g_assert_true (wait_for_screen (selected_terminal (window), "CODEX-QUICK", 5000));
-	/* A foreground program is left alone and the agent gets a fresh tab. */
-	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
-	pump (300);
-	termuni_terminal_run_command (selected_terminal (window), "sleep 30");
-	pump (300);
+	/* The running agent owns the foreground, so the next launch gets a new tab. */
+	g_assert_true (wait_for_job_start (selected_terminal (window), 3000));
 	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent-id", g_variant_new_string ("codex"));
-	pump (300);
-	g_assert_cmpuint (tab_count (window), ==, 4);
+	g_assert_true (wait_for_tab_count (window, 3, 5000));
 	g_assert_true (wait_for_screen (selected_terminal (window), "CODEX-QUICK", 5000));
 	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent-id", g_variant_new_string ("bogus"));
 	pump (100);
-	g_assert_cmpuint (tab_count (window), ==, 4);
+	g_assert_cmpuint (tab_count (window), ==, 3);
 	g_assert_true (label_has_text (GTK_WIDGET (window), "Unknown agent"));
 	gtk_window_destroy (GTK_WINDOW (window));
 	g_setenv ("PATH", previous != NULL ? previous : "", TRUE);
@@ -2331,13 +2362,14 @@ test_search_highlight (void)
 static void
 capture_shortcut (GtkWindow *preferences, guint key, GdkModifierType mods)
 {
+ /* Xvfb has no window manager to focus a transient; inject at the modal root. */
  AdwDialog *dialog = find_window_dialog (preferences, ADW_TYPE_DIALOG);
- GtkWidget *child;
+ GtkWidget *controller_root;
  g_autoptr(GListModel) controllers = NULL;
  gboolean handled = FALSE;
  g_assert_nonnull (dialog);
- child = adw_dialog_get_child (dialog);
- controllers = gtk_widget_observe_controllers (child);
+ controller_root = GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (dialog)));
+ controllers = gtk_widget_observe_controllers (controller_root);
  for (guint i = 0; i < g_list_model_get_n_items (controllers); i++) {
   g_autoptr(GObject) controller = g_list_model_get_item (controllers, i);
   if (GTK_IS_EVENT_CONTROLLER_KEY (controller)) {

@@ -51,8 +51,8 @@ test_ui = executable('test-ui', ui_sources,
 xvfb_run = find_program('xvfb-run', required: false)
 if xvfb_run.found()
   # The integrated suite includes fresh-process restarts and dialog lifecycle.
-  test('ui-hidpi', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 360, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11', 'GDK_SCALE=2', 'GDK_DPI_SCALE=1.25'])
-  test('ui', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 360, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
+  test('ui-hidpi', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 360, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11', 'GSK_RENDERER=cairo', 'GDK_SCALE=2', 'GDK_DPI_SCALE=1.25'])
+  test('ui', xvfb_run, depends: schema_build, args: ['-a', test_ui], timeout: 360, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11', 'GSK_RENDERER=cairo'])
 else
   test('ui', test_ui, depends: schema_build, timeout: 360, env: ['GSETTINGS_BACKEND=memory', 'GDK_BACKEND=x11'])
 endif

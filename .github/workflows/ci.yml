@@ -16,7 +16,7 @@ jobs:
           dnf install -y git gcc meson ninja-build pkgconf-pkg-config gtk4-devel
           libadwaita-devel pango-devel libX11-devel libXtst gettext gettext-devel
           desktop-file-utils appstream python3 python3-gobject at-spi2-core
-          dbus-daemon xorg-x11-server-Xvfb xorg-x11-xauth mesa-dri-drivers
+          dbus-daemon dbus-x11 xorg-x11-server-Xvfb xorg-x11-xauth mesa-dri-drivers
           mesa-libEGL dejavu-sans-mono-fonts google-noto-emoji-color-fonts
           vim-minimal less btop tar xz
       - uses: actions/checkout@v4
