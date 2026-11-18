@@ -96,7 +96,7 @@ Atualize [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md) e o item do [roadmap](
 
 `bash tools/ci-check.sh development` e `bash tools/ci-check.sh default` executam o mesmo caminho do job nativo: build, suítes normal/HiDPI, traduções e instalação em DESTDIR dentro do próprio build. `TERMUNI_CI_BUILD=build/ci/development` permite usar uma configuração existente. A instalação de teste não modifica `/usr`.
 
-`.github/workflows/ci.yml` compila e verifica os perfis development/default em Fedora 44 (GTK 4.22+). Zig usa a URL/hash fixados em `tools/zig-toolchain.json`; Ghostty continua no wrap fixado. O workflow publica logs de CI, não releases; a geração do `.deb` ocorre com `tools/build-deb.py`. A execução remota depende de o repositório estar hospedado no GitHub.
+`.github/workflows/ci.yml` compila e verifica os perfis development/default no runner Ubuntu 26.04, usando os pacotes do próprio Ubuntu. O workflow de release também usa Ubuntu 26.04. Zig usa a URL/hash fixados em `tools/zig-toolchain.json`; Ghostty continua no wrap fixado. O workflow publica logs de CI, não releases; a geração do `.deb` ocorre com `tools/build-deb.py`. A execução remota depende de o repositório estar hospedado no GitHub.
 
 A ponte acessível tem teste real com buses D-Bus privados, sem conexão ao bus do desktop:
 
