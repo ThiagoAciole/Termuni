@@ -42,7 +42,7 @@ jobs:
             build-essential meson ninja-build pkg-config python3 \
             libgtk-4-dev libadwaita-1-dev libglib2.0-dev libpango1.0-dev \
             libx11-dev libxtst-dev gettext desktop-file-utils appstream \
-            dpkg-dev xvfb xauth at-spi2-core dbus-daemon mesa-dri-drivers \
+            dpkg-dev xvfb xauth at-spi2-core dbus-daemon libgl1-mesa-dri \
             fonts-dejavu-core fonts-noto-color-emoji vim less btop tar xz-utils
 
       - name: Install the pinned Zig toolchain
