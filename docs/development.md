@@ -36,6 +36,10 @@ meson compile -C build/default
 
 `tools/dev.sh` compila e inicia somente se o executável development desta raiz ainda não estiver aberto. Confere o perfil e a identidade em `/proc/PID/exe`, preservando instâncias de outros checkouts/perfis. Carrega traduções locais e grava log em `~/.cache/termuni/dev.log` (ou `TERMUNI_DEV_LOG`). **`--restart` informa os PIDs e encerra somente os shells/abas desse executável**; informe o usuário antes de usá-lo. Não use `G_DEBUG=fatal-warnings` para manter o app pessoal aberto.
 
+### Gerar e publicar `.deb`
+
+Gere um pacote local com `python3 tools/build-deb.py`; por padrão, ele grava em `build/packages/`. Ao enviar uma tag `vX.Y.Z` igual à versão em `meson.build`, o workflow [`release.yml`](../.github/workflows/release.yml) compila o perfil `default` e publica o `.deb` como asset de um GitHub Release com notas automáticas. A compilação de release usa Ubuntu 26.04 para atender aos mínimos atuais de GTK/libadwaita. O workflow requer a permissão `contents: write` do token padrão do Actions.
+
 ## Testes e evidência
 
 ```sh

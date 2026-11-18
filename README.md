@@ -1,75 +1,110 @@
-# Termuni
+<p align="center">
+  <img src="data/icons/hicolor/scalable/apps/io.github.ThiagoAciole.Termuni.svg" alt="Ícone do Termuni" width="112">
+</p>
 
-**Um terminal nativo para GNOME, feito para trabalhar com várias sessões.**
+<h1 align="center">Termuni</h1>
 
-O Termuni combina GTK 4, libadwaita e `libghostty-vt` em um aplicativo Linux escrito em C. Cada aba mantém sua própria sessão de shell. O projeto também oferece busca no terminal, restauração de abas e envio de imagens para Claude Code e Codex CLI.
+<p align="center">
+  Um terminal nativo para GNOME, com sessões independentes e ferramentas para o seu fluxo de trabalho.
+</p>
 
-> **Estado:** em desenvolvimento. Build e testes automatizados foram executados; validação no GNOME/Wayland real ainda está em andamento. Consulte o [estado atual](docs/PLANO_IMPLEMENTACAO.md) antes de interpretar os recursos como prontos para lançamento.
+<p align="center">
+  <a href="https://github.com/ThiagoAciole/Termuni/releases"><img alt="Última versão" src="https://img.shields.io/github/v/release/ThiagoAciole/Termuni?label=vers%C3%A3o"></a>
+  <a href="https://github.com/ThiagoAciole/Termuni/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ThiagoAciole/Termuni/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="COPYING"><img alt="Licença GPL-3.0-or-later" src="https://img.shields.io/badge/licen%C3%A7a-GPL--3.0--or--later-blue"></a>
+</p>
 
-## O que você encontra
+<p align="center">
+  <a href="https://github.com/ThiagoAciole/Termuni/releases">Pacotes e releases</a> ·
+  <a href="#recursos">Recursos</a> ·
+  <a href="#desenvolvimento">Desenvolvimento</a>
+</p>
 
-- Sessões de shell independentes em abas, com overview e restauração de pastas.
-- Busca com realce, seleção, copiar e colar.
-- Paletas, fontes e atalhos configuráveis.
-- Anexos de imagem para Claude Code e Codex CLI, quando instalados.
-- Interface GTK 4/libadwaita integrada ao GNOME.
-- Perfis separados para desenvolvimento (`.Devel`) e uso normal.
+![Demonstração do Termuni: abas e visão geral](assets/termuni-tour.gif)
 
-## Começar a desenvolver
+O Termuni é um terminal GTK 4/libadwaita para GNOME. Cada aba mantém sua própria sessão de shell, com busca no histórico, restauração de sessões e integração opcional com Claude Code e Codex CLI.
+
+> **Estado do produto:** em desenvolvimento ativo. Os pacotes e releases serão publicados automaticamente pelo GitHub Actions quando uma tag de versão for enviada. A validação final em GNOME/Wayland segue em andamento; veja o [estado atual](docs/PLANO_IMPLEMENTACAO.md).
+
+## Recursos
+
+- **Sessões em abas:** cada aba tem seu próprio shell, diretório de trabalho e estado de sessão.
+- **Busca no terminal:** encontre texto no histórico com realce e navegação entre resultados.
+- **Fluxo GNOME:** interface GTK 4/libadwaita, overview de abas, atalhos, temas e fontes configuráveis.
+- **Anexos para agentes:** envie imagens do clipboard ou arquivos para Claude Code e Codex CLI instalados localmente.
+- **Shell local:** PTY e processos executam como o usuário, sem sandbox ou serviço remoto.
+- **Código aberto:** C, Meson e `libghostty-vt`, sob GNU GPL v3 ou posterior.
+
+## Capturas
+
+<p align="center">
+  <img src="assets/screenshots/main-two-tabs.png" alt="Termuni com duas sessões de terminal em abas" width="720">
+</p>
+
+<p align="center"><em>Duas sessões independentes, lado a lado na faixa de abas.</em></p>
+
+<p align="center">
+  <img src="assets/screenshots/search-highlight.png" alt="Busca por texto com ocorrências realçadas no terminal" width="720">
+</p>
+
+<p align="center"><em>A busca realça as ocorrências no conteúdo do terminal.</em></p>
+
+As imagens são capturas do aplicativo sob Xvfb; a aparência pode variar com o tema e a versão do GNOME.
+
+## Instalação
+
+Baixe o pacote `.deb` mais recente em [Releases](https://github.com/ThiagoAciole/Termuni/releases) e instale no Ubuntu 26.04 ou em uma distribuição Debian compatível com GTK 4.22 e libadwaita 1.8:
+
+```sh
+sudo apt install ./io.github.thiagoaciole.termuni_VERSION_amd64.deb
+```
+
+O pacote é gerado e anexado automaticamente ao GitHub Release ao publicar uma tag `vX.Y.Z` que corresponda à versão do projeto. Para gerar um `.deb` localmente:
+
+```sh
+python3 tools/build-deb.py
+```
+
+O arquivo será salvo em `build/packages/`. O script requer Meson, Ninja, Zig 0.16.0 e as dependências de desenvolvimento listadas em [`docs/development.md`](docs/development.md).
+
+## Desenvolvimento
 
 ### Requisitos
 
-Linux com compilador C, Meson, Ninja, pkg-config, GTK **4.22 ou superior**, libadwaita **1.8 ou superior**, GLib/GIO, PangoCairo e **Zig 0.16.0**. A revisão do `libghostty-vt` é fixada pelo wrap do Meson. O primeiro build baixa dependências e precisa de acesso à rede.
+Linux, compilador C, Meson, Ninja, pkg-config, GTK **4.22+**, libadwaita **1.8+**, GLib/GIO, PangoCairo e Zig **0.16.0**. O primeiro build baixa a revisão fixada de `libghostty-vt` e requer acesso à rede.
 
 ### Compilar e executar
 
 ```sh
-zig version
 meson setup build/development -Dprofile=development
 meson compile -C build/development
 build/development/src/termuni
 ```
 
-Para iniciar com as traduções locais, consulte [`tools/dev.sh`](tools/dev.sh). O perfil de desenvolvimento usa o ID `io.github.ThiagoAciole.Termuni.Devel`; o perfil `default` usa `io.github.ThiagoAciole.Termuni` e deve ser configurado em outro diretório:
+O perfil `development` tem identidade própria (`io.github.ThiagoAciole.Termuni.Devel`). Para compilar o perfil de uso normal sem empacotar:
 
 ```sh
 meson setup build/default -Dprofile=default
 meson compile -C build/default
 ```
 
-O projeto também pode ser aberto como projeto Meson no GNOME Builder. Veja [Desenvolvimento](docs/development.md) para dependências, testes, traduções, CI e empacotamento `.deb`.
-
-## Testes
+### Testes
 
 ```sh
 meson test -C build/development --print-errorlogs
 ```
 
-A suíte inclui testes de GTK em Xvfb e HiDPI. Testes que dependem de contas ou CLIs reais são opt-in. Uma suíte aprovada não substitui a validação manual no GNOME Builder, Wayland, IME, acessibilidade e notificações. Os resultados e pendências ficam no [plano](docs/PLANO_IMPLEMENTACAO.md) e nas [checklists](docs/README.md#checklists-de-aceite).
-
-## Mapa do projeto
-
-| Caminho | Conteúdo |
-| --- | --- |
-| [`src/`](src/) | Aplicativo C, interface, terminal, PTY e integração com agentes. |
-| [`data/`](data/) | Ícones, schema GSettings, serviço D-Bus e metadados do aplicativo. |
-| [`tests/`](tests/) | Testes automatizados, fixtures e cenários opt-in. |
-| [`tools/`](tools/) | Scripts de desenvolvimento, CI e empacotamento. |
-| [`docs/`](docs/README.md) | Roadmap, arquitetura, design, checklists e relatórios. [Mapa da estrutura](docs/estrutura.md). |
-| [`subprojects/`](subprojects/) | Wrap e integração Meson da revisão fixada do Ghostty. |
-| [`po/`](po/) | Traduções gettext. |
-
-Builds, pacotes gerados e caches ficam fora do controle de versão. Veja [`.gitignore`](.gitignore) e as [orientações para contribuir](AGENTS.md) antes de alterar a organização ou os arquivos do projeto.
+A suíte inclui testes GTK em Xvfb e HiDPI. Testes de contas e CLIs reais são opt-in. Build e testes automatizados não substituem a validação manual no GNOME Builder, Wayland, IME, acessibilidade e notificações.
 
 ## Documentação
 
-- [Plano e estado atual](docs/PLANO_IMPLEMENTACAO.md)
-- [Roadmap e critérios de conclusão](docs/ROADMAP.md)
-- [Índice de documentação](docs/README.md)
-- [Requisitos e arquitetura](docs/architecture/PDR.Arquiteture.md)
-- [Design e referências visuais](docs/design/DESIGN.md)
-- [Desenvolvimento, testes e CI](docs/development.md)
+- [Estado atual e próximos aceites](docs/PLANO_IMPLEMENTACAO.md)
+- [Roadmap do produto](docs/ROADMAP.md)
+- [Arquitetura e decisões](docs/architecture/PDR.Arquiteture.md)
+- [Design e referências](docs/design/DESIGN.md)
+- [Build, testes e empacotamento](docs/development.md)
+- [Índice da documentação](docs/README.md)
 
 ## Licença
 
-Termuni é distribuído sob a licença [GNU GPL v3 ou posterior](COPYING). Avisos de copyright e proveniência dos recursos devem ser preservados.
+Termuni é distribuído sob a [GNU GPL v3 ou posterior](COPYING).

@@ -1,0 +1,82 @@
+name: Build and publish Debian release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate release tag against project version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          source = Path('meson.build').read_text()
+          match = re.search(r"project\(\s*'termuni',\s*'c',\s*version:\s*'([^']+)'", source)
+          if not match:
+              raise SystemExit('Could not read the Meson project version')
+          expected = f"v{match.group(1)}"
+          actual = os.environ['RELEASE_TAG']
+          if actual != expected:
+              raise SystemExit(f"Tag {actual} does not match project version {expected}")
+          print(f"Releasing Termuni {match.group(1)}")
+          PY
+
+      - name: Install package build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential meson ninja-build pkg-config python3 \
+            libgtk-4-dev libadwaita-1-dev libglib2.0-dev libpango1.0-dev \
+            libx11-dev libxtst-dev gettext desktop-file-utils appstream \
+            dpkg-dev xvfb xauth at-spi2-core dbus-daemon mesa-dri-drivers \
+            fonts-dejavu-core fonts-noto-color-emoji vim less btop tar xz-utils
+
+      - name: Install the pinned Zig toolchain
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import urllib.request
+
+          toolchain = json.loads(pathlib.Path('tools/zig-toolchain.json').read_text())
+          archive = urllib.request.urlopen(toolchain['url']).read()
+          actual = hashlib.sha256(archive).hexdigest()
+          if actual != toolchain['sha256']:
+              raise SystemExit(f"Zig checksum mismatch: {actual}")
+          pathlib.Path('/tmp/zig.tar.xz').write_bytes(archive)
+          PY
+          mkdir -p "$RUNNER_TEMP/zig"
+          tar -xf /tmp/zig.tar.xz -C "$RUNNER_TEMP/zig"
+          echo "$RUNNER_TEMP/zig/zig-x86_64-linux-0.16.0" >> "$GITHUB_PATH"
+
+      - name: Build the .deb with the project CLI
+        run: python3 tools/build-deb.py --builddir build/release --output dist
+
+      - name: Run the release build test suite
+        run: meson test -C build/release --print-errorlogs
+
+      - name: Publish GitHub Release with the Debian package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/*.deb --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/*.deb \
+              --title "Termuni ${GITHUB_REF_NAME#v}" --generate-notes
+          fi

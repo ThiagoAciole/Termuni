@@ -2103,22 +2103,31 @@ test_launch_agent_quick_menu (void)
 	model = gtk_menu_button_get_menu_model (button);
 	g_assert_nonnull (model);
 	g_assert_cmpint (g_menu_model_get_n_items (model), ==, 2);
-	/* With a single tab, the quick menu runs the agent in that same shell. */
+	/* With an idle selected shell, the quick menu reuses it. */
 	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent-id", g_variant_new_string ("codex"));
 	pump (300);
 	g_assert_cmpuint (tab_count (window), ==, 1);
 	g_assert_true (wait_for_screen (selected_terminal (window), "CODEX-QUICK", 5000));
-	/* With several tabs, it opens the agent in a new tab. */
+	/* With several tabs, an idle selected shell is still reused. */
 	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
 	pump (300);
 	g_assert_cmpuint (tab_count (window), ==, 2);
 	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent-id", g_variant_new_string ("codex"));
 	pump (300);
-	g_assert_cmpuint (tab_count (window), ==, 3);
+	g_assert_cmpuint (tab_count (window), ==, 2);
+	g_assert_true (wait_for_screen (selected_terminal (window), "CODEX-QUICK", 5000));
+	/* A foreground program is left alone and the agent gets a fresh tab. */
+	g_action_group_activate_action (G_ACTION_GROUP (window), "new-tab", NULL);
+	pump (300);
+	termuni_terminal_run_command (selected_terminal (window), "sleep 30");
+	pump (300);
+	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent-id", g_variant_new_string ("codex"));
+	pump (300);
+	g_assert_cmpuint (tab_count (window), ==, 4);
 	g_assert_true (wait_for_screen (selected_terminal (window), "CODEX-QUICK", 5000));
 	g_action_group_activate_action (G_ACTION_GROUP (window), "launch-agent-id", g_variant_new_string ("bogus"));
 	pump (100);
-	g_assert_cmpuint (tab_count (window), ==, 3);
+	g_assert_cmpuint (tab_count (window), ==, 4);
 	g_assert_true (label_has_text (GTK_WIDGET (window), "Unknown agent"));
 	gtk_window_destroy (GTK_WINDOW (window));
 	g_setenv ("PATH", previous != NULL ? previous : "", TRUE);

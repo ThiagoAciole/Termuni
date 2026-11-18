@@ -672,8 +672,10 @@ agent_launch_checked (GObject *source, GAsyncResult *result, gpointer data)
 		else
 		{
 			g_autofree char *command = termuni_agent_build_launch_command (launch->agent);
-			/* The quick menu starts the agent in the only open tab; with several tabs it opens a new one. */
-			if (launch->quick && adw_tab_view_get_n_pages (self->tab_view) == 1)
+			/* Reuse the selected shell when it is idle; preserve a running
+			 * foreground program by launching the agent in a new tab. */
+			if (launch->quick &&
+			    !termuni_terminal_has_foreground_job (window_selected_terminal (self)))
 				window_run_agent_in_current_tab (self, command);
 			else
 			{
@@ -982,8 +984,11 @@ termuni_window_find_action (GSimpleAction *action,
 
 	if (g_strcmp0 (name, "find") == 0)
 	{
-		gtk_widget_set_visible (GTK_WIDGET (self->find_bar), TRUE);
-		gtk_search_bar_set_search_mode (self->find_bar, TRUE);
+		gboolean open = !gtk_search_bar_get_search_mode (self->find_bar);
+		gtk_widget_set_visible (GTK_WIDGET (self->find_bar), open);
+		gtk_search_bar_set_search_mode (self->find_bar, open);
+		if (!open)
+			return;
 		gtk_widget_grab_focus (GTK_WIDGET (self->find_entry));
 		return;
 	}

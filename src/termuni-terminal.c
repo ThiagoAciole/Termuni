@@ -1482,6 +1482,11 @@ terminal_click_pressed (GtkGestureClick *gesture,
 		                     terminal_ghostty_button (button), state, x, y);
 		return;
 	}
+	if (button == GDK_BUTTON_SECONDARY)
+	{
+		termuni_terminal_paste (self);
+		return;
+	}
 	if (button != GDK_BUTTON_PRIMARY)
 		return;
 	self->selecting = TRUE;
